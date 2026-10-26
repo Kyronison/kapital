@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" color="#0F5C4D" role="img" aria-label="Фишка игрока">
+<path d="M22 112v35c0 30 47 54 106 54s106-24 106-54v-35" fill="currentColor"/>
+<path d="M22 112v35c0 30 47 54 106 54s106-24 106-54v-35" fill="#1C2321" opacity=".22"/>
+<ellipse cx="128" cy="112" rx="106" ry="48" fill="currentColor"/>
+<ellipse cx="128" cy="110" rx="86" ry="35" fill="none" stroke="#F6F1E7" stroke-width="3" opacity=".55"/>
+<path d="M91 125V107h22V94h22V81h25v44Z" fill="#F6F1E7" opacity=".85"/>
+</svg>

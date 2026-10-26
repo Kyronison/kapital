@@ -2,30 +2,67 @@ import { defaultContent as content } from '@kapital/content';
 import {
   availableLoan, baseExpenses, cashflow, dreamPrice, loanPayment, passiveIncome, professionOf, type PlayerState,
 } from '@kapital/engine';
+import type { ReactNode } from 'react';
+import { art, Icon } from '../art.js';
 import { dreamTitle, money, signed } from '../format.js';
 
+export interface Flash {
+  key: number;
+  amount: number;
+}
+
+/** Наличные с всплывающей суммой последнего прихода или расхода. */
+function Cash({ cash, flash }: { cash: number; flash: Flash | null }) {
+  return (
+    <div className="cash">
+      <Icon name="ui-wallet" size={22} />
+      <span className="big">{money(cash)}</span>
+      {flash && (
+        <span key={flash.key} className={flash.amount >= 0 ? 'money-pop' : 'coins-out'} aria-hidden="true">
+          {signed(flash.amount)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+const Row = ({ icon, label, children, tone }: { icon: string; label: ReactNode; children: ReactNode; tone?: string }) => (
+  <>
+    <dt><Icon name={icon} size={16} />{label}</dt>
+    <dd className={tone}>{children}</dd>
+  </>
+);
+
 /** Финансовый отчёт игрока: главное число — поток за период. */
-export function Statement({ p }: { p: PlayerState }) {
+export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null }) {
   const prof = professionOf(content, p);
   const passive = passiveIncome(p);
   const expenses = baseExpenses(content, p) + loanPayment(content, p);
 
   if (p.circle === 'outer') {
     const goal = content.rules.outerGoalMultiplier * p.startOuterIncome;
+    const price = dreamPrice(content, p);
     return (
-      <section className="statement card">
-        <h2>Свободный путь</h2>
-        <div className="big">{money(p.cash)}</div>
+      <section className="statement card outer">
+        <header className="statement-head">
+          <img className="dream-thumb" src={art(`dreams/${p.dreamId}.webp`)} alt="" />
+          <div>
+            <h2>Свободный путь</h2>
+            <span className="muted">Мечта: {dreamTitle(p.dreamId)}</span>
+          </div>
+        </header>
+        <Cash cash={p.cash} flash={flash} />
         <dl>
-          <dt>Доход за период</dt><dd>{money(p.outerIncome)}</dd>
-          <dt>Цель: удвоить доход</dt><dd>{money(goal)}</dd>
-          <dt>Мечта: {dreamTitle(p.dreamId)}</dt><dd>{money(dreamPrice(content, p))}</dd>
+          <Row icon="ui-income" label="Доход за период">{money(p.outerIncome)}</Row>
+          <Row icon="ui-trophy" label="Цель: удвоить доход">{money(goal)}</Row>
+          <Row icon="cell-dream" label="Цена мечты">{money(price)}</Row>
         </dl>
-        <progress max={goal} value={p.outerIncome} />
+        <Meter label={`Доход: ${Math.min(100, Math.round((p.outerIncome / goal) * 100))}% цели`} value={p.outerIncome} max={goal} gold />
+        <Meter label={`Накоплено на мечту: ${Math.min(100, Math.round((p.cash / price) * 100))}%`} value={p.cash} max={price} gold />
         {p.ventures.length > 0 && (
           <ul className="assets">
             {p.ventures.map((v) => (
-              <li key={v.id}>{v.title} × {v.shares} <span>{signed(v.income)}</span></li>
+              <li key={v.id}><Icon name="cell-venture" size={16} />{v.title} × {v.shares}<span>{signed(v.income)}</span></li>
             ))}
           </ul>
         )}
@@ -33,32 +70,58 @@ export function Statement({ p }: { p: PlayerState }) {
     );
   }
 
+  const flow = cashflow(content, p);
+  const cover = Math.min(100, Math.round((passive / expenses) * 100));
   return (
     <section className="statement card">
-      <h2>{prof.title}</h2>
-      <div className="big">{money(p.cash)}</div>
+      <header className="statement-head">
+        <img className="portrait" src={art(`professions/${p.professionId}.webp`)} alt="" />
+        <div>
+          <h2>{prof.title}</h2>
+          <span className="muted">Мечта: {dreamTitle(p.dreamId)}</span>
+        </div>
+      </header>
+      <Cash cash={p.cash} flash={flash} />
       <dl>
-        <dt>Зарплата</dt><dd>{money(prof.salary)}{p.layoffPaydays > 0 ? ` (не придёт ещё ${p.layoffPaydays})` : ''}</dd>
-        <dt>Пассивный доход</dt><dd>{money(passive)}</dd>
-        <dt>Расходы</dt><dd>{money(expenses)}</dd>
-        <dt>Поток за период</dt><dd className={cashflow(content, p) >= 0 ? 'good' : 'bad'}>{signed(cashflow(content, p))}</dd>
-        <dt>Кредит банка</dt><dd>{money(p.bankLoan)} · ещё доступно {money(availableLoan(content, p))}</dd>
-        <dt>Дети</dt><dd>{p.children}</dd>
+        <Row icon="cell-payday" label="Зарплата">
+          {money(prof.salary)}{p.layoffPaydays > 0 ? ` (не придёт ещё ${p.layoffPaydays})` : ''}
+        </Row>
+        <Row icon="ui-income" label="Пассивный доход">{money(passive)}</Row>
+        <Row icon="ui-expense" label="Расходы">{money(expenses)}</Row>
+        <Row icon="ui-cashflow" label="Поток за период" tone={flow >= 0 ? 'good' : 'bad'}>{signed(flow)}</Row>
+        <Row icon="ui-bank" label="Кредит банка">
+          {money(p.bankLoan)}<small> · ещё {money(availableLoan(content, p))}</small>
+        </Row>
+        <Row icon="ui-family" label="Дети">{p.children}</Row>
       </dl>
-      <label className="progress-label">
-        Пассивный доход покрывает расходы на {Math.min(100, Math.round((passive / expenses) * 100))}%
-        <progress max={expenses} value={Math.min(passive, expenses)} />
-      </label>
-      {(p.assets.length > 0 || p.stocks.length > 0) && (
+      <Meter label={`Пассивный доход покрывает расходы на ${cover}%`} value={Math.min(passive, expenses)} max={expenses} />
+      {p.assets.length > 0 || p.stocks.length > 0 ? (
         <ul className="assets">
           {p.assets.map((a) => (
-            <li key={a.id}>{a.title} <span>{signed(a.flow)}</span></li>
+            <li key={a.id}><Icon name={`asset-${a.assetType}`} size={16} />{a.title}<span>{signed(a.flow)}</span></li>
           ))}
           {p.stocks.map((s) => (
-            <li key={s.ticker}>Акции {s.ticker} × {s.shares} <span>по {Math.round(s.avgPrice)} К</span></li>
+            <li key={s.ticker}><Icon name={`stock-${s.ticker.toLowerCase()}`} size={16} />Акции {s.ticker} × {s.shares}<span>по {Math.round(s.avgPrice)} К</span></li>
           ))}
         </ul>
+      ) : (
+        <div className="empty">
+          <img src={art('screens/empty-assets.webp')} alt="" />
+          <span className="muted">Активов пока нет. Ищите сделки на клетках «Возможность».</span>
+        </div>
       )}
     </section>
+  );
+}
+
+function Meter({ label, value, max, gold }: { label: string; value: number; max: number; gold?: boolean }) {
+  const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  return (
+    <div className="meter-wrap">
+      <span className="muted">{label}</span>
+      <div className={`meter${gold ? ' gold' : ''}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)} aria-label={label}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </div>
   );
 }
