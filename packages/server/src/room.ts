@@ -1,6 +1,7 @@
 import { Room, type Client, type Delayed } from '@colyseus/core';
 import { defaultContent, type Content } from '@kapital/content';
 import type { GameEvent } from '@kapital/engine';
+import { SaveStore } from './saves.js';
 import { Table, type Result } from './table.js';
 
 export interface RoomOptions {
@@ -11,30 +12,54 @@ export interface RoomOptions {
   /** Сколько секунд держится место отключившегося игрока. */
   reconnectSeconds?: number;
   content?: Content;
+  /** Где хранить незаконченные партии; null — не сохранять. */
+  saves?: SaveStore | null;
+}
+
+/** Параметры создания комнаты от клиента: restore — номер сохранённой партии. */
+export interface CreateOptions {
+  restore?: string;
 }
 
 export interface JoinOptions {
   name?: string;
   professionId?: string;
   dreamId?: string;
+  /** Ключ места: с ним клиент возвращается в сохранённую партию. */
+  key?: string;
 }
 
 /**
  * Комната одной партии. Клиент только присылает намерения; правила проверяет движок.
- * Сообщения клиента: `action` (действие движка), `start`, `add_bot`, `set_mode`.
- * Сообщения сервера: `view` (стол без скрытых данных), `events`, `error`.
+ * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `chat`.
+ * Сообщения сервера: `view` (стол без скрытых данных), `events`, `error` и `seat` — только своему
+ * клиенту: id места, ключ возврата и номер сохранения.
  */
 export class KapitalRoom extends Room {
   maxClients = 6;
   private table!: Table;
-  private opts!: Required<Omit<RoomOptions, 'content'>>;
+  private opts!: Required<Omit<RoomOptions, 'content' | 'saves'>>;
+  private saves: SaveStore | null = null;
+  private saveId = '';
+  private saving: Promise<void> = Promise.resolve();
   private botTimer: Delayed | null = null;
   private turnTimer: Delayed | null = null;
   private turnKey = '';
   private turnDeadline: number | null = null;
 
-  onCreate(options: RoomOptions = {}) {
-    this.table = new Table(options.content ?? defaultContent);
+  async onCreate(options: RoomOptions & CreateOptions = {}) {
+    const content = options.content ?? defaultContent;
+    this.saves = options.saves ?? null;
+    if (options.restore) {
+      const snap = await this.saves?.load(options.restore);
+      if (!snap) throw new Error('Сохранённая партия не найдена');
+      this.table = Table.restore(content, snap);
+      // не запираем: второй игрок той же партии должен найти эту комнату по restore
+      this.saveId = options.restore;
+    } else {
+      this.table = new Table(content);
+      this.saveId = this.roomId;
+    }
     this.opts = {
       turnSeconds: options.turnSeconds ?? 30,
       botDelayMs: options.botDelayMs ?? 700,
@@ -46,17 +71,26 @@ export class KapitalRoom extends Room {
       this.handle(client, this.table.act(client.sessionId, message as Record<string, unknown>));
     });
     this.onMessage('start', (client) => {
-      const r = this.table.start(client.sessionId);
-      if (r.ok) void this.lock();
-      this.handle(client, r);
+      // комнату не запираем: вернуться по ключу места можно и после старта, новых игроков не пустит стол
+      this.handle(client, this.table.start(client.sessionId));
     });
     this.onMessage('add_bot', (client) => this.handle(client, this.table.addBot(client.sessionId)));
     this.onMessage('set_mode', (client, mode: unknown) => this.handle(client, this.table.setMode(client.sessionId, mode)));
+    // клиент подписался на сообщения и просит своё место и стол: в onJoin он мог их не успеть принять
+    this.onMessage('hello', (client) => {
+      const seatId = this.table.seatOf(client.sessionId);
+      const key = this.table.keyOf(seatId);
+      if (key) client.send('seat', { seatId, key, saveId: this.saveId });
+      client.send('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+    });
+    this.onMessage('chat', (client, text: unknown) => this.handle(client, this.table.say(client.sessionId, text)));
   }
 
   onJoin(client: Client, options: JoinOptions = {}) {
-    const r = this.table.join(client.sessionId, String(options.name ?? ''), options.professionId, options.dreamId);
+    const key = typeof options.key === 'string' ? options.key : undefined;
+    const r = this.table.join(client.sessionId, String(options.name ?? ''), options.professionId, options.dreamId, key);
     if (!r.ok) throw new Error(r.error);
+    client.send('seat', { ...r.value, saveId: this.saveId });
     this.publish([]);
   }
 
@@ -66,16 +100,30 @@ export class KapitalRoom extends Room {
     if (consented || !this.table.started) return;
     try {
       await this.allowReconnection(client, this.opts.reconnectSeconds);
-      this.table.join(client.sessionId, '');
+      const r = this.table.join(client.sessionId, '');
+      if (r.ok) client.send('seat', { ...r.value, saveId: this.saveId });
       this.publish([]);
     } catch {
       // не вернулся: место остаётся за ботом
     }
   }
 
-  onDispose() {
+  async onDispose() {
     this.botTimer?.clear();
     this.turnTimer?.clear();
+    this.persist();
+    await this.saving;
+  }
+
+  /** Незаконченная партия пишется на диск, законченная удаляется. Записи идут строго по очереди. */
+  private persist() {
+    const saves = this.saves;
+    if (!saves || !this.table.started) return;
+    const finished = this.table.game!.status === 'finished';
+    const snap = finished ? null : structuredClone(this.table.snapshot());
+    this.saving = this.saving
+      .then(() => (snap ? saves.save(this.saveId, snap) : saves.remove(this.saveId)))
+      .catch((e: unknown) => console.error('Не удалось сохранить партию', e));
   }
 
   private reply(client: Client, r: Result<unknown>) {
@@ -91,6 +139,7 @@ export class KapitalRoom extends Room {
     this.resetTurnTimer();
     if (events.length) this.broadcast('events', events);
     this.broadcast('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+    this.persist();
     this.scheduleBots();
   }
 

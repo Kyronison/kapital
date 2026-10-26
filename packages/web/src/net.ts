@@ -14,12 +14,61 @@ export interface Seat {
 
 export type PublicGame = Omit<GameState, 'decks' | 'rng' | 'seed'>;
 
+export interface ChatMessage {
+  n: number;
+  seatId: string;
+  name: string;
+  text: string;
+  at: number;
+}
+
 export interface View {
   hostId: string | null;
   mode: GameMode;
   seats: Seat[];
   game: PublicGame | null;
+  chat: ChatMessage[];
   turnDeadline: number | null;
+}
+
+/** Незаконченная партия на этом устройстве: по ключу место возвращается даже после перезапуска сервера. */
+export interface SavedGame {
+  saveId: string;
+  key: string;
+  seatId: string;
+  players: string[];
+  mode: GameMode;
+  turn: number;
+  savedAt: number;
+}
+
+const SAVES_KEY = 'kapital:saves';
+
+export function loadSaves(): SavedGame[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SAVES_KEY) ?? '[]') as unknown;
+    return Array.isArray(raw) ? (raw as SavedGame[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSaves(list: SavedGame[]) {
+  try {
+    localStorage.setItem(SAVES_KEY, JSON.stringify(list.slice(0, 10)));
+  } catch {
+    // без localStorage архива просто не будет
+  }
+}
+
+export function forgetSave(saveId: string) {
+  writeSaves(loadSaves().filter((x) => x.saveId !== saveId));
+}
+
+interface SeatTicket {
+  seatId: string;
+  key: string;
+  saveId: string;
 }
 
 export interface JoinOptions {
@@ -40,6 +89,7 @@ export function useTable() {
   // журнал хранит последние 200 событий; logStart — номер первого из них с начала партии
   const [log, setLog] = useState<{ events: GameEvent[]; start: number }>({ events: [], start: 0 });
   const [error, setError] = useState<string | null>(null);
+  const [seat, setSeat] = useState<SeatTicket | null>(null);
 
   const attach = useCallback((r: Room) => {
     try {
@@ -56,8 +106,15 @@ export function useTable() {
       }),
     );
     r.onMessage('error', (m: { error: string }) => setError(m.error));
-    r.onLeave(() => setRoom(null));
+    r.onMessage('seat', (t: SeatTicket) => setSeat(t));
+    r.onLeave(() => {
+      setRoom(null);
+      setSeat(null);
+      setView(null);
+    });
     setRoom(r);
+    // обработчики готовы: просим место и стол
+    r.send('hello');
     const url = new URL(location.href);
     url.searchParams.set('room', r.roomId);
     history.replaceState(null, '', url);
@@ -81,6 +138,21 @@ export function useTable() {
     });
   }, [attach]);
 
+  // архив партий: запоминаем начатую партию и удаляем законченную
+  useEffect(() => {
+    if (!seat || !view?.game) return;
+    if (view.game.status === 'finished') return forgetSave(seat.saveId);
+    const me = view.game.players.find((p) => p.id === seat.seatId);
+    const entry: SavedGame = {
+      ...seat,
+      players: view.seats.map((x) => x.name),
+      mode: view.mode,
+      turn: me?.turnsTaken ?? 0,
+      savedAt: Date.now(),
+    };
+    writeSaves([entry, ...loadSaves().filter((x) => x.saveId !== seat.saveId)]);
+  }, [seat, view]);
+
   const run = useCallback(async (f: () => Promise<Room>) => {
     setError(null);
     try {
@@ -97,9 +169,25 @@ export function useTable() {
     logStart: log.start,
     error,
     clearError: () => setError(null),
-    me: room?.sessionId ?? null,
+    me: seat?.seatId ?? room?.sessionId ?? null,
     create: (opts: JoinOptions) => run(() => client.current.create(ROOM, opts)),
     join: (roomId: string, opts: JoinOptions) => run(() => client.current.joinById(roomId, opts)),
+    // партия ещё идёт на сервере — входим в ту же комнату, иначе сервер поднимет её из сохранения
+    resume: (save: SavedGame) => run(() =>
+      client.current.joinById(save.saveId, { key: save.key })
+        .catch(() => client.current.joinOrCreate(ROOM, { restore: save.saveId, key: save.key }))),
+    leave: () => {
+      void room?.leave(true);
+      const url = new URL(location.href);
+      url.searchParams.delete('room');
+      history.replaceState(null, '', url);
+      try {
+        sessionStorage.removeItem(TOKEN_KEY);
+      } catch {
+        // нечего чистить
+      }
+    },
+    say: (text: string) => room?.send('chat', text),
     send: (type: string, payload?: unknown) => {
       setError(null);
       room?.send(type, payload);

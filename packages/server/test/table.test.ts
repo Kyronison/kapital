@@ -92,17 +92,74 @@ describe('партия', () => {
   });
 
   it('боты доигрывают партию за себя и за отключившегося человека', () => {
-    const t = tableWith('Аня');
-    t.addBot('s1');
+    const t = tableWith('Аня', 'Боря');
     t.addBot('s1');
     t.start('s1');
     t.leave('s1');
     let steps = 0;
+    // ходы Бори, который на связи, доигрывает таймер
     while (t.game!.status === 'playing' && steps < 100000) {
-      if (!t.botStep()) break;
+      if (!t.botStep()) t.timeout();
       steps++;
     }
     expect(t.game!.status).toBe('finished');
-    expect(t.game!.winnerId).not.toBeNull();
+    expect(t.hostId).toBe('s2');
+  });
+
+  it('когда ушли все люди, партия встаёт на паузу', () => {
+    const t = tableWith('Аня');
+    t.addBot('s1');
+    t.start('s1');
+    t.leave('s1');
+    expect(t.paused).toBe(true);
+    expect(t.botStep()).toBeNull();
+  });
+});
+
+describe('места и сохранение', () => {
+  it('по ключу игрок возвращается на своё место с новым соединением', () => {
+    const t = tableWith('Аня', 'Боря');
+    const key = t.keyOf('s1')!;
+    t.start('s1');
+    t.leave('s1');
+    expect(t.join('new', '', undefined, undefined, 'не тот').ok).toBe(false);
+    const r = t.join('new', '', undefined, undefined, key);
+    expect(r.ok && r.value.seatId).toBe('s1');
+    expect(t.act('new', { type: 'ROLL' }).ok).toBe(true);
+  });
+
+  it('снимок стола восстанавливается: люди не на связи, ключи работают', () => {
+    const t = tableWith('Аня');
+    t.addBot('s1');
+    t.start('s1');
+    t.act('s1', { type: 'ROLL' });
+    const copy = Table.restore(content, JSON.parse(JSON.stringify(t.snapshot())));
+    expect(copy.game).toEqual(t.game);
+    expect(copy.seats.map((s) => s.connected)).toEqual([false, true]);
+    expect(copy.join('x', '', undefined, undefined, t.keyOf('s1')).ok).toBe(true);
+    expect(copy.act('x', { type: 'END_TURN' }).ok).toBe(true);
+  });
+
+  it('ключей мест нет в том, что видят клиенты', () => {
+    const t = tableWith('Аня');
+    expect(JSON.stringify(t.view())).not.toContain(t.keyOf('s1')!);
+  });
+});
+
+describe('чат', () => {
+  it('чистит пробелы, режет длину и не даёт заспамить', () => {
+    let now = 0;
+    const t = new Table(content, seeded(), () => now);
+    t.join('s1', 'Аня');
+    expect(t.say('s1', '   ').ok).toBe(false);
+    expect(t.say('s1', 'при\n  вет').ok).toBe(true);
+    expect(t.chat[0]!.text).toBe('при вет');
+    t.say('s1', 'x'.repeat(500));
+    expect(t.chat[1]!.text).toHaveLength(200);
+    for (let i = 0; i < 3; i++) t.say('s1', 'ещё');
+    expect(t.say('s1', 'шестое').ok).toBe(false);
+    now = 11_000;
+    expect(t.say('s1', 'снова можно').ok).toBe(true);
+    expect(t.say('чужой', 'привет').ok).toBe(false);
   });
 });
