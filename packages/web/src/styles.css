@@ -184,6 +184,14 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
 .choice strong { font-size: 12.5px; line-height: 1.2; hyphens: auto; overflow-wrap: anywhere; }
 .choice small { color: var(--muted); font-size: 12px; }
 
+/* ——— партия ——— */
+body:has(.screen-game) {
+  background: linear-gradient(rgb(243 237 225 / 0.72), rgb(243 237 225 / 0.72)), url('/art/screens/home-bg.webp') center bottom / cover no-repeat fixed;
+}
+@media (prefers-color-scheme: dark) {
+  body:has(.screen-game) { background-image: linear-gradient(rgb(18 24 22 / 0.86), rgb(18 24 22 / 0.86)), url('/art/screens/home-bg.webp'); }
+}
+
 /* ——— лобби ——— */
 .screen-lobby {
   background: linear-gradient(rgb(243 237 225 / 0.55), rgb(243 237 225 / 0.55)), url('/art/screens/lobby-bg.webp') center / cover no-repeat fixed;
@@ -239,6 +247,13 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
   font-size: 11px; font-weight: 600; line-height: 1.15;
   background: var(--tone-special); color: var(--ink-special);
   box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.06);
+}
+.cell > .icon, .cell-name { position: relative; z-index: 1; }
+.cell .payday, .cell .tokens { z-index: 2; }
+.cell-art {
+  position: absolute; left: 6%; right: 6%; bottom: 4%; height: 58%; width: 88%;
+  object-fit: contain; object-position: center bottom; pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.12));
 }
 .cell .icon { width: clamp(14px, 2.2vw, 24px); height: clamp(14px, 2.2vw, 24px); }
 .cell.opportunity { background: var(--tone-opportunity); color: var(--ink-opportunity); }
@@ -387,6 +402,8 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
   .board { padding: 6px; gap: 3px; border-radius: 16px; }
   .cell { padding: 3px; border-radius: 8px; align-items: center; justify-content: center; }
   .cell-name { display: none; }
+  .cell-art { height: 70%; bottom: 2%; opacity: 0.9; }
+  .cell > .icon { display: none; }
   .payday { width: 14px; height: 14px; top: 1px; right: 1px; }
   .payday .icon { width: 10px; height: 10px; }
   .token-hop { margin-right: -8px; }

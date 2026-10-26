@@ -1,7 +1,7 @@
 import { content } from '../content.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { art, Icon, playerColor, Token } from '../art.js';
-import { CELL_TITLES, dreamTitle } from '../format.js';
+import { CELL_TITLES, cellArt, dreamTitle } from '../format.js';
 import type { PublicGame } from '../net.js';
 
 /** Клетки идут по периметру квадрата по часовой стрелке от левого верхнего угла. */
@@ -72,6 +72,7 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
         const dreams = circle === 'outer' ? content.outerBoard.dreamsAt[i] : undefined;
         const active = current.circle === circle && current.position === i && game.status === 'playing';
         const title = CELL_TITLES[cell] ?? cell;
+        const picture = cellArt(cell, i, dreams);
         return (
           <div
             key={i}
@@ -82,6 +83,7 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
             {board.paydayAt.includes(i) && (
               <span className="payday" title="Зарплата"><Icon name="cell-payday" label="Зарплата" /></span>
             )}
+            {picture && <img className="cell-art" src={art(picture)} alt="" loading="lazy" />}
             <Icon name={`cell-${cell}`} />
             <span className="cell-name">{title}</span>
             {here.length > 0 && (
