@@ -25,6 +25,29 @@ export const CELL_TITLES: Record<string, string> = {
   crisis: 'Кризис',
 };
 
+/**
+ * Картинка клетки поля. У одинаковых клеток картинки чередуются по номеру клетки,
+ * чтобы поле не выглядело однообразным. На клетке мечты — первая из мечт этой клетки.
+ */
+const CELL_ART: Record<string, string[]> = {
+  opportunity: ['deals/cafe', 'deals/room', 'deals/vending', 'deals/carwash', 'deals/garage', 'deals/studio', 'deals/stock-up', 'deals/fourplex'],
+  market: ['deals/market-offer', 'deals/stock-down', 'deals/stock-up'],
+  temptation: ['deals/temptation'],
+  everyday: ['everyday/spend-once', 'everyday/trouble-health'],
+  charity: ['deals/charity'],
+  baby: ['deals/baby'],
+  layoff: ['deals/layoff'],
+  venture: ['deals/venture', 'deals/complex', 'invest/dividends', 'invest/bonds', 'invest/stock-range'],
+  lawsuit: ['deals/lawsuit'],
+  audit: ['deals/audit'],
+  crisis: ['deals/crisis'],
+};
+export function cellArt(cell: string, i: number, dreams?: string[]): string | null {
+  if (cell === 'dream') return dreams?.[0] ? `dreams/${dreams[0]}.webp` : null;
+  const list = CELL_ART[cell];
+  return list ? `${list[i % list.length]}.webp` : null;
+}
+
 export const ASSET_TITLES: Record<AssetType, string> = {
   studio: 'Студия',
   room: 'Комната',
