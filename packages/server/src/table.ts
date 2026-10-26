@@ -1,4 +1,4 @@
-import type { Content } from '@kapital/content';
+import { contentFor, type Content, type GameMode } from '@kapital/content';
 import {
   applyAction, botAction, createGame, MAX_PLAYERS, type Action, type GameEvent, type GameState,
 } from '@kapital/engine';
@@ -17,6 +17,7 @@ export type PublicGame = Omit<GameState, 'decks' | 'rng' | 'seed'>;
 
 export interface TableView {
   hostId: string | null;
+  mode: GameMode;
   seats: Seat[];
   game: PublicGame | null;
 }
@@ -34,12 +35,27 @@ export class Table {
   seats: Seat[] = [];
   hostId: string | null = null;
   game: GameState | null = null;
+  // по умолчанию короткая партия: полную выбирают осознанно
+  mode: GameMode = 'quick';
   private botCount = 0;
 
   constructor(
-    readonly content: Content,
+    private readonly base: Content,
     private readonly random: () => number = Math.random,
   ) {}
+
+  /** Правила зависят от режима, который создатель выбирает в лобби. */
+  get content(): Content {
+    return contentFor(this.mode, this.base);
+  }
+
+  setMode(byId: string, mode: unknown): Result {
+    if (byId !== this.hostId) return err('Режим выбирает создатель стола');
+    if (this.started) return err('Партия уже началась');
+    if (mode !== 'classic' && mode !== 'quick') return err('Неизвестный режим');
+    this.mode = mode;
+    return ok(undefined);
+  }
 
   get started(): boolean {
     return this.game !== null;
@@ -90,7 +106,6 @@ export class Table {
   start(byId: string): Result {
     if (byId !== this.hostId) return err('Начать партию может только создатель стола');
     if (this.started) return err('Партия уже началась');
-    if (this.seats.length < 2) return err('Нужно хотя бы два игрока: позовите друга или добавьте бота');
     const pick = <T>(items: T[]): T => items[Math.floor(this.random() * items.length)]!;
     for (const seat of this.seats) {
       seat.professionId ??= pick(this.content.professions).id;
@@ -187,6 +202,6 @@ export class Table {
       const { decks: _decks, rng: _rng, seed: _seed, ...rest } = this.game;
       game = rest;
     }
-    return { hostId: this.hostId, seats: this.seats, game };
+    return { hostId: this.hostId, mode: this.mode, seats: this.seats, game };
   }
 }

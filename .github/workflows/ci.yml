@@ -21,3 +21,5 @@ jobs:
       - run: pnpm build:web
       - name: Проверка баланса
         run: pnpm sim:check
+      - name: Проверка баланса быстрого режима
+        run: pnpm sim --mode quick --games 400 --check

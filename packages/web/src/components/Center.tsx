@@ -1,4 +1,4 @@
-import { defaultContent as content } from '@kapital/content';
+import { content } from '../content.js';
 import type { GameEvent } from '@kapital/engine';
 import { art, Icon } from '../art.js';
 import { ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, SITUATIONS, dreamTitle, money, signed } from '../format.js';
@@ -171,6 +171,9 @@ export function Center({ api, game, seconds, deadline }: { api: TableApi; game: 
         <span className="whose">
           <Icon name="ui-user" size={16} />
           {mine ? 'Ваш ход' : `Ходит ${current.name}`}
+        </span>
+        <span className="turns" title="Ход текущего игрока и лимит партии">
+          ход {Math.max(1, current.turnsTaken)} из {content.rules.maxTurns}
         </span>
         {deadline && seconds !== null && game.status === 'playing' && <TurnTimer deadline={deadline} seconds={seconds} />}
       </div>

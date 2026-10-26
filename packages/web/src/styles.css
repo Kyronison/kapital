@@ -399,3 +399,14 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
   .tagline { display: none; }
   .whose { font-size: 12px; padding: 4px 10px; }
 }
+
+/* ——— режимы в лобби ——— */
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.modes legend { grid-column: 1 / -1; }
+.choice.mode { align-items: flex-start; text-align: left; padding: 12px; gap: 4px; }
+.choice.mode .icon { color: var(--accent); }
+.choice.mode strong { font-size: 14px; }
+.modes:disabled .choice { cursor: default; }
+.modes:disabled .choice:hover { transform: none; box-shadow: none; }
+.turns { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); padding: 4px 10px; border-radius: 999px; box-shadow: var(--shadow); }
+@media (max-width: 640px) { .modes { grid-template-columns: 1fr; } }

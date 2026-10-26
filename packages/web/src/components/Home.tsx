@@ -1,4 +1,4 @@
-import { defaultContent as content } from '@kapital/content';
+import { content } from '../content.js';
 import { useState, type ReactNode } from 'react';
 import { art, Icon } from '../art.js';
 import type { TableApi } from '../net.js';

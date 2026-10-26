@@ -21,7 +21,7 @@ export interface JoinOptions {
 
 /**
  * Комната одной партии. Клиент только присылает намерения; правила проверяет движок.
- * Сообщения клиента: `action` (действие движка), `start`, `add_bot`.
+ * Сообщения клиента: `action` (действие движка), `start`, `add_bot`, `set_mode`.
  * Сообщения сервера: `view` (стол без скрытых данных), `events`, `error`.
  */
 export class KapitalRoom extends Room {
@@ -51,6 +51,7 @@ export class KapitalRoom extends Room {
       this.handle(client, r);
     });
     this.onMessage('add_bot', (client) => this.handle(client, this.table.addBot(client.sessionId)));
+    this.onMessage('set_mode', (client, mode: unknown) => this.handle(client, this.table.setMode(client.sessionId, mode)));
   }
 
   onJoin(client: Client, options: JoinOptions = {}) {
@@ -118,7 +119,9 @@ export class KapitalRoom extends Room {
     this.turnKey = turnKey;
     this.turnTimer?.clear();
     const seat = this.table.seats.find((s) => s.id === current.id);
-    if (!seat || seat.bot || !seat.connected) {
+    // в одиночной партии никто не ждёт, поэтому таймера нет
+    const solo = this.table.seats.length === 1;
+    if (!seat || seat.bot || !seat.connected || solo) {
       this.turnTimer = null;
       this.turnDeadline = null;
       return;

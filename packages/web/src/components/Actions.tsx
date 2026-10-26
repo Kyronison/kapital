@@ -1,4 +1,4 @@
-import { defaultContent as content } from '@kapital/content';
+import { content } from '../content.js';
 import { availableLoan, dreamPrice, passiveIncome, professionOf, type PlayerState } from '@kapital/engine';
 import { useState } from 'react';
 import { Icon } from '../art.js';

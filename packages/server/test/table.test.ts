@@ -36,12 +36,22 @@ describe('лобби', () => {
     expect(t.join('s7', '7').ok).toBe(false);
   });
 
-  it('для старта нужно хотя бы два места', () => {
+  it('можно играть одному против рынка', () => {
     const t = tableWith('Аня');
-    expect(t.start('s1').ok).toBe(false);
-    t.addBot('s1');
     expect(t.start('s1').ok).toBe(true);
-    expect(t.game!.players).toHaveLength(2);
+    expect(t.game!.players).toHaveLength(1);
+  });
+
+  it('режим выбирает только создатель и только в лобби', () => {
+    const t = tableWith('Аня', 'Боря');
+    expect(t.setMode('s2', 'quick').ok).toBe(false);
+    expect(t.setMode('s1', 'turbo').ok).toBe(false);
+    expect(t.setMode('s1', 'quick').ok).toBe(true);
+    t.start('s1');
+    expect(t.content.rules.maxTurns).toBe(40);
+    // в быстром режиме у каждого есть стартовый бизнес
+    expect(t.game!.players.every((p) => p.assets.length === 1)).toBe(true);
+    expect(t.setMode('s1', 'classic').ok).toBe(false);
   });
 
   it('после старта новые игроки не входят, а вернувшиеся — да', () => {

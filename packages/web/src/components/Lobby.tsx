@@ -5,6 +5,11 @@ import type { TableApi, View } from '../net.js';
 
 const MAX_SEATS = 6;
 
+const MODES = [
+  { id: 'quick', icon: 'ui-clock', title: 'Быстрая партия', text: 'Стартовый бизнес и цели ближе. Около 20 ходов, на четверых примерно полчаса.' },
+  { id: 'classic', icon: 'ui-trophy', title: 'Классика', text: 'С нуля, полный путь. Около 40 ходов, на четверых около часа.' },
+] as const;
+
 export function Lobby({ api, view }: { api: TableApi; view: View }) {
   const isHost = view.hostId === api.me;
   const link = `${location.origin}${location.pathname}?room=${api.room?.roomId ?? ''}`;
@@ -23,7 +28,7 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
     <main className="lobby">
       <section className="card lobby-card">
         <h1>Стол ждёт игроков</h1>
-        <p className="muted">Отправьте друзьям ссылку. За столом от 2 до 6 мест, пустые можно занять ботами.</p>
+        <p className="muted">Отправьте друзьям ссылку. За столом до 6 мест, пустые можно занять ботами, а можно сыграть и одному.</p>
         <div className="invite">
           <Icon name="ui-link" />
           <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Ссылка-приглашение" />
@@ -58,10 +63,23 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
             </li>
           ))}
         </ul>
+        <fieldset className="modes" disabled={!isHost}>
+          <legend>Режим</legend>
+          {MODES.map((m) => (
+            <label key={m.id} className={`choice mode${view.mode === m.id ? ' checked' : ''}`}>
+              <input type="radio" name="mode" checked={view.mode === m.id} onChange={() => api.send('set_mode', m.id)} aria-label={m.title} />
+              <Icon name={m.icon} size={24} />
+              <strong>{m.title}</strong>
+              <small>{m.text}</small>
+            </label>
+          ))}
+        </fieldset>
         {view.seats.length < 2 && (
           <div className="waiting">
             <img src={art('screens/waiting.webp')} alt="" />
-            <span className="muted">Нужен хотя бы ещё один игрок или бот.</span>
+            <span className="muted">
+              Можно начать одному: соревнуйтесь с рынком и лимитом ходов. Или позовите друзей и добавьте ботов.
+            </span>
           </div>
         )}
         {isHost ? (
@@ -70,9 +88,9 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
               <Icon name="ui-bot" />
               Добавить бота
             </button>
-            <button className="primary kap-button" onClick={() => api.send('start')} disabled={view.seats.length < 2}>
+            <button className="primary kap-button" onClick={() => api.send('start')} disabled={view.seats.length < 1}>
               <Icon name="ui-dice" />
-              Начать партию
+              {view.seats.length === 1 ? 'Играть одному' : 'Начать партию'}
             </button>
           </div>
         ) : (

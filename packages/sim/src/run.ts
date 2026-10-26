@@ -45,12 +45,15 @@ const { values } = parseArgs({
     seed: { type: 'string', default: '1' },
     check: { type: 'boolean', default: false },
     mode: { type: 'string', default: 'classic' },
+    /** JSON с правками правил поверх режима, для подбора баланса: --rules '{"loanRate":0.05}' */
+    rules: { type: 'string' },
   },
 });
 
 const mode = values.mode as GameMode;
 if (mode !== 'classic' && mode !== 'quick') throw new Error(`Неизвестный режим: ${mode}`);
-const content = contentFor(mode);
+const preset = contentFor(mode);
+const content: Content = values.rules ? { ...preset, rules: { ...preset.rules, ...JSON.parse(values.rules) } } : preset;
 const TARGET_MEDIAN = TARGETS[mode].inner;
 const TARGET_OUTER_MEDIAN = TARGETS[mode].outer;
 const games = Number(values.games);

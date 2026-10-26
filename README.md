@@ -26,6 +26,7 @@ pnpm test          # тесты правил
 pnpm typecheck
 pnpm sim           # таблица баланса по профессиям (2000 партий)
 pnpm sim:check     # то же на 400 партиях; падает, если баланс вне коридора
+pnpm sim --mode quick --games 400 --check   # то же для быстрого режима
 pnpm server        # игровой сервер на ws://localhost:2567 (порт — переменная PORT)
 pnpm web           # клиент на http://localhost:5173, сервер ищет на том же хосте, порт 2567
 pnpm build:web     # статическая сборка клиента; адрес сервера — VITE_SERVER_URL
