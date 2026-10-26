@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { art, Icon, playerColor } from '../art.js';
 import { dreamTitle, professionTitle } from '../format.js';
+import { Chat } from './Chat.js';
 import type { TableApi, View } from '../net.js';
 
 const MAX_SEATS = 6;
@@ -97,6 +98,7 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
           <p className="muted">Партию начнёт создатель стола.</p>
         )}
       </section>
+      <Chat api={api} view={view} />
     </main>
   );
 }

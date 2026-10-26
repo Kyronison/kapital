@@ -1,7 +1,7 @@
 import { content } from '../content.js';
 import { useState, type ReactNode } from 'react';
 import { art, Icon } from '../art.js';
-import type { TableApi } from '../net.js';
+import { forgetSave, loadSaves, type TableApi } from '../net.js';
 
 const nf = new Intl.NumberFormat('ru-RU');
 
@@ -16,6 +16,7 @@ export function Home({ api }: { api: TableApi }) {
   });
   const [professionId, setProfessionId] = useState('');
   const [dreamId, setDreamId] = useState('');
+  const [saves, setSaves] = useState(loadSaves);
 
   const submit = () => {
     try {
@@ -36,6 +37,25 @@ export function Home({ api }: { api: TableApi }) {
           Получите профессию, вкладывайте свободные деньги в активы и выйдите из «Круга забот», когда пассивный
           доход покроет расходы. Побеждает тот, кто первым купит свою мечту или удвоит доход.
         </p>
+        {!roomId && saves.length > 0 && (
+          <section className="saves card">
+            <h2><Icon name="ui-clock" size={18} />Незаконченные партии</h2>
+            <ul>
+              {saves.map((x) => (
+                <li key={x.saveId}>
+                  <span>
+                    <strong>{x.players.join(', ')}</strong>
+                    <small className="muted">
+                      {x.mode === 'quick' ? 'Быстрая' : 'Классика'} · ход {x.turn} · {new Date(x.savedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
+                    </small>
+                  </span>
+                  <button className="primary" onClick={() => api.resume(x)}>Продолжить</button>
+                  <button className="ghost" aria-label="Убрать из списка" title="Убрать из списка" onClick={() => { forgetSave(x.saveId); setSaves(loadSaves()); }}>×</button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </section>
       <form className="join card" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <label className="field">

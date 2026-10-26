@@ -7,6 +7,7 @@ import type { PublicGame, TableApi, View } from '../net.js';
 import { Actions } from './Actions.js';
 import { Board } from './Board.js';
 import { Center, TURN_SECONDS } from './Center.js';
+import { Chat } from './Chat.js';
 import { Statement, type Flash } from './Statement.js';
 
 function useCountdown(deadline: number | null) {
@@ -172,6 +173,7 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
         {me && game.status === 'playing' && <Actions api={api} game={game} me={me} />}
         {me && <div className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'bankrupt-shake' : ''}><Statement p={me} flash={lastFlash(api.log, api.logStart, api.me)} /></div>}
         <Players game={game} view={view} me={api.me} />
+        <Chat api={api} view={view} />
         <section className="log card">
           <h2><Icon name="ui-chat" size={16} />Журнал</h2>
           <ol ref={logRef}>
@@ -181,6 +183,10 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
             })}
           </ol>
         </section>
+        <button className="ghost leave" onClick={api.leave}>
+          <Icon name="ui-exit" />
+          {game.status === 'playing' ? 'Выйти: партия сохранится' : 'В главное меню'}
+        </button>
       </aside>
     </main>
   );

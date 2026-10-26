@@ -6,6 +6,7 @@ export const ROOM_NAME = 'kapital';
 
 export function createServer(roomOptions: RoomOptions = {}): Server {
   const server = new Server({ transport: new WebSocketTransport() });
-  server.define(ROOM_NAME, KapitalRoom, roomOptions);
+  // комнаты с одинаковым restore — одна и та же продолженная партия
+  server.define(ROOM_NAME, KapitalRoom, roomOptions).filterBy(['restore']);
   return server;
 }
