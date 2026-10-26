@@ -2,6 +2,7 @@ import { content } from '../content.js';
 import { useState, type ReactNode } from 'react';
 import { art, Icon } from '../art.js';
 import { forgetSave, loadSaves, type TableApi } from '../net.js';
+import { updateSettings, useSettings } from '../settings.js';
 
 const nf = new Intl.NumberFormat('ru-RU');
 
@@ -17,6 +18,7 @@ export function Home({ api }: { api: TableApi }) {
   const [professionId, setProfessionId] = useState('');
   const [dreamId, setDreamId] = useState('');
   const [saves, setSaves] = useState(loadSaves);
+  const settings = useSettings();
 
   const submit = () => {
     try {
@@ -94,6 +96,18 @@ export function Home({ api }: { api: TableApi }) {
               </Choice>
             ))}
           </div>
+        </fieldset>
+
+        <fieldset className="learning">
+          <legend>Обучение</legend>
+          <label className="toggle">
+            <input type="checkbox" checked={settings.hints} onChange={(e) => updateSettings({ hints: e.target.checked, seenHints: e.target.checked ? [] : settings.seenHints })} />
+            <span><strong>Подсказки наставника</strong><small className="muted">Короткие объяснения в первый раз, когда что-то происходит.</small></span>
+          </label>
+          <label className="toggle">
+            <input type="checkbox" checked={settings.fillReport} onChange={(e) => updateSettings({ fillReport: e.target.checked })} />
+            <span><strong>Заполнять отчёт самому</strong><small className="muted">После сделок раскладывайте строки по доходам, расходам, активам и пассивам.</small></span>
+          </label>
         </fieldset>
 
         <button className="primary big kap-button" type="submit">

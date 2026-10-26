@@ -8,6 +8,8 @@ import { Actions } from './Actions.js';
 import { Board } from './Board.js';
 import { Center, TURN_SECONDS } from './Center.js';
 import { Chat } from './Chat.js';
+import { Mentor } from './Mentor.js';
+import { ReportQuiz } from './ReportQuiz.js';
 import { Statement, type Flash } from './Statement.js';
 
 function useCountdown(deadline: number | null) {
@@ -170,7 +172,9 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
         {anyOuter && <Board game={game} circle="outer" center={turnCircle === 'outer' ? center : <span className="board-label">Свободный путь</span>} />}
       </div>
       <aside className="side">
+        {me && <Mentor game={game} me={me} />}
         {me && game.status === 'playing' && <Actions api={api} game={game} me={me} />}
+        <ReportQuiz log={api.log} logStart={api.logStart} me={api.me} />
         {me && <div className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'bankrupt-shake' : ''}><Statement p={me} flash={lastFlash(api.log, api.logStart, api.me)} /></div>}
         <Players game={game} view={view} me={api.me} />
         <Chat api={api} view={view} />

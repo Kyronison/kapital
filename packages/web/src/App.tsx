@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Logo } from './art.js';
 import { applyRules } from './content.js';
 import { Game } from './components/Game.js';
@@ -10,6 +11,10 @@ export function App() {
   const { view, room } = api;
   applyRules(view?.mode);
   const screen = !room || !view ? 'home' : view.game ? 'game' : 'lobby';
+  // новый экран открывается сверху, а не с прокруткой предыдущего
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
   return (
     <div className={`app screen-${screen}`}>
       <header className="top">

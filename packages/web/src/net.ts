@@ -141,7 +141,10 @@ export function useTable() {
   // архив партий: запоминаем начатую партию и удаляем законченную
   useEffect(() => {
     if (!seat || !view?.game) return;
-    if (view.game.status === 'finished') return forgetSave(seat.saveId);
+    if (view.game.status === 'finished') {
+      forgetSave(seat.saveId);
+      return;
+    }
     const me = view.game.players.find((p) => p.id === seat.seatId);
     const entry: SavedGame = {
       ...seat,
