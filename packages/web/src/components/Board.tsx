@@ -66,17 +66,18 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
         style={{ gridRow: `2 / ${size}`, gridColumn: `2 / ${size}`, backgroundImage: `url(${art(`board/center-${circle}.webp`)})` }}
         aria-hidden="true"
       />
+      <div className="board-frame" aria-hidden="true" />
       {board.cells.map((cell, i) => {
         const [row, col] = perimeter(size, i);
         const here = game.players.filter((p) => shown.get(p.id) === `${circle}:${i}`);
         const dreams = circle === 'outer' ? content.outerBoard.dreamsAt[i] : undefined;
         const active = current.circle === circle && current.position === i && game.status === 'playing';
         const title = CELL_TITLES[cell] ?? cell;
-        const picture = cellArt(cell, i, dreams);
+        const picture = cellArt(cell, i, circle, dreams);
         return (
           <div
             key={i}
-            className={`cell ${cell}${active ? ' active cell-pulse' : ''}`}
+            className={`cell ${cell}${cell === 'dream' ? ' cell-dream' : ''}${active ? ' active cell-pulse' : ''}`}
             style={{ gridRow: row + 1, gridColumn: col + 1 }}
             title={dreams ? `${title}: ${dreams.map((d) => dreamTitle(d)).join(', ')}` : title}
           >

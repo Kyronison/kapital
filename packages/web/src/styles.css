@@ -185,11 +185,15 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
 .choice small { color: var(--muted); font-size: 12px; }
 
 /* ——— партия ——— */
-body:has(.screen-game) {
-  background: linear-gradient(rgb(243 237 225 / 0.72), rgb(243 237 225 / 0.72)), url('/art/screens/home-bg.webp') center bottom / cover no-repeat fixed;
+body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') center bottom / cover no-repeat fixed; }
+@media (orientation: portrait) {
+  body:has(.screen-game) { background-image: url('/art/screens/game-bg-mobile.webp'); }
 }
 @media (prefers-color-scheme: dark) {
-  body:has(.screen-game) { background-image: linear-gradient(rgb(18 24 22 / 0.86), rgb(18 24 22 / 0.86)), url('/art/screens/home-bg.webp'); }
+  body:has(.screen-game) { background-image: url('/art/screens/game-bg-dark.webp'); }
+}
+@media (prefers-color-scheme: dark) and (orientation: portrait) {
+  body:has(.screen-game) { background-image: url('/art/screens/game-bg-dark-mobile.webp'); }
 }
 
 /* ——— лобби ——— */
@@ -229,10 +233,21 @@ body:has(.screen-game) {
 .board {
   position: relative; display: grid; gap: 5px; aspect-ratio: 1; width: 100%;
   max-width: min(100%, calc(100vh - 90px)); margin: 0 auto; padding: 10px;
-  background: var(--surface); border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow);
+  background: var(--surface) url('/art/board/table.webp') center / 320px repeat;
+  border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--shadow);
+}
+.board-frame {
+  /* монеты рамки встают на углы поля, а сама линия идёт снаружи */
+  position: absolute; inset: -5.5%; z-index: 3; pointer-events: none;
+  background: url('/art/board/frame.webp') center / 100% 100% no-repeat;
+}
+.cell-dream .cell-art { inset: auto 8% 6%; width: 84%; height: 58%; object-fit: cover; border-radius: 8px; }
+@media (prefers-color-scheme: dark) {
+  .board { background-image: url('/art/board/table-dark.webp'); }
+  .board.outer { background-image: linear-gradient(160deg, color-mix(in srgb, var(--gold) 16%, transparent), transparent), url('/art/board/table-dark.webp'); }
 }
 .board.outer {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--gold) 16%, var(--surface)), var(--surface));
+  background-image: linear-gradient(160deg, color-mix(in srgb, var(--gold) 22%, transparent), transparent), url('/art/board/table.webp');
   border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
 }
 .board-art {
@@ -251,7 +266,7 @@ body:has(.screen-game) {
 .cell > .icon, .cell-name { position: relative; z-index: 1; }
 .cell .payday, .cell .tokens { z-index: 2; }
 .cell-art {
-  position: absolute; left: 6%; right: 6%; bottom: 4%; height: 58%; width: 88%;
+  position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit;
   object-fit: contain; object-position: center bottom; pointer-events: none;
   filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.12));
 }
@@ -402,7 +417,8 @@ body:has(.screen-game) {
   .board { padding: 6px; gap: 3px; border-radius: 16px; }
   .cell { padding: 3px; border-radius: 8px; align-items: center; justify-content: center; }
   .cell-name { display: none; }
-  .cell-art { height: 70%; bottom: 2%; opacity: 0.9; }
+  .cell-art { inset: -8% 0 0; height: 108%; }
+  .board-frame { display: none; }
   .cell > .icon { display: none; }
   .payday { width: 14px; height: 14px; top: 1px; right: 1px; }
   .payday .icon { width: 10px; height: 10px; }
@@ -532,3 +548,9 @@ body:has(.screen-game) {
   .level-card { position: static; width: auto; margin-top: 16px; }
 }
 @media (min-width: 801px) and (max-width: 1100px) { .level-card { position: static; width: auto; margin-top: 16px; } }
+
+/* место под рамку поля, которая выходит за края */
+@media (min-width: 641px) {
+  .boards { gap: 64px; padding: 4.5% 0; }
+  .board { width: 89%; max-width: min(89%, calc(100vh - 160px)); }
+}

@@ -26,26 +26,19 @@ export const CELL_TITLES: Record<string, string> = {
 };
 
 /**
- * Картинка клетки поля. У одинаковых клеток картинки чередуются по номеру клетки,
+ * Картинка клетки поля из третьего набора. У одинаковых клеток картинки чередуются по номеру,
  * чтобы поле не выглядело однообразным. На клетке мечты — первая из мечт этой клетки.
  */
-const CELL_ART: Record<string, string[]> = {
-  opportunity: ['deals/cafe', 'deals/room', 'deals/vending', 'deals/carwash', 'deals/garage', 'deals/studio', 'deals/stock-up', 'deals/fourplex'],
-  market: ['deals/market-offer', 'deals/stock-down', 'deals/stock-up'],
-  temptation: ['deals/temptation'],
-  everyday: ['everyday/spend-once', 'everyday/trouble-health'],
-  charity: ['deals/charity'],
-  baby: ['deals/baby'],
-  layoff: ['deals/layoff'],
-  venture: ['deals/venture', 'deals/complex', 'invest/dividends', 'invest/bonds', 'invest/stock-range'],
-  lawsuit: ['deals/lawsuit'],
-  audit: ['deals/audit'],
-  crisis: ['deals/crisis'],
+const CELL_ART: Record<string, number | string> = {
+  opportunity: 8, market: 3, temptation: 2, everyday: 2, venture: 6,
+  charity: 'charity', baby: 'baby', layoff: 'layoff', lawsuit: 'lawsuit', audit: 'audit', crisis: 'crisis',
 };
-export function cellArt(cell: string, i: number, dreams?: string[]): string | null {
+export function cellArt(cell: string, i: number, circle: 'inner' | 'outer', dreams?: string[]): string | null {
   if (cell === 'dream') return dreams?.[0] ? `dreams/${dreams[0]}.webp` : null;
-  const list = CELL_ART[cell];
-  return list ? `${list[i % list.length]}.webp` : null;
+  if (cell === 'charity' && circle === 'outer') return 'cells/charity-outer.webp';
+  const art = CELL_ART[cell];
+  if (art === undefined) return null;
+  return typeof art === 'number' ? `cells/${cell}-${(i % art) + 1}.webp` : `cells/${art}.webp`;
 }
 
 export const ASSET_TITLES: Record<AssetType, string> = {
