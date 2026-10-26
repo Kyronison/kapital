@@ -1,4 +1,4 @@
-import { defaultContent as content } from '@kapital/content';
+import { content } from '../content.js';
 import { passiveIncome, totalExpenses, type GameEvent } from '@kapital/engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { art, Icon, playerColor, Token } from '../art.js';
@@ -88,8 +88,8 @@ function Players({ game, view, me }: { game: PublicGame; view: View; me: string 
         {game.players.map((p, i) => {
           const seat = view.seats.find((s) => s.id === p.id);
           const pct = p.circle === 'outer'
-            ? Math.min(100, Math.round((p.outerIncome / (content.rules.outerGoalMultiplier * p.startOuterIncome)) * 100))
-            : Math.min(100, Math.round((passiveIncome(p) / totalExpenses(content, p)) * 100));
+            ? Math.min(100, Math.floor((p.outerIncome / (content.rules.outerGoalMultiplier * p.startOuterIncome)) * 100))
+            : Math.min(100, Math.floor((passiveIncome(p) / totalExpenses(content, p)) * 100));
           return (
             <li key={p.id} className={`${i === game.current ? 'current' : ''}${p.circle === 'outer' ? ' outer' : ''}`}>
               <span className="avatar" style={{ borderColor: playerColor(i) }}>
@@ -136,10 +136,10 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
     <main className="game">
       {game.status === 'finished' && !winSeen && (
         <Overlay
-          picture="screens/win.webp"
+          picture={winner ? 'screens/win.webp' : 'screens/bankrupt.webp'}
           confetti={!!winner}
           title={winner ? (winner.id === api.me ? 'Вы победили!' : `Победил ${winner.name}`) : 'Партия окончена'}
-          text={winner ? `${winner.name} ${winner.wonAtTurn ? `на ${winner.wonAtTurn}-м ходу ` : ''}добился финансовой свободы.` : 'Достигнут лимит ходов.'}
+          text={winner ? `${winner.name} ${winner.wonAtTurn ? `на ${winner.wonAtTurn}-м ходу ` : ''}добился финансовой свободы.` : `За ${content.rules.maxTurns} ходов никто не дошёл до цели. Попробуйте ещё раз: вкладывайте раньше и держите кредит под контролем.`}
           onClose={() => setWinSeen(true)}
         />
       )}

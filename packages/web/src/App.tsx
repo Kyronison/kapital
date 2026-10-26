@@ -1,4 +1,5 @@
 import { Logo } from './art.js';
+import { applyRules } from './content.js';
 import { Game } from './components/Game.js';
 import { Home } from './components/Home.js';
 import { Lobby } from './components/Lobby.js';
@@ -7,6 +8,7 @@ import { useTable } from './net.js';
 export function App() {
   const api = useTable();
   const { view, room } = api;
+  applyRules(view?.mode);
   const screen = !room || !view ? 'home' : view.game ? 'game' : 'lobby';
   return (
     <div className={`app screen-${screen}`}>

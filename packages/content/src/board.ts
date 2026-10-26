@@ -24,6 +24,20 @@ export const rules: Rules = {
   outerGoalMultiplier: 2,
   lawsuitShare: 0.5,
   auditShare: 0.25,
+  dreamPriceFactor: 1,
+  startPassiveShare: 0,
+};
+
+/**
+ * Быстрый режим: каждый начинает с бизнесом, который покрывает треть расходов,
+ * а цели второго круга ближе. Доля одинакова для всех профессий, поэтому баланс сохраняется.
+ * По симуляции: выход за 11–16 ходов, второй круг за 6–7, вся партия около 20 ходов.
+ */
+export const quickRules: Partial<Rules> = {
+  startPassiveShare: 0.33,
+  outerGoalMultiplier: 1.3,
+  dreamPriceFactor: 0.35,
+  maxTurns: 40,
 };
 
 /** «Свободный путь»: 16 клеток, доход на рубежах 0, 4, 8, 12. */

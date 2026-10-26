@@ -1,3 +1,4 @@
+import type { GameMode } from '@kapital/content';
 import type { GameEvent, GameState } from '@kapital/engine';
 import { Client, type Room } from 'colyseus.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,6 +16,7 @@ export type PublicGame = Omit<GameState, 'decks' | 'rng' | 'seed'>;
 
 export interface View {
   hostId: string | null;
+  mode: GameMode;
   seats: Seat[];
   game: PublicGame | null;
   turnDeadline: number | null;

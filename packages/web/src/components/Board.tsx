@@ -1,4 +1,4 @@
-import { defaultContent as content } from '@kapital/content';
+import { content } from '../content.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { art, Icon, playerColor, Token } from '../art.js';
 import { CELL_TITLES, dreamTitle } from '../format.js';

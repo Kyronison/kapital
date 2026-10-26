@@ -1,4 +1,4 @@
-import { defaultContent as content } from '@kapital/content';
+import { content } from '../content.js';
 import {
   availableLoan, baseExpenses, cashflow, dreamPrice, loanPayment, passiveIncome, professionOf, type PlayerState,
 } from '@kapital/engine';
@@ -57,8 +57,8 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
           <Row icon="ui-trophy" label="Цель: удвоить доход">{money(goal)}</Row>
           <Row icon="cell-dream" label="Цена мечты">{money(price)}</Row>
         </dl>
-        <Meter label={`Доход: ${Math.min(100, Math.round((p.outerIncome / goal) * 100))}% цели`} value={p.outerIncome} max={goal} gold />
-        <Meter label={`Накоплено на мечту: ${Math.min(100, Math.round((p.cash / price) * 100))}%`} value={p.cash} max={price} gold />
+        <Meter label={`Доход: ${Math.min(100, Math.floor((p.outerIncome / goal) * 100))}% цели`} value={p.outerIncome} max={goal} gold />
+        <Meter label={`Накоплено на мечту: ${Math.min(100, Math.floor((p.cash / price) * 100))}%`} value={p.cash} max={price} gold />
         {p.ventures.length > 0 && (
           <ul className="assets">
             {p.ventures.map((v) => (
@@ -71,7 +71,7 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
   }
 
   const flow = cashflow(content, p);
-  const cover = Math.min(100, Math.round((passive / expenses) * 100));
+  const cover = Math.min(100, Math.floor((passive / expenses) * 100));
   return (
     <section className="statement card">
       <header className="statement-head">

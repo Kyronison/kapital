@@ -1,4 +1,5 @@
-import { defaultContent as content, type AssetType } from '@kapital/content';
+import type { AssetType } from '@kapital/content';
+import { content } from './content.js';
 import type { GameEvent } from '@kapital/engine';
 
 const nf = new Intl.NumberFormat('ru-RU');
