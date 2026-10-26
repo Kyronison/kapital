@@ -1,0 +1,126 @@
+/* КАПИТАЛ — motion system v1.
+   All effects work with HTML + CSS. No script is required to play them.
+   The host game supplies the result, positions, amount, and replay trigger.
+   Transform animations belong on a wrapper so layout transforms can remain on its parent.
+   The Lottie companion is optional; the pure CSS .win-confetti is included below.
+*/
+:root {
+  --kap-emerald:#0F5C4D; --kap-gold:#E3A72F; --kap-cream:#F6F1E7;
+  --kap-graphite:#1C2321; --kap-coral:#E0604A; --kap-sky:#4A90C2; --kap-plum:#7A4E8C;
+  --kap-ease-out:cubic-bezier(.16,1,.3,1);
+  --kap-ease-in-out:cubic-bezier(.45,0,.55,1);
+}
+
+/* .dice-roll — 700ms, decelerating tumble and landing squash.
+   .dice-roll__result contains the actual face-N.svg, shown at 80% (560ms).
+   The cycling illustration ends at the same instant; it is decorative only. */
+.dice-roll {position:relative;display:inline-block;width:var(--dice-size,96px);height:var(--dice-size,96px);transform-origin:50% 75%;animation:kap-dice-roll 700ms var(--kap-ease-out) both;}
+.dice-roll__cycling,.dice-roll__result {position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+.dice-roll__cycling {background:center/contain no-repeat url('/art/dice/face-1.svg');animation:kap-dice-cycle 560ms steps(1,end) both,kap-dice-hide 700ms steps(1,end) both;}
+.dice-roll__result {animation:kap-dice-reveal 700ms steps(1,end) both;}
+@keyframes kap-dice-roll {0%{transform:translateY(-10px) rotate(-560deg) scale(.55)}55%{transform:translateY(-12px) rotate(-48deg) scale(1)}80%{transform:translateY(0) rotate(0) scale(1)}90%{transform:translateY(0) scale(1.06,.94)}100%{transform:translateY(0) rotate(0) scale(1)}}
+@keyframes kap-dice-cycle {0%{background-image:url('/art/dice/face-1.svg')}20%{background-image:url('/art/dice/face-4.svg')}40%{background-image:url('/art/dice/face-2.svg')}60%{background-image:url('/art/dice/face-6.svg')}80%,100%{background-image:url('/art/dice/face-3.svg')}}
+@keyframes kap-dice-hide {0%,79.999%{opacity:1}80%,100%{opacity:0}}
+@keyframes kap-dice-reveal {0%,79.999%{opacity:0}80%,100%{opacity:1}}
+
+/* .token-hop — 180ms per cell, 8px arc, landing squash.
+   Set --hop-x/--hop-y to the delta for one cell; defaults are zero. */
+.token-hop {display:inline-block;transform-origin:50% 90%;animation:kap-token-hop 180ms var(--kap-ease-in-out) both;}
+@keyframes kap-token-hop {0%{transform:translate(0,0) scale(1)}45%{transform:translate(calc(var(--hop-x,0px) * .5),calc(var(--hop-y,0px) * .5 - 8px)) scale(.97,1.03)}82%{transform:translate(var(--hop-x,0px),var(--hop-y,0px)) scale(1.10,.90)}100%{transform:translate(var(--hop-x,0px),var(--hop-y,0px)) scale(1)}}
+
+/* .card-flip — 450ms, Y rotation with perspective, back -> face.
+   Both children must have equal dimensions. Add text/accessibility to the host's active face. */
+.card-flip {display:grid;perspective:1000px;}
+.card-flip__inner {display:grid;transform-style:preserve-3d;animation:kap-card-flip 450ms var(--kap-ease-in-out) both;}
+.card-flip__back,.card-flip__face {grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;}
+.card-flip__face {transform:rotateY(180deg);}
+@keyframes kap-card-flip {from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
+
+/* .card-deal — 350ms, deck position -> current layout position.
+   --deal-x/--deal-y identify the deck relative to the card's final position. */
+.card-deal {transform-origin:50% 50%;animation:kap-card-deal 350ms var(--kap-ease-out) both;}
+@keyframes kap-card-deal {0%{transform:translate(var(--deal-x,-160px),var(--deal-y,70px)) rotate(-12deg) scale(.7);opacity:0}30%{opacity:1}100%{transform:translate(0,0) rotate(0) scale(1);opacity:1}}
+
+/* .coins-in — 600ms total envelope for six coins. Child durations are 400ms,
+   staggered 40ms (0..200ms), so the last coin finishes at 600ms.
+   --coin-to-x/--coin-to-y point toward the wallet. Adjust --coin-size as needed. */
+.coins-in {position:relative;width:var(--coins-width,180px);height:var(--coins-height,90px);pointer-events:none;}
+.coins-in__coin {position:absolute;left:0;top:0;width:var(--coin-size,18px);height:var(--coin-size,18px);border-radius:50%;background:var(--kap-gold);box-shadow:inset 0 0 0 2px var(--kap-cream);animation:kap-coins-in 400ms var(--kap-ease-in-out) both;animation-delay:calc(var(--i,0) * 40ms);}
+.coins-in__coin:nth-child(1){--i:0}.coins-in__coin:nth-child(2){--i:1}.coins-in__coin:nth-child(3){--i:2}.coins-in__coin:nth-child(4){--i:3}.coins-in__coin:nth-child(5){--i:4}.coins-in__coin:nth-child(6){--i:5}
+@keyframes kap-coins-in {0%{transform:translate(0,0) scale(.8);opacity:0}15%{opacity:1}48%{transform:translate(calc(var(--coin-to-x,150px) * .5),calc(var(--coin-to-y,40px) * .5 - 30px)) scale(1)}85%{opacity:1}100%{transform:translate(var(--coin-to-x,150px),var(--coin-to-y,40px)) scale(.35);opacity:0}}
+
+/* .money-pop — 600ms, upward gain amount and fade; text comes from UI. */
+.money-pop {display:inline-block;color:var(--kap-emerald);font-variant-numeric:tabular-nums;animation:kap-money-pop 600ms var(--kap-ease-out) both;}
+@keyframes kap-money-pop {0%{transform:translateY(8px);opacity:0}18%{opacity:1}65%{opacity:1}100%{transform:translateY(-24px);opacity:0}}
+/* .coins-out — 600ms, coral amount descends and fades. */
+.coins-out {display:inline-block;color:var(--kap-coral);font-variant-numeric:tabular-nums;animation:kap-coins-out 600ms var(--kap-ease-out) both;}
+@keyframes kap-coins-out {0%{transform:translateY(-8px);opacity:0}18%{opacity:1}65%{opacity:1}100%{transform:translateY(24px);opacity:0}}
+
+/* .cell-pulse — 1.6s infinite, restrained focus ring around active cell. */
+.cell-pulse {animation:kap-cell-pulse 1.6s ease-in-out infinite;}
+@keyframes kap-cell-pulse {0%,100%{box-shadow:0 0 0 2px rgb(227 167 47 / .36),0 0 0 6px rgb(227 167 47 / 0)}50%{box-shadow:0 0 0 3px rgb(227 167 47 / .80),0 0 0 11px rgb(227 167 47 / .10)}}
+
+/* .turn-timer — 30s linear circular countdown. Use circle pathLength="100".
+   Color switches exactly at 25s (83.333333%). Shake runs for the last 5s only.
+   Warning retains its semantic text in HTML; color is not the only indication. */
+.turn-timer {display:inline-block;width:var(--timer-size,64px);height:var(--timer-size,64px);animation:kap-timer-shake 200ms linear 25s 25;}
+.turn-timer__track,.turn-timer__progress {fill:none;stroke-width:4;}
+.turn-timer__track {stroke:var(--kap-emerald);opacity:.13;}
+.turn-timer__progress {stroke:var(--kap-emerald);stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:0;transform:rotate(-90deg);transform-origin:center;animation:kap-timer-drain 30s linear both,kap-timer-warning 30s steps(1,end) both;}
+@keyframes kap-timer-drain {to{stroke-dashoffset:100}}
+@keyframes kap-timer-warning {0%,83.333332%{stroke:var(--kap-emerald)}83.333333%,100%{stroke:var(--kap-coral)}}
+@keyframes kap-timer-shake {0%,100%{transform:translateX(0)}25%{transform:translateX(-1px)}75%{transform:translateX(1px)}}
+
+/* .escape-burst — 1.2s, gold flash + expanding ring. Decorative overlay. */
+.escape-burst {position:relative;isolation:isolate;}
+.escape-burst::before,.escape-burst::after {content:"";position:absolute;left:50%;top:50%;width:var(--burst-size,120px);height:var(--burst-size,120px);border-radius:50%;pointer-events:none;z-index:1;}
+.escape-burst::before {background:radial-gradient(circle,rgb(227 167 47 / .50),rgb(227 167 47 / 0) 70%);animation:kap-escape-flash 1.2s ease-out both;}
+.escape-burst::after {border:3px solid var(--kap-gold);box-sizing:border-box;animation:kap-escape-ring 1.2s ease-out both;}
+@keyframes kap-escape-flash {0%{transform:translate(-50%,-50%) scale(.4);opacity:0}20%{opacity:1}100%{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+@keyframes kap-escape-ring {0%{transform:translate(-50%,-50%) scale(.2);opacity:0}12%{opacity:.85}100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}
+
+/* .win-confetti — 2.5s total; pure CSS alternative to win-confetti.json.
+   12 coins travel for 2s with delays 0..500ms. All visible movement ends by 2.5s. */
+.win-confetti {position:relative;width:100%;height:var(--confetti-height,220px);overflow:hidden;pointer-events:none;}
+.win-confetti__coin {position:absolute;top:-24px;left:var(--x,50%);width:var(--size,16px);height:var(--size,16px);border-radius:50%;background:var(--kap-gold);border:2px solid var(--kap-cream);box-sizing:border-box;animation:kap-win-confetti 2s cubic-bezier(.2,.4,.55,1) both;animation-delay:var(--delay,0ms);}
+.win-confetti__coin:nth-child(1){--x:8%;--drift:26px;--delay:0ms}.win-confetti__coin:nth-child(2){--x:18%;--drift:-20px;--delay:170ms}.win-confetti__coin:nth-child(3){--x:28%;--drift:32px;--delay:330ms}.win-confetti__coin:nth-child(4){--x:38%;--drift:-18px;--delay:80ms}.win-confetti__coin:nth-child(5){--x:48%;--drift:30px;--delay:420ms}.win-confetti__coin:nth-child(6){--x:58%;--drift:-26px;--delay:250ms}.win-confetti__coin:nth-child(7){--x:68%;--drift:20px;--delay:500ms}.win-confetti__coin:nth-child(8){--x:78%;--drift:-32px;--delay:120ms}.win-confetti__coin:nth-child(9){--x:88%;--drift:20px;--delay:380ms}.win-confetti__coin:nth-child(10){--x:13%;--drift:40px;--delay:450ms}.win-confetti__coin:nth-child(11){--x:53%;--drift:-35px;--delay:30ms}.win-confetti__coin:nth-child(12){--x:93%;--drift:-30px;--delay:290ms}
+@keyframes kap-win-confetti {0%{transform:translate(0,0) rotateY(0) rotate(0);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(var(--drift,24px),calc(var(--confetti-height,220px) + 48px)) rotateY(720deg) rotate(140deg);opacity:0}}
+
+/* .bankrupt-shake — 400ms, brief horizontal shake; no flashing. */
+.bankrupt-shake {animation:kap-bankrupt-shake 400ms ease-in-out both;}
+@keyframes kap-bankrupt-shake {0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(1px)}}
+
+/* .button-press — 120ms ease-out; apply as feedback class or use :active. */
+.button-press {animation:kap-button-press 120ms ease-out both;}
+.kap-button {transition:transform 120ms ease-out;}
+.kap-button:active {transform:scale(.96);}
+@keyframes kap-button-press {0%,100%{transform:scale(1)}45%{transform:scale(.96)}}
+/* .toast-in — 200ms ease-out; arrival only. Host controls later dismissal. */
+.toast-in {animation:kap-toast-in 200ms var(--kap-ease-out) both;}
+@keyframes kap-toast-in {from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* .panel-slide — 250ms ease-out; panel enters from right. */
+.panel-slide {animation:kap-panel-slide 250ms var(--kap-ease-out) both;}
+@keyframes kap-panel-slide {from{transform:translateX(24px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* Reduced motion: remove travel, tumble, repeated glow and shake.
+   Content simply appears for 120ms; final dice/card states are preserved.
+   Decorative coins/flashes are hidden. The timer keeps a non-motion static ring;
+   expose remaining time as ordinary host UI text for accessible countdown. */
+@media (prefers-reduced-motion:reduce) {
+ .dice-roll,.token-hop,.card-flip__inner,.card-deal,.money-pop,.coins-out,
+ .cell-pulse,.turn-timer,.bankrupt-shake,.button-press,.toast-in,.panel-slide {animation:kap-appear 120ms linear both;transform:none;}
+ .token-hop {transform:translate(var(--hop-x,0px),var(--hop-y,0px));}
+ .dice-roll__cycling {display:none;animation:none;}
+ .dice-roll__result {animation:none;opacity:1;}
+ .card-flip__inner {transform:none;}
+ .card-flip .card-flip__back {display:none;}
+ .card-flip .card-flip__face {transform:none;backface-visibility:visible;}
+ .coins-in__coin,.win-confetti__coin {display:none;animation:none;}
+ .escape-burst::before,.escape-burst::after {display:none;animation:none;}
+ .escape-burst,.coins-in,.win-confetti {animation:kap-appear 120ms linear both;}
+ .turn-timer__progress {animation:none;stroke-dashoffset:0;stroke:var(--kap-emerald);}
+ .cell-pulse {box-shadow:0 0 0 2px var(--kap-gold);}
+ .kap-button {transition:none;}
+ .kap-button:active {transform:none;}
+}
+@keyframes kap-appear {from{opacity:0}to{opacity:1}}

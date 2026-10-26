@@ -64,3 +64,33 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'game_finished': return 'Партия окончена';
   }
 }
+
+export const DECK_TITLES: Record<string, string> = {
+  smallDeals: 'Шанс',
+  bigDeals: 'Проект',
+  market: 'Новости рынка',
+  temptations: 'Соблазн',
+  ventures: 'Инвестиция',
+};
+
+/** Рубашка колоды. */
+export const DECK_BACKS: Record<string, string> = {
+  smallDeals: 'decks/small.webp',
+  bigDeals: 'decks/big.webp',
+  market: 'decks/market.webp',
+  temptations: 'decks/temptation.webp',
+  ventures: 'decks/venture.webp',
+};
+
+/** Клетки без карты: что произошло и какая картинка. */
+export const SITUATIONS: Record<string, { art: string; text: string }> = {
+  charity: {
+    art: 'deals/charity.webp',
+    text: `Можно пожертвовать ${Math.round(content.rules.charityShare * 100)}% дохода и следующие ${content.rules.charityTurns} хода бросать два кубика.`,
+  },
+  baby: { art: 'deals/baby.webp', text: 'В семье пополнение: расходы за период выросли.' },
+  layoff: { art: 'deals/layoff.webp', text: `Две ближайшие зарплаты не придут. Пассивный доход продолжает работать.` },
+  lawsuit: { art: 'deals/lawsuit.webp', text: `Судебный иск забирает ${Math.round(content.rules.lawsuitShare * 100)}% наличных.` },
+  audit: { art: 'deals/audit.webp', text: `Налоговая проверка забирает ${Math.round(content.rules.auditShare * 100)}% наличных.` },
+  crisis: { art: 'deals/crisis.webp', text: 'Кризис: следующий доход «Свободного пути» не придёт.' },
+};
