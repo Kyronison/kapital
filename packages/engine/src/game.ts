@@ -1,4 +1,4 @@
-import type { Content, DealCard, MarketCard, TemptationCard } from '@kapital/content';
+import type { Content, DealCard, MarketCard, TemptationCard, VentureCard } from '@kapital/content';
 import {
   availableLoan, hasEscaped, passiveIncome, professionOf, roundUpToStep, totalExpenses,
 } from './finance.js';
@@ -19,13 +19,17 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
   const rng = new Rng(seed >>> 0);
   const deck = (cards: { id: string }[]) => ({ order: rng.shuffle(cards.map((c) => c.id)), pos: 0 });
 
-  const players: PlayerState[] = setups.map((s) => {
+  const players: PlayerState[] = setups.map((s, i) => {
     const prof = content.professions.find((p) => p.id === s.professionId);
     if (!prof) throw new Error(`Неизвестная профессия: ${s.professionId}`);
+    const dreamId = s.dreamId ?? content.dreams[i % content.dreams.length]!.id;
+    if (!content.dreams.some((d) => d.id === dreamId)) throw new Error(`Неизвестная мечта: ${dreamId}`);
     return {
       id: s.id,
       name: s.name,
       professionId: s.professionId,
+      dreamId,
+      circle: 'inner',
       cash: prof.startCash,
       children: 0,
       bankLoan: 0,
@@ -37,6 +41,11 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
       turnsTaken: 0,
       escapedAtTurn: null,
       bankruptcies: 0,
+      outerIncome: 0,
+      startOuterIncome: 0,
+      ventures: [],
+      skipIncome: 0,
+      wonAtTurn: null,
     };
   });
 
@@ -44,6 +53,7 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
     seed: seed >>> 0,
     rng: rng.state,
     status: 'playing',
+    winnerId: null,
     players,
     current: 0,
     phase: 'roll',
@@ -55,6 +65,7 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
       bigDeals: deck(content.bigDeals),
       market: deck(content.market),
       temptations: deck(content.temptations),
+      ventures: deck(content.ventures),
     },
     nextAssetId: 1,
   };
@@ -72,7 +83,7 @@ class Turn {
     return this.s.players[this.s.current]!;
   }
 
-  draw<T extends DealCard | MarketCard | TemptationCard>(deck: DeckName): T {
+  draw<T extends DealCard | MarketCard | TemptationCard | VentureCard>(deck: DeckName): T {
     const d = this.s.decks[deck];
     if (d.pos >= d.order.length) {
       d.order = this.rng.shuffle(d.order);
@@ -139,6 +150,53 @@ class Turn {
     }
   }
 
+  outerPayday(p: PlayerState) {
+    if (p.skipIncome > 0) {
+      p.skipIncome--;
+      this.events.push({ type: 'income_lost', playerId: p.id });
+      return;
+    }
+    p.cash += p.outerIncome;
+    this.events.push({ type: 'income', playerId: p.id, amount: p.outerIncome });
+  }
+
+  landOuter(p: PlayerState) {
+    const { rules, outerBoard } = this.content;
+    const cell = outerBoard.cells[p.position]!;
+    this.events.push({ type: 'landed', playerId: p.id, cell });
+    switch (cell) {
+      case 'venture':
+        this.s.pending = { deck: 'ventures', card: this.draw<VentureCard>('ventures') };
+        this.s.phase = 'deal';
+        return;
+      case 'dream':
+        this.s.phase = outerBoard.dreamsAt[p.position]?.includes(p.dreamId) ? 'dream' : 'end';
+        return;
+      case 'lawsuit':
+        this.pay(p, Math.floor(p.cash * rules.lawsuitShare), 'Судебный иск');
+        this.s.phase = 'end';
+        return;
+      case 'audit':
+        this.pay(p, Math.floor(p.cash * rules.auditShare), 'Налоговая проверка');
+        this.s.phase = 'end';
+        return;
+      case 'crisis':
+        p.skipIncome = 1;
+        this.events.push({ type: 'crisis', playerId: p.id });
+        this.s.phase = 'end';
+        return;
+      case 'charity':
+        this.s.phase = 'charity';
+        return;
+    }
+  }
+
+  win(p: PlayerState, by: 'dream' | 'income') {
+    p.wonAtTurn = p.turnsTaken;
+    this.s.winnerId = p.id;
+    this.events.push({ type: 'won', playerId: p.id, turn: p.turnsTaken, by });
+  }
+
   land(p: PlayerState) {
     const cell = this.content.board.cells[p.position]!;
     this.events.push({ type: 'landed', playerId: p.id, cell });
@@ -186,12 +244,28 @@ class Turn {
   }
 
   advanceTurn() {
-    const { maxTurns } = this.content.rules;
+    const { maxTurns, outerIncomeMultiplier, outerGoalMultiplier } = this.content.rules;
     for (const p of this.s.players) {
-      if (p.escapedAtTurn === null && hasEscaped(this.content, p)) {
+      if (p.circle === 'inner' && hasEscaped(this.content, p)) {
         p.escapedAtTurn = p.turnsTaken;
-        this.events.push({ type: 'escaped', playerId: p.id, turn: p.turnsTaken });
+        p.circle = 'outer';
+        p.position = 0;
+        p.startOuterIncome = passiveIncome(p) * outerIncomeMultiplier;
+        p.outerIncome = p.startOuterIncome;
+        this.events.push({ type: 'escaped', playerId: p.id, turn: p.turnsTaken, outerIncome: p.outerIncome });
       }
+    }
+    const current = this.current;
+    if (
+      !this.s.winnerId && current.circle === 'outer' &&
+      current.outerIncome >= outerGoalMultiplier * current.startOuterIncome
+    ) {
+      this.win(current, 'income');
+    }
+    if (this.s.winnerId) {
+      this.s.status = 'finished';
+      this.events.push({ type: 'game_finished' });
+      return;
     }
     this.s.pending = null;
     this.s.pendingResolved = false;
@@ -200,7 +274,7 @@ class Turn {
     for (let step = 1; step <= n; step++) {
       const idx = (this.s.current + step) % n;
       const p = this.s.players[idx]!;
-      if (p.escapedAtTurn === null && p.turnsTaken < maxTurns) {
+      if (p.turnsTaken < maxTurns) {
         this.s.current = idx;
         this.s.phase = 'roll';
         this.events.push({ type: 'turn_started', playerId: p.id });
@@ -213,6 +287,12 @@ class Turn {
 }
 
 const fail = (error: string): ActionResult => ({ ok: false, error });
+
+export function dreamPrice(content: Content, p: PlayerState): number {
+  const dream = content.dreams.find((d) => d.id === p.dreamId);
+  if (!dream) throw new Error(`Неизвестная мечта: ${p.dreamId}`);
+  return dream.priceInIncomes * p.startOuterIncome;
+}
 
 /** Единственная точка изменения состояния. Не мутирует входной state. */
 export function applyAction(content: Content, state: GameState, action: Action): ActionResult {
@@ -234,13 +314,16 @@ export function applyAction(content: Content, state: GameState, action: Action):
       const total = roll.reduce((a, b) => a + b, 0);
       s.lastRoll = roll;
       p.turnsTaken++;
-      const n = content.board.cells.length;
+      const board = p.circle === 'inner' ? content.board : content.outerBoard;
       for (let i = 0; i < total; i++) {
-        p.position = (p.position + 1) % n;
-        if (content.board.paydayAt.includes(p.position)) t.payday(p);
+        p.position = (p.position + 1) % board.cells.length;
+        if (!board.paydayAt.includes(p.position)) continue;
+        if (p.circle === 'inner') t.payday(p);
+        else t.outerPayday(p);
       }
       t.events.push({ type: 'rolled', playerId: p.id, dice: roll, to: p.position });
-      t.land(p);
+      if (p.circle === 'inner') t.land(p);
+      else t.landOuter(p);
       break;
     }
 
@@ -254,6 +337,21 @@ export function applyAction(content: Content, state: GameState, action: Action):
 
     case 'BUY': {
       if (!isCurrent || s.phase !== 'deal' || !s.pending || s.pendingResolved) return fail('Сейчас нечего покупать');
+      if (s.pending.deck === 'ventures') {
+        const card = s.pending.card;
+        const shares = action.shares ?? 1;
+        if (!Number.isInteger(shares) || shares <= 0) return fail('Укажите целое число долей');
+        const price = shares * card.cost;
+        if (p.cash < price) return fail('Не хватает денег: на «Свободном пути» покупают только за наличные');
+        p.cash -= price;
+        p.ventures.push({
+          id: `v${s.nextAssetId++}`, cardId: card.id, title: card.title, shares, cost: price, income: shares * card.income,
+        });
+        p.outerIncome += shares * card.income;
+        t.events.push({ type: 'bought', playerId: p.id, cardId: card.id, price });
+        s.phase = 'end';
+        break;
+      }
       if (s.pending.deck !== 'smallDeals' && s.pending.deck !== 'bigDeals') return fail('Сейчас нечего покупать');
       const card = s.pending.card;
       if (card.kind === 'asset') {
@@ -325,7 +423,8 @@ export function applyAction(content: Content, state: GameState, action: Action):
 
     case 'DONATE': {
       if (!isCurrent || s.phase !== 'charity') return fail('Сейчас нельзя пожертвовать');
-      const amount = Math.round(rules.charityShare * (professionOf(content, p).salary + passiveIncome(p)));
+      const income = p.circle === 'inner' ? professionOf(content, p).salary + passiveIncome(p) : p.outerIncome;
+      const amount = Math.round(rules.charityShare * income);
       if (p.cash < amount) return fail('Не хватает денег на пожертвование');
       p.cash -= amount;
       p.charityTurns = rules.charityTurns;
@@ -334,8 +433,19 @@ export function applyAction(content: Content, state: GameState, action: Action):
       break;
     }
 
+    case 'BUY_DREAM': {
+      if (!isCurrent || s.phase !== 'dream') return fail('Сейчас нельзя купить мечту');
+      const price = dreamPrice(content, p);
+      if (p.cash < price) return fail('Пока не хватает денег на мечту');
+      p.cash -= price;
+      t.win(p, 'dream');
+      s.phase = 'end';
+      break;
+    }
+
     case 'TAKE_LOAN': {
       if (!isCurrent) return fail('Кредит берут только в свой ход');
+      if (p.circle === 'outer') return fail('На «Свободном пути» кредитов нет');
       const { amount } = action;
       if (!Number.isInteger(amount) || amount <= 0 || amount % rules.loanStep !== 0) {
         return fail(`Сумма кредита кратна ${rules.loanStep}`);

@@ -17,7 +17,7 @@ export function act(s: GameState, action: Action): GameState {
 export function placeBefore(s: GameState, cell: number, roll = 1): GameState {
   const out = structuredClone(s);
   const p = out.players[out.current]!;
-  const n = content.board.cells.length;
+  const n = (p.circle === 'inner' ? content.board : content.outerBoard).cells.length;
   p.position = (cell - roll + n) % n;
   out.rng = seedForRoll(roll);
   return out;
@@ -35,8 +35,9 @@ export function seedForRoll(roll: number): number {
   }
 }
 
-export function cellIndex(kind: string, nth = 0): number {
-  const idx = content.board.cells.flatMap((c, i) => (c === kind ? [i] : []))[nth];
+export function cellIndex(kind: string, nth = 0, circle: 'inner' | 'outer' = 'inner'): number {
+  const cells: string[] = circle === 'inner' ? content.board.cells : content.outerBoard.cells;
+  const idx = cells.flatMap((c, i) => (c === kind ? [i] : []))[nth];
   if (idx === undefined) throw new Error(`Нет клетки ${kind}`);
   return idx;
 }
