@@ -89,7 +89,7 @@ function Players({ game, view, me }: { game: PublicGame; view: View; me: string 
           const seat = view.seats.find((s) => s.id === p.id);
           const pct = p.circle === 'outer'
             ? Math.min(100, Math.floor((p.outerIncome / (content.rules.outerGoalMultiplier * p.startOuterIncome)) * 100))
-            : Math.min(100, Math.floor((passiveIncome(p) / totalExpenses(content, p)) * 100));
+            : Math.min(100, Math.floor((passiveIncome(content, p) / totalExpenses(content, p)) * 100));
           return (
             <li key={p.id} className={`${i === game.current ? 'current' : ''}${p.circle === 'outer' ? ' outer' : ''}`}>
               <span className="avatar" style={{ borderColor: playerColor(i) }}>

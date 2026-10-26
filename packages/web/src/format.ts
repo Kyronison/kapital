@@ -4,6 +4,7 @@ import type { GameEvent } from '@kapital/engine';
 
 const nf = new Intl.NumberFormat('ru-RU');
 export const money = (n: number) => `${nf.format(Math.round(n))} К`;
+export const percent = (x: number) => `${(Math.round(x * 1000) / 10).toLocaleString('ru-RU')}%`;
 export const signed = (n: number) => `${n >= 0 ? '+' : '−'}${nf.format(Math.abs(Math.round(n)))} К`;
 
 export const professionTitle = (id: string | null) => content.professions.find((p) => p.id === id)?.title ?? 'Случайная';
@@ -68,6 +69,9 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'subscribed': return `${who}: «${e.title}», ${money(e.amount)} за период ещё ${e.paydays} зарплаты`;
     case 'trained': return `${who} учится за ${money(e.cost)}: расходы ниже на ${money(e.saving)}`;
     case 'received': return `${who} получает ${money(e.amount)}: ${e.reason}`;
+    case 'deposited': return `${who} кладёт на вклад ${money(e.amount)}`;
+    case 'withdrawn': return `${who} снимает со вклада ${money(e.amount)}${e.forced ? ' (не хватило денег)' : ''}`;
+    case 'bond_sold': return `${who} возвращает облигации за ${money(e.proceeds)}`;
     case 'turn_started': return `Ходит ${who}`;
     case 'game_finished': return 'Партия окончена';
   }

@@ -7,8 +7,23 @@ export function professionOf(content: Content, player: PlayerState): Profession 
   return p;
 }
 
-export function passiveIncome(player: PlayerState): number {
-  return player.assets.reduce((sum, a) => sum + a.flow, 0);
+/** Доход вклада за период. */
+export function depositIncome(content: Content, player: PlayerState): number {
+  return Math.round(player.deposit * content.rules.depositRate);
+}
+
+/** Купоны облигаций за период. */
+export function bondIncome(player: PlayerState): number {
+  return player.bonds.reduce((sum, b) => sum + b.count * b.coupon, 0);
+}
+
+export function passiveIncome(content: Content, player: PlayerState): number {
+  return player.assets.reduce((sum, a) => sum + a.flow, 0) + depositIncome(content, player) + bondIncome(player);
+}
+
+/** Доходность сделки за период: поток на вложенные деньги. */
+export function roi(flow: number, invested: number): number {
+  return invested > 0 ? flow / invested : 0;
 }
 
 export function loanPayment(content: Content, player: PlayerState): number {
@@ -50,13 +65,13 @@ export function totalExpenses(content: Content, player: PlayerState): number {
 
 /** Денежный поток за период, если зарплата приходит. */
 export function cashflow(content: Content, player: PlayerState): number {
-  return professionOf(content, player).salary + passiveIncome(player) - totalExpenses(content, player);
+  return professionOf(content, player).salary + passiveIncome(content, player) - totalExpenses(content, player);
 }
 
 /** Максимальный общий долг перед банком: платежи не больше доли положительного потока. */
 export function loanLimit(content: Content, player: PlayerState): number {
   const { loanRate, loanCapShare, loanStep } = content.rules;
-  const flow = professionOf(content, player).salary + passiveIncome(player) - baseExpenses(content, player);
+  const flow = professionOf(content, player).salary + passiveIncome(content, player) - baseExpenses(content, player);
   const raw = (loanCapShare * Math.max(0, flow)) / loanRate;
   return Math.floor(raw / loanStep) * loanStep;
 }
@@ -66,7 +81,7 @@ export function availableLoan(content: Content, player: PlayerState): number {
 }
 
 export function hasEscaped(content: Content, player: PlayerState): boolean {
-  return passiveIncome(player) >= totalExpenses(content, player);
+  return passiveIncome(content, player) >= totalExpenses(content, player);
 }
 
 export function roundUpToStep(amount: number, step: number): number {

@@ -26,6 +26,8 @@ export const rules: Rules = {
   auditShare: 0.25,
   dreamPriceFactor: 1,
   startPassiveShare: 0,
+  depositRate: 0.01,
+  depositStep: 1000,
 };
 
 /**

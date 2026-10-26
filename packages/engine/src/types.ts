@@ -46,6 +46,16 @@ export interface Subscription {
   paydaysLeft: number;
 }
 
+export interface BondHolding {
+  id: string;
+  cardId: string;
+  title: string;
+  count: number;
+  /** Номинал одной облигации и купон одной облигации за период. */
+  price: number;
+  coupon: number;
+}
+
 export interface PlayerState {
   id: PlayerId;
   name: string;
@@ -77,6 +87,9 @@ export interface PlayerState {
   subscriptions: Subscription[];
   /** На сколько тренинги снизили прочие расходы за период. */
   savings: number;
+  /** Сумма на банковском вкладе. */
+  deposit: number;
+  bonds: BondHolding[];
 }
 
 export type Phase =
@@ -128,6 +141,9 @@ export type Action =
   | { type: 'BUY_DREAM'; playerId: PlayerId }
   | { type: 'TAKE_LOAN'; playerId: PlayerId; amount: number }
   | { type: 'REPAY_LOAN'; playerId: PlayerId; amount: number }
+  | { type: 'DEPOSIT'; playerId: PlayerId; amount: number }
+  | { type: 'WITHDRAW'; playerId: PlayerId; amount: number }
+  | { type: 'SELL_BOND'; playerId: PlayerId; bondId: string }
   | { type: 'CANCEL_POLICY'; playerId: PlayerId; risk: Risk }
   | { type: 'END_TURN'; playerId: PlayerId };
 
@@ -157,6 +173,9 @@ export type GameEvent =
   | { type: 'subscribed'; playerId: PlayerId; title: string; amount: number; paydays: number }
   | { type: 'trained'; playerId: PlayerId; cost: number; saving: number }
   | { type: 'received'; playerId: PlayerId; amount: number; reason: string }
+  | { type: 'deposited'; playerId: PlayerId; amount: number }
+  | { type: 'withdrawn'; playerId: PlayerId; amount: number; forced: boolean }
+  | { type: 'bond_sold'; playerId: PlayerId; bondId: string; proceeds: number }
   | { type: 'turn_started'; playerId: PlayerId }
   | { type: 'game_finished' };
 

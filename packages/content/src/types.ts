@@ -61,9 +61,23 @@ export interface StockCard {
   ticker: string;
   title: string;
   price: number;
+  /** Самая низкая и самая высокая цена этой акции в колоде: подсказка, дорого или дёшево. */
+  low: number;
+  high: number;
 }
 
-export type DealCard = AssetCard | StockCard;
+/** Облигации: доход ниже, чем у бизнеса, зато их можно в любой свой ход вернуть по номиналу. */
+export interface BondCard {
+  id: string;
+  kind: 'bond';
+  title: string;
+  /** Номинал одной облигации. */
+  price: number;
+  /** Купон одной облигации за период. */
+  coupon: number;
+}
+
+export type DealCard = AssetCard | StockCard | BondCard;
 
 export interface OfferCard {
   id: string;
@@ -159,6 +173,10 @@ export interface Rules {
   dreamPriceFactor: number;
   /** Доля расходов, которую с самого начала покрывает стартовый бизнес. 0 — без него. */
   startPassiveShare: number;
+  /** Доход банковского вклада за период, доля от суммы. */
+  depositRate: number;
+  /** Вклад открывается и пополняется суммами, кратными этому шагу. */
+  depositStep: number;
 }
 
 export type GameMode = 'classic' | 'quick';

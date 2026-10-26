@@ -1,6 +1,6 @@
 import { content } from '../content.js';
 import {
-  availableLoan, baseExpenses, cashflow, dreamPrice, loanPayment, passiveIncome, professionOf, type PlayerState,
+  availableLoan, baseExpenses, depositIncome, cashflow, dreamPrice, loanPayment, passiveIncome, professionOf, type PlayerState,
 } from '@kapital/engine';
 import type { ReactNode } from 'react';
 import { art, Icon } from '../art.js';
@@ -36,7 +36,7 @@ const Row = ({ icon, label, children, tone }: { icon: string; label: ReactNode; 
 /** Финансовый отчёт игрока: главное число — поток за период. */
 export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null }) {
   const prof = professionOf(content, p);
-  const passive = passiveIncome(p);
+  const passive = passiveIncome(content, p);
   const expenses = baseExpenses(content, p) + loanPayment(content, p);
 
   if (p.circle === 'outer') {
@@ -93,6 +93,11 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
           {money(p.bankLoan)}<small> · ещё {money(availableLoan(content, p))}</small>
         </Row>
         <Row icon="ui-family" label="Дети">{p.children}</Row>
+        {p.deposit > 0 && (
+          <Row icon="ui-bank" label="Вклад">
+            {money(p.deposit)}<small> · {signed(depositIncome(content, p))} за период</small>
+          </Row>
+        )}
         {p.savings > 0 && <Row icon="ui-training" label="Тренинги снизили расходы" tone="good">{signed(-p.savings)}</Row>}
       </dl>
       {(p.policies.length > 0 || p.subscriptions.length > 0) && (
@@ -112,10 +117,13 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
         </ul>
       )}
       <Meter label={`Пассивный доход покрывает расходы на ${cover}%`} value={Math.min(passive, expenses)} max={expenses} />
-      {p.assets.length > 0 || p.stocks.length > 0 ? (
+      {p.assets.length > 0 || p.stocks.length > 0 || p.bonds.length > 0 ? (
         <ul className="assets">
           {p.assets.map((a) => (
             <li key={a.id}><Icon name={`asset-${a.assetType}`} size={16} />{a.title}<span>{signed(a.flow)}</span></li>
+          ))}
+          {p.bonds.map((b) => (
+            <li key={b.id}><Icon name="ui-income" size={16} />{b.title} × {b.count}<span>{signed(b.count * b.coupon)}</span></li>
           ))}
           {p.stocks.map((s) => (
             <li key={s.ticker}><Icon name={`stock-${s.ticker.toLowerCase()}`} size={16} />Акции {s.ticker} × {s.shares}<span>по {Math.round(s.avgPrice)} К</span></li>

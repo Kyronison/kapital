@@ -1,8 +1,8 @@
 import { content } from '../content.js';
-import { everydayAmount, trainingSaving, type GameEvent } from '@kapital/engine';
+import { everydayAmount, roi, trainingSaving, type GameEvent } from '@kapital/engine';
 import { art, Icon } from '../art.js';
 import {
-  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, EVERYDAY_ART, RISK_TITLES, SITUATIONS, dreamTitle, money, signed,
+  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, EVERYDAY_ART, RISK_TITLES, SITUATIONS, dreamTitle, money, percent, signed,
 } from '../format.js';
 import type { PublicGame, TableApi } from '../net.js';
 
@@ -94,12 +94,20 @@ function faceOf(game: PublicGame): Face | null {
       case 'asset':
         return {
           deck, picture: `deals/${card.assetType}.webp`, title: card.title,
-          facts: [['Цена', money(card.cost)], ['Взнос', money(card.down)], ['Поток', signed(card.flow)]],
+          facts: [['Цена', money(card.cost)], ['Взнос', money(card.down)], ['Поток', signed(card.flow)], ['Доходность', percent(roi(card.flow, card.down))]],
+          note: 'Доходность: поток за период на вложенный взнос.',
         };
       case 'stock':
         return {
           deck, picture: card.price <= 10 ? 'deals/stock-down.webp' : 'deals/stock-up.webp', title: card.title,
-          facts: [['Цена акции', money(card.price)]], note: 'Продать по этой цене может любой владелец.',
+          facts: [['Цена акции', money(card.price)], ['Бывает', `${card.low}–${card.high} К`]],
+          note: `${card.price <= (card.low + card.high) / 2 ? 'Цена ниже середины диапазона.' : 'Цена выше середины диапазона.'} Продать по ней может любой владелец.`,
+        };
+      case 'bond':
+        return {
+          deck, picture: 'deals/venture.webp', title: card.title,
+          facts: [['Номинал', money(card.price)], ['Купон', signed(card.coupon)], ['Доходность', percent(roi(card.coupon, card.price))]],
+          note: 'Облигации можно вернуть по номиналу в любой свой ход.',
         };
       case 'offer':
         return {

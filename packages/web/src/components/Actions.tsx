@@ -12,6 +12,7 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
   const [shares, setShares] = useState(10);
   const pending = game.pending;
   const step = content.rules.loanStep;
+  const depositStep = content.rules.depositStep;
   const end = <button className="ghost" onClick={() => api.act({ type: 'END_TURN' })}>Завершить ход</button>;
 
   // продажи доступны всем владельцам, в том числе не в свой ход
@@ -100,7 +101,27 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
                 <Icon name="ui-buy" />
                 Купить за {money(card.down)}
               </button>
-              {short > 0 && <span className="muted">Не хватает {money(short)}: возьмите кредит ниже</span>}
+              {short > 0 && (() => {
+                // «выровнять»: банк добавляет недостающее, и сделка сразу покупается
+                const need = Math.ceil(short / step) * step;
+                return need <= availableLoan(content, me) ? (
+                  <button onClick={() => { api.act({ type: 'TAKE_LOAN', amount: need }); api.act({ type: 'BUY' }); }}>
+                    <Icon name="ui-loan-take" />
+                    Взять {money(need)} в кредит и купить
+                  </button>
+                ) : <span className="muted">Не хватает {money(short)}, а банк даст только {money(availableLoan(content, me))}</span>;
+              })()}
+              {end}
+            </>
+          );
+        } else if (card && 'kind' in card && card.kind === 'bond') {
+          main = (
+            <>
+              <input type="number" min={1} value={shares} onChange={(e) => setShares(Number(e.target.value))} aria-label="Сколько облигаций" />
+              <button className="primary" disabled={shares * card.price > me.cash || shares < 1} onClick={() => api.act({ type: 'BUY', shares })}>
+                <Icon name="ui-buy" />
+                Купить {shares} шт. за {money(shares * card.price)}
+              </button>
               {end}
             </>
           );
@@ -123,7 +144,7 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
         break;
       }
       case 'charity': {
-        const income = me.circle === 'inner' ? professionOf(content, me).salary + passiveIncome(me) : me.outerIncome;
+        const income = me.circle === 'inner' ? professionOf(content, me).salary + passiveIncome(content, me) : me.outerIncome;
         const amount = Math.round(content.rules.charityShare * income);
         main = (
           <>
@@ -164,6 +185,26 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
         <Icon name="ui-loan-repay" />
         Погасить {money(step)}
       </button>
+      {me.bankLoan >= step && me.cash >= 2 * step && (
+        <button className="ghost" onClick={() => api.act({ type: 'REPAY_LOAN', amount: Math.min(me.bankLoan, Math.floor(me.cash / step) * step) })}>
+          Погасить сколько можно
+        </button>
+      )}
+      <button className="ghost" disabled={me.cash < depositStep} onClick={() => api.act({ type: 'DEPOSIT', amount: depositStep })}>
+        <Icon name="ui-bank" />
+        На вклад +{money(depositStep)}
+      </button>
+      {me.deposit > 0 && (
+        <button className="ghost" onClick={() => api.act({ type: 'WITHDRAW', amount: Math.min(me.deposit, depositStep) })}>
+          Снять со вклада {money(Math.min(me.deposit, depositStep))}
+        </button>
+      )}
+      {me.bonds.map((b) => (
+        <button key={b.id} className="ghost" onClick={() => api.act({ type: 'SELL_BOND', bondId: b.id })}>
+          <Icon name="ui-sell" />
+          Вернуть «{b.title}» за {money(b.count * b.price)}
+        </button>
+      ))}
       {me.policies.map((x) => (
         <button key={x.risk} className="ghost" onClick={() => api.act({ type: 'CANCEL_POLICY', risk: x.risk })}>
           Отказаться: {RISK_TITLES[x.risk].toLowerCase()}
