@@ -35,7 +35,8 @@ export function useTable() {
   const client = useRef(new Client(SERVER_URL));
   const [room, setRoom] = useState<Room | null>(null);
   const [view, setView] = useState<View | null>(null);
-  const [log, setLog] = useState<GameEvent[]>([]);
+  // журнал хранит последние 200 событий; logStart — номер первого из них с начала партии
+  const [log, setLog] = useState<{ events: GameEvent[]; start: number }>({ events: [], start: 0 });
   const [error, setError] = useState<string | null>(null);
 
   const attach = useCallback((r: Room) => {
@@ -45,7 +46,13 @@ export function useTable() {
       // без sessionStorage просто не будет переподключения после перезагрузки
     }
     r.onMessage('view', (v: View) => setView(v));
-    r.onMessage('events', (e: GameEvent[]) => setLog((prev) => [...prev, ...e].slice(-200)));
+    r.onMessage('events', (e: GameEvent[]) =>
+      setLog((prev) => {
+        const all = [...prev.events, ...e];
+        const drop = Math.max(0, all.length - 200);
+        return { events: all.slice(drop), start: prev.start + drop };
+      }),
+    );
     r.onMessage('error', (m: { error: string }) => setError(m.error));
     r.onLeave(() => setRoom(null));
     setRoom(r);
@@ -84,7 +91,8 @@ export function useTable() {
   return {
     room,
     view,
-    log,
+    log: log.events,
+    logStart: log.start,
     error,
     clearError: () => setError(null),
     me: room?.sessionId ?? null,

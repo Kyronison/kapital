@@ -161,7 +161,8 @@ function landedCell(log: GameEvent[], playerId: string): string | null {
 export function Center({ api, game, seconds, deadline }: { api: TableApi; game: PublicGame; seconds: number | null; deadline: number | null }) {
   const current = game.players[game.current]!;
   const mine = current.id === api.me;
-  const rollKey = api.log.filter((e) => e.type === 'rolled').length;
+  // сквозной номер последнего броска: по нему кубик перезапускает анимацию
+  const rollKey = api.logStart + api.log.findLastIndex((e) => e.type === 'rolled');
   const cell = !game.pending ? landedCell(api.log, current.id) : null;
 
   return (

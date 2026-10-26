@@ -1,6 +1,6 @@
 import { defaultContent as content } from '@kapital/content';
 import { passiveIncome, totalExpenses, type GameEvent } from '@kapital/engine';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { art, Icon, playerColor, Token } from '../art.js';
 import { describe, money, professionTitle } from '../format.js';
 import type { PublicGame, TableApi, View } from '../net.js';
@@ -21,15 +21,16 @@ function useCountdown(deadline: number | null) {
 }
 
 /** Сумма последнего прихода или расхода игрока: для всплывающей цифры у наличных. */
-function lastFlash(log: GameEvent[], me: string | null): Flash | null {
+function lastFlash(log: GameEvent[], start: number, me: string | null): Flash | null {
   for (let i = log.length - 1; i >= Math.max(0, log.length - 12); i--) {
     const e = log[i]!;
+    const key = start + i;
     if (!('playerId' in e) || e.playerId !== me) continue;
-    if (e.type === 'payday' || e.type === 'income') return { key: i, amount: e.amount };
-    if (e.type === 'paid') return { key: i, amount: -e.amount };
-    if (e.type === 'sold') return { key: i, amount: e.proceeds };
-    if (e.type === 'bought') return { key: i, amount: -e.price };
-    if (e.type === 'loan_taken') return { key: i, amount: e.amount };
+    if (e.type === 'payday' || e.type === 'income') return { key, amount: e.amount };
+    if (e.type === 'paid') return { key, amount: -e.amount };
+    if (e.type === 'sold') return { key, amount: e.proceeds };
+    if (e.type === 'bought') return { key, amount: -e.price };
+    if (e.type === 'loan_taken') return { key, amount: e.amount };
   }
   return null;
 }
@@ -37,23 +38,31 @@ function lastFlash(log: GameEvent[], me: string | null): Flash | null {
 type Moment = { kind: 'escape' | 'bankrupt'; key: number; playerId: string };
 
 /** Крупные события партии показываем отдельным экраном. */
-function useMoment(log: GameEvent[]) {
+function useMoment(log: GameEvent[], start: number) {
   const [moment, setMoment] = useState<Moment | null>(null);
-  const seen = useRef(log.length);
+  // сквозной номер следующего непросмотренного события
+  const seen = useRef(start + log.length);
   useEffect(() => {
-    for (let i = seen.current; i < log.length; i++) {
-      const e = log[i]!;
-      if (e.type === 'escaped') setMoment({ kind: 'escape', key: i, playerId: e.playerId });
-      if (e.type === 'bankrupt') setMoment({ kind: 'bankrupt', key: i, playerId: e.playerId });
+    for (let n = Math.max(seen.current, start); n < start + log.length; n++) {
+      const e = log[n - start]!;
+      if (e.type === 'escaped') setMoment({ kind: 'escape', key: n, playerId: e.playerId });
+      if (e.type === 'bankrupt') setMoment({ kind: 'bankrupt', key: n, playerId: e.playerId });
     }
-    seen.current = log.length;
-  }, [log]);
-  return [moment, () => setMoment(null)] as const;
+    seen.current = start + log.length;
+  }, [log, start]);
+  const close = useCallback(() => setMoment(null), []);
+  return [moment, close] as const;
 }
 
-function Overlay({ picture, title, text, onClose, burst, confetti }: {
-  picture: string; title: string; text: string; onClose?: () => void; burst?: boolean; confetti?: boolean;
+function Overlay({ picture, title, text, onClose, burst, confetti, autoClose }: {
+  picture: string; title: string; text: string; onClose?: () => void; burst?: boolean; confetti?: boolean; autoClose?: boolean;
 }) {
+  // чужие события не должны надолго закрывать поле
+  useEffect(() => {
+    if (!autoClose || !onClose) return;
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [autoClose, onClose]);
   return (
     <div className="overlay toast-in" role="dialog" aria-modal="true" aria-label={title}>
       <div className={`overlay-card${burst ? ' escape-burst' : ''}`}>
@@ -112,7 +121,7 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
   const name = (id: string) => game.players.find((p) => p.id === id)?.name ?? id;
   const anyOuter = game.players.some((p) => p.circle === 'outer');
   const logRef = useRef<HTMLOListElement>(null);
-  const [moment, closeMoment] = useMoment(api.log);
+  const [moment, closeMoment] = useMoment(api.log, api.logStart);
   const [winSeen, setWinSeen] = useState(false);
   useEffect(() => {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
@@ -139,6 +148,7 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
           key={moment.key}
           picture="screens/escape.webp"
           burst
+          autoClose={moment.playerId !== api.me}
           title={moment.playerId === api.me ? 'Вы на «Свободном пути»!' : `${name(moment.playerId)} на «Свободном пути»`}
           text="Пассивный доход покрыл расходы. Теперь цель — купить мечту или удвоить доход."
           onClose={closeMoment}
@@ -148,6 +158,7 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
         <Overlay
           key={moment.key}
           picture="screens/bankrupt.webp"
+          autoClose={moment.playerId !== api.me}
           title={moment.playerId === api.me ? 'Банкротство' : `${name(moment.playerId)} банкротится`}
           text="Активы распроданы, кредит банка списан, на руках снова стартовые деньги профессии. Игра продолжается."
           onClose={closeMoment}
@@ -159,14 +170,14 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
       </div>
       <aside className="side">
         {me && game.status === 'playing' && <Actions api={api} game={game} me={me} />}
-        {me && <div className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'bankrupt-shake' : ''}><Statement p={me} flash={lastFlash(api.log, api.me)} /></div>}
+        {me && <div className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'bankrupt-shake' : ''}><Statement p={me} flash={lastFlash(api.log, api.logStart, api.me)} /></div>}
         <Players game={game} view={view} me={api.me} />
         <section className="log card">
           <h2><Icon name="ui-chat" size={16} />Журнал</h2>
           <ol ref={logRef}>
             {api.log.map((e, i) => {
               const text = describe(e, name);
-              return text ? <li key={i} className={`ev-${e.type}`}>{text}</li> : null;
+              return text ? <li key={api.logStart + i} className={`ev-${e.type}`}>{text}</li> : null;
             })}
           </ol>
         </section>
