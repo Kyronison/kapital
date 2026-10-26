@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import type { VentureCard } from '@kapital/content';
 import {
-  applyAction, availableLoan, botAction, cashflow, hasEscaped, passiveIncome, totalExpenses,
+  applyAction, availableLoan, botAction, cashflow, dreamPrice, hasEscaped, passiveIncome, totalExpenses,
+  type GameState,
 } from '../src/index.js';
 import { act, cellIndex, content, newGame, placeBefore } from './helpers.js';
 
@@ -178,8 +180,94 @@ describe('выход из «Круга забот»', () => {
     expect(hasEscaped(content, s.players[0]!)).toBe(true);
     s = act(s, { type: 'ROLL', playerId: 'p1' });
     s = act(s, { type: 'END_TURN', playerId: 'p1' });
-    expect(s.players[0]!.escapedAtTurn).toBe(1);
+    const p = s.players[0]!;
+    expect(p.escapedAtTurn).toBe(1);
+    expect(p.circle).toBe('outer');
+    expect(p.position).toBe(0);
+    // стартовый доход = пассивный доход × 10
+    expect(p.outerIncome).toBe(24000);
+    expect(s.status).toBe('playing');
+  });
+});
+
+describe('«Свободный путь»', () => {
+  function outerGame(): GameState {
+    const s = structuredClone(newGame(['courier', 'nurse']));
+    const p = s.players[0]!;
+    Object.assign(p, { circle: 'outer', escapedAtTurn: 20, turnsTaken: 20, startOuterIncome: 20000, outerIncome: 20000, cash: 50000 });
+    return s;
+  }
+
+  it('доход начисляется на рубежах внешнего круга', () => {
+    let s = placeBefore(outerGame(), 4 + 1, 2);
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    expect(s.players[0]!.cash).toBe(70000);
+  });
+
+  it('доли инвестиции покупаются за наличные и увеличивают доход', () => {
+    let s = outerGame();
+    s.players[0]!.cash = 1_000_000;
+    s = placeBefore(s, cellIndex('venture', 1, 'outer'));
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    expect(s.phase).toBe('deal');
+    const card = s.pending!.card as VentureCard;
+    s = act(s, { type: 'BUY', playerId: 'p1', shares: 2 });
+    expect(s.players[0]!.outerIncome).toBe(20000 + 2 * card.income);
+    expect(s.players[0]!.cash).toBe(1_000_000 - 2 * card.cost);
+  });
+
+  it('кредитов на внешнем круге нет', () => {
+    const r = applyAction(content, outerGame(), { type: 'TAKE_LOAN', playerId: 'p1', amount: 1000 });
+    expect(r.ok).toBe(false);
+  });
+
+  it('иск забирает половину наличных', () => {
+    let s = placeBefore(outerGame(), cellIndex('lawsuit', 0, 'outer'));
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    expect(s.players[0]!.cash).toBe(25000);
+  });
+
+  it('«Кризис» съедает следующий доход', () => {
+    let s = placeBefore(outerGame(), cellIndex('crisis', 0, 'outer'));
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    s = act(s, { type: 'END_TURN', playerId: 'p1' });
+    s = act(s, { type: 'ROLL', playerId: 'p2' });
+    s = act(s, { type: 'END_TURN', playerId: 'p2' });
+    s = placeBefore(s, 12, 1);
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    expect(s.players[0]!.cash).toBe(50000);
+    expect(s.players[0]!.skipIncome).toBe(0);
+  });
+
+  it('покупка своей мечты — победа', () => {
+    let s = outerGame();
+    const p = s.players[0]!;
+    const cell = Number(Object.entries(content.outerBoard.dreamsAt).find(([, ids]) => ids.includes(p.dreamId))![0]);
+    p.cash = dreamPrice(content, p);
+    s = placeBefore(s, cell);
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    expect(s.phase).toBe('dream');
+    s = act(s, { type: 'BUY_DREAM', playerId: 'p1' });
+    s = act(s, { type: 'END_TURN', playerId: 'p1' });
+    expect(s.winnerId).toBe('p1');
     expect(s.status).toBe('finished');
+  });
+
+  it('чужая мечта не продаётся', () => {
+    let s = outerGame();
+    const p = s.players[0]!;
+    const cell = Number(Object.entries(content.outerBoard.dreamsAt).find(([, ids]) => !ids.includes(p.dreamId))![0]);
+    s = placeBefore(s, cell);
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    expect(s.phase).toBe('end');
+  });
+
+  it('удвоение дохода — победа в конце хода', () => {
+    let s = outerGame();
+    s.players[0]!.outerIncome = 40000;
+    s = act(s, { type: 'ROLL', playerId: 'p1' });
+    s = act(s, { type: 'END_TURN', playerId: 'p1' });
+    expect(s.winnerId).toBe('p1');
   });
 });
 

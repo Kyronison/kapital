@@ -1,5 +1,6 @@
 import type { Content } from '@kapital/content';
 import { availableLoan, passiveIncome, professionOf, roundUpToStep } from './finance.js';
+import { dreamPrice } from './game.js';
 import type { Action, GameState, PlayerState } from './types.js';
 
 /** Порог взноса, после которого бот смотрит в колоду «Проект». */
@@ -53,6 +54,11 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
 
     case 'deal': {
       const pending = s.pending;
+      if (pending?.deck === 'ventures') {
+        // на «Свободном пути» держим запас в половину дохода
+        const shares = Math.floor((p.cash - p.outerIncome / 2) / pending.card.cost);
+        return shares > 0 ? { type: 'BUY', playerId, shares } : end;
+      }
       if (!pending || (pending.deck !== 'smallDeals' && pending.deck !== 'bigDeals')) return end;
       const card = pending.card;
       if (card.kind === 'asset') {
@@ -70,8 +76,12 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
       return end;
     }
 
+    case 'dream':
+      return p.cash >= dreamPrice(content, p) ? { type: 'BUY_DREAM', playerId } : end;
+
     case 'charity': {
-      const amount = Math.round(rules.charityShare * (professionOf(content, p).salary + passiveIncome(p)));
+      const income = p.circle === 'inner' ? professionOf(content, p).salary + passiveIncome(p) : p.outerIncome;
+      const amount = Math.round(rules.charityShare * income);
       return p.cash > 3 * amount ? { type: 'DONATE', playerId } : end;
     }
 

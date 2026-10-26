@@ -90,6 +90,33 @@ export interface TemptationCard {
   amount: number;
 }
 
+export type OuterCellKind = 'venture' | 'dream' | 'lawsuit' | 'audit' | 'crisis' | 'charity';
+
+export interface OuterBoard {
+  cells: OuterCellKind[];
+  /** Рубежи, на которых начисляется доход «Свободного пути». */
+  paydayAt: number[];
+  /** Какие мечты можно купить на клетке-мечте, по индексу клетки. */
+  dreamsAt: Record<number, string[]>;
+}
+
+export interface Dream {
+  id: string;
+  title: string;
+  /** Цена в стартовых доходах «Свободного пути»: так мечта одинаково далека для любой профессии. */
+  priceInIncomes: number;
+}
+
+/** Инвестиция продаётся долями: игрок покупает столько долей, сколько хочет и может оплатить. */
+export interface VentureCard {
+  id: string;
+  title: string;
+  /** Цена одной доли. */
+  cost: number;
+  /** Доход одной доли за период. */
+  income: number;
+}
+
 export interface Rules {
   loanStep: number;
   /** Платёж по банковскому кредиту за период, доля от суммы долга. */
@@ -102,6 +129,12 @@ export interface Rules {
   charityTurns: number;
   /** Сколько своих ходов может сделать игрок, прежде чем партия завершится. */
   maxTurns: number;
+  /** Стартовый доход «Свободного пути» = пассивный доход при выходе × этот множитель. */
+  outerIncomeMultiplier: number;
+  /** Победа, когда доход «Свободного пути» вырос во столько раз от стартового. */
+  outerGoalMultiplier: number;
+  lawsuitShare: number;
+  auditShare: number;
 }
 
 export interface Content {
@@ -111,5 +144,8 @@ export interface Content {
   bigDeals: DealCard[];
   market: MarketCard[];
   temptations: TemptationCard[];
+  outerBoard: OuterBoard;
+  dreams: Dream[];
+  ventures: VentureCard[];
   rules: Rules;
 }

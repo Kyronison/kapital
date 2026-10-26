@@ -6,10 +6,19 @@ import { parseArgs } from 'node:util';
 const TARGET_MEDIAN: [number, number] = [20, 30];
 /** Допустимая доля партий, в которых бот не вышел за лимит ходов. */
 const MAX_TIMEOUT_SHARE = 0.05;
+/** Коридор для медианы ходов на «Свободном пути» от выхода до победы. */
+const TARGET_OUTER_MEDIAN: [number, number] = [6, 14];
 /** Защита от зацикливания бота внутри одного хода. */
 const MAX_ACTIONS_PER_GAME = 20000;
 
-export function playSolo(content: Content, professionId: string, seed: number): number {
+export interface SoloResult {
+  /** Ход выхода из «Круга забот» или лимит ходов. */
+  escape: number;
+  /** Ходов от выхода до победы; null, если не выиграл. */
+  outer: number | null;
+}
+
+export function playSolo(content: Content, professionId: string, seed: number): SoloResult {
   let s: GameState = createGame(content, [{ id: 'bot', name: 'Бот', professionId }], seed);
   for (let i = 0; i < MAX_ACTIONS_PER_GAME && s.status === 'playing'; i++) {
     const action = botAction(content, s, 'bot');
@@ -19,7 +28,10 @@ export function playSolo(content: Content, professionId: string, seed: number): 
     s = r.state;
   }
   const p = s.players[0]!;
-  return p.escapedAtTurn ?? content.rules.maxTurns;
+  return {
+    escape: p.escapedAtTurn ?? content.rules.maxTurns,
+    outer: p.wonAtTurn !== null && p.escapedAtTurn !== null ? p.wonAtTurn - p.escapedAtTurn : null,
+  };
 }
 
 function quantile(sorted: number[], q: number): number {
@@ -40,11 +52,16 @@ const baseSeed = Number(values.seed);
 const failures: string[] = [];
 
 console.log(`Симуляция: ${games} партий на профессию, ставка кредита ${content.rules.loanRate * 100}%\n`);
-console.log('Профессия      Поток  Медиана  25%–75%  Не вышли');
+console.log('                      Круг забот               Свободный путь');
+console.log('Профессия      Поток  Медиана  25%–75%  Не вышли  Медиана  Победы');
 for (const prof of content.professions) {
-  const results: number[] = [];
-  for (let g = 0; g < games; g++) results.push(playSolo(content, prof.id, baseSeed * 100003 + g));
-  results.sort((a, b) => a - b);
+  const runs: SoloResult[] = [];
+  for (let g = 0; g < games; g++) runs.push(playSolo(content, prof.id, baseSeed * 100003 + g));
+  const results = runs.map((r) => r.escape).sort((a, b) => a - b);
+  const outer = runs.flatMap((r) => (r.outer === null ? [] : [r.outer])).sort((a, b) => a - b);
+  const escaped = runs.filter((r) => r.escape < content.rules.maxTurns).length;
+  const winShare = escaped ? outer.length / escaped : 0;
+  const outerMedian = outer.length ? quantile(outer, 0.5) : NaN;
   const median = quantile(results, 0.5);
   const timeouts = results.filter((r) => r >= content.rules.maxTurns).length / games;
   const e = prof.expenses;
@@ -52,10 +69,14 @@ for (const prof of content.professions) {
   console.log(
     `${prof.title.padEnd(13)} ${String(flow).padStart(6)} ${String(median).padStart(8)}` +
       `  ${String(quantile(results, 0.25)).padStart(3)}–${String(quantile(results, 0.75)).padEnd(3)}` +
-      `  ${(timeouts * 100).toFixed(1).padStart(6)}%`,
+      `  ${(timeouts * 100).toFixed(1).padStart(6)}%` +
+      `  ${String(outerMedian).padStart(7)}  ${(winShare * 100).toFixed(0).padStart(5)}%`,
   );
   if (median < TARGET_MEDIAN[0] || median > TARGET_MEDIAN[1]) {
     failures.push(`${prof.title}: медиана ${median} вне коридора ${TARGET_MEDIAN.join('–')}`);
+  }
+  if (!(outerMedian >= TARGET_OUTER_MEDIAN[0] && outerMedian <= TARGET_OUTER_MEDIAN[1])) {
+    failures.push(`${prof.title}: медиана «Свободного пути» ${outerMedian} вне коридора ${TARGET_OUTER_MEDIAN.join('–')}`);
   }
   if (timeouts > MAX_TIMEOUT_SHARE) {
     failures.push(`${prof.title}: ${(timeouts * 100).toFixed(1)}% партий без выхода`);
