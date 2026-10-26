@@ -25,12 +25,14 @@
   --tone-opportunity: #dcefe8;
   --tone-market: #dceaf5;
   --tone-temptation: #ece0f1;
+  --tone-everyday: #f7e4d9;
   --tone-special: #f8ead0;
   --tone-risk: #f8dfd8;
   --tone-dream: #fbecc6;
   --ink-opportunity: var(--emerald);
   --ink-market: #2f6d99;
   --ink-temptation: var(--plum);
+  --ink-everyday: #b4452f;
   --ink-special: #9a6a0e;
   --ink-risk: #b84a36;
   --ink-dream: #9a6a0e;
@@ -57,12 +59,14 @@
     --tone-opportunity: #173a31;
     --tone-market: #1a3142;
     --tone-temptation: #2f2337;
+    --tone-everyday: #3a2924;
     --tone-special: #3a3019;
     --tone-risk: #40241f;
     --tone-dream: #3f3415;
     --ink-opportunity: #7fd6bd;
     --ink-market: #8ec3ea;
     --ink-temptation: #cfa6e0;
+    --ink-everyday: #f0a08f;
     --ink-special: #f0c870;
     --ink-risk: #f4a08e;
     --ink-dream: #f0c870;
@@ -240,6 +244,7 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
 .cell.opportunity { background: var(--tone-opportunity); color: var(--ink-opportunity); }
 .cell.market { background: var(--tone-market); color: var(--ink-market); }
 .cell.temptation { background: var(--tone-temptation); color: var(--ink-temptation); }
+.cell.everyday { background: var(--tone-everyday); color: var(--ink-everyday); }
 .cell.venture { background: var(--tone-opportunity); color: var(--ink-opportunity); }
 .cell.dream { background: var(--tone-dream); color: var(--ink-dream); }
 .cell.lawsuit, .cell.audit, .cell.crisis, .cell.layoff { background: var(--tone-risk); color: var(--ink-risk); }
@@ -293,6 +298,7 @@ legend { font-weight: 700; margin-bottom: 8px; padding: 0; }
 .game-card p { margin: 0; font-size: 12px; color: var(--muted); }
 .tone-market { border-top-color: var(--ink-market); } .tone-market header { color: var(--ink-market); }
 .tone-temptations { border-top-color: var(--ink-temptation); } .tone-temptations header { color: var(--ink-temptation); }
+.tone-everyday { border-top-color: var(--ink-everyday); } .tone-everyday header { color: var(--ink-everyday); }
 .tone-ventures, .tone-dream, .tone-charity, .tone-baby { border-top-color: var(--gold); }
 .tone-ventures header, .tone-dream header, .tone-charity header, .tone-baby header { color: var(--ink-special); }
 .tone-layoff, .tone-lawsuit, .tone-audit, .tone-crisis { border-top-color: var(--ink-risk); }

@@ -1,5 +1,7 @@
 import type { Content } from '@kapital/content';
-import { availableLoan, passiveIncome, professionOf, roundUpToStep } from './finance.js';
+import {
+  availableLoan, cashflow, everydayAmount, passiveIncome, professionOf, roundUpToStep, trainingSaving,
+} from './finance.js';
 import { dreamPrice } from './game.js';
 import type { Action, GameState, PlayerState } from './types.js';
 
@@ -58,6 +60,19 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
         // на «Свободном пути» держим запас в половину дохода
         const shares = Math.floor((p.cash - p.outerIncome / 2) / pending.card.cost);
         return shares > 0 ? { type: 'BUY', playerId, shares } : end;
+      }
+      if (pending?.deck === 'everyday') {
+        const card = pending.card;
+        const cost = everydayAmount(content, p, card);
+        // полис берём, пока поток его выдерживает
+        if (card.kind === 'insurance') return cashflow(content, p) > 2 * cost ? { type: 'BUY', playerId } : end;
+        if (card.kind === 'training') {
+          // обучение окупается, если до конца партии хватит зарплат; одна зарплата примерно на два хода
+          const paydaysLeft = (rules.maxTurns - p.turnsTaken) / 2;
+          const pays = trainingSaving(content, p, card) * paydaysLeft > 1.5 * cost;
+          return pays && p.cash - cost >= CASH_RESERVE ? { type: 'BUY', playerId } : end;
+        }
+        return end;
       }
       if (!pending || (pending.deck !== 'smallDeals' && pending.deck !== 'bigDeals')) return end;
       const card = pending.card;

@@ -1,6 +1,7 @@
-import type { Content, DealCard, MarketCard, TemptationCard, VentureCard } from '@kapital/content';
+import type { Content, DealCard, EverydayCard, MarketCard, TemptationCard, VentureCard } from '@kapital/content';
 import {
-  availableLoan, baseExpenses, hasEscaped, passiveIncome, professionOf, roundUpToStep, totalExpenses,
+  availableLoan, baseExpenses, everydayAmount, hasEscaped, passiveIncome, professionOf, roundUpToStep,
+  totalExpenses, trainingSaving,
 } from './finance.js';
 import { Rng } from './rng.js';
 import type {
@@ -46,6 +47,9 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
       ventures: [],
       skipIncome: 0,
       wonAtTurn: null,
+      policies: [],
+      subscriptions: [],
+      savings: 0,
     };
   });
 
@@ -77,6 +81,7 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
       bigDeals: deck(content.bigDeals),
       market: deck(content.market),
       temptations: deck(content.temptations),
+      everyday: deck(content.everyday),
       ventures: deck(content.ventures),
     },
     nextAssetId,
@@ -95,7 +100,7 @@ class Turn {
     return this.s.players[this.s.current]!;
   }
 
-  draw<T extends DealCard | MarketCard | TemptationCard | VentureCard>(deck: DeckName): T {
+  draw<T extends DealCard | MarketCard | TemptationCard | EverydayCard | VentureCard>(deck: DeckName): T {
     const d = this.s.decks[deck];
     if (d.pos >= d.order.length) {
       d.order = this.rng.shuffle(d.order);
@@ -121,6 +126,8 @@ class Turn {
     const amount = salary + passiveIncome(p) - totalExpenses(this.content, p);
     p.cash += amount;
     this.events.push({ type: 'payday', playerId: p.id, amount, salaryPaid });
+    for (const sub of p.subscriptions) sub.paydaysLeft--;
+    p.subscriptions = p.subscriptions.filter((x) => x.paydaysLeft > 0);
     this.settle(p);
   }
 
@@ -157,6 +164,7 @@ class Turn {
       p.cash = prof.startCash;
       p.bankLoan = 0;
       p.layoffPaydays = 0;
+      p.subscriptions = [];
       p.bankruptcies++;
       this.events.push({ type: 'bankrupt', playerId: p.id });
     }
@@ -240,6 +248,9 @@ class Turn {
       case 'charity':
         this.s.phase = 'charity';
         return;
+      case 'everyday':
+        this.everyday(p);
+        return;
       case 'baby':
         if (p.children < rules.maxChildren) {
           p.children++;
@@ -251,6 +262,39 @@ class Turn {
         p.layoffPaydays = rules.layoffPaydays;
         this.events.push({ type: 'laid_off', playerId: p.id });
         this.s.phase = 'end';
+        return;
+    }
+  }
+
+  everyday(p: PlayerState) {
+    const card = this.draw<EverydayCard>('everyday');
+    this.s.pending = { deck: 'everyday', card };
+    this.s.phase = 'end';
+    const amount = everydayAmount(this.content, p, card);
+    switch (card.kind) {
+      case 'spend':
+        this.pay(p, amount, card.title);
+        return;
+      case 'trouble':
+        if (p.policies.some((x) => x.risk === card.risk)) {
+          this.events.push({ type: 'covered', playerId: p.id, risk: card.risk, amount });
+        } else {
+          this.pay(p, amount, card.title);
+        }
+        return;
+      case 'monthly':
+        p.subscriptions.push({ cardId: card.id, title: card.title, amount, paydaysLeft: card.paydays });
+        this.events.push({ type: 'subscribed', playerId: p.id, title: card.title, amount, paydays: card.paydays });
+        return;
+      case 'windfall':
+        p.cash += amount;
+        this.events.push({ type: 'received', playerId: p.id, amount, reason: card.title });
+        return;
+      case 'insurance':
+        if (!p.policies.some((x) => x.risk === card.risk)) this.s.phase = 'deal';
+        return;
+      case 'training':
+        this.s.phase = 'deal';
         return;
     }
   }
@@ -361,6 +405,24 @@ export function applyAction(content: Content, state: GameState, action: Action):
         });
         p.outerIncome += shares * card.income;
         t.events.push({ type: 'bought', playerId: p.id, cardId: card.id, price });
+        s.phase = 'end';
+        break;
+      }
+      if (s.pending.deck === 'everyday') {
+        const card = s.pending.card;
+        const amount = everydayAmount(content, p, card);
+        if (card.kind === 'insurance') {
+          p.policies.push({ risk: card.risk, premium: amount });
+          t.events.push({ type: 'insured', playerId: p.id, risk: card.risk, premium: amount });
+        } else if (card.kind === 'training') {
+          if (p.cash < amount) return fail('Не хватает денег на обучение');
+          const saving = trainingSaving(content, p, card);
+          p.cash -= amount;
+          p.savings += saving;
+          t.events.push({ type: 'trained', playerId: p.id, cost: amount, saving });
+        } else {
+          return fail('Сейчас нечего покупать');
+        }
         s.phase = 'end';
         break;
       }
@@ -480,6 +542,14 @@ export function applyAction(content: Content, state: GameState, action: Action):
       p.bankLoan -= amount;
       p.cash -= amount;
       t.events.push({ type: 'loan_repaid', playerId: p.id, amount });
+      break;
+    }
+
+    case 'CANCEL_POLICY': {
+      if (!isCurrent) return fail('Полис отменяют только в свой ход');
+      if (!p.policies.some((x) => x.risk === action.risk)) return fail('Такого полиса нет');
+      p.policies = p.policies.filter((x) => x.risk !== action.risk);
+      t.events.push({ type: 'policy_cancelled', playerId: p.id, risk: action.risk });
       break;
     }
 

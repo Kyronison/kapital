@@ -1,8 +1,10 @@
 import { content } from '../content.js';
-import { availableLoan, dreamPrice, passiveIncome, professionOf, type PlayerState } from '@kapital/engine';
+import {
+  availableLoan, dreamPrice, everydayAmount, passiveIncome, professionOf, trainingSaving, type PlayerState,
+} from '@kapital/engine';
 import { useState } from 'react';
 import { Icon } from '../art.js';
-import { money, signed } from '../format.js';
+import { money, RISK_TITLES, signed } from '../format.js';
 import type { PublicGame, TableApi } from '../net.js';
 
 export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me: PlayerState }) {
@@ -58,7 +60,27 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
         break;
       case 'deal': {
         const card = pending?.card;
-        if (pending?.deck === 'ventures' && card && 'income' in card) {
+        if (pending?.deck === 'everyday') {
+          const c = pending.card;
+          const amount = everydayAmount(content, me, c);
+          main = (
+            <>
+              {c.kind === 'insurance' && (
+                <button className="primary" onClick={() => api.act({ type: 'BUY' })}>
+                  <Icon name={`ui-insurance-${c.risk === 'health' ? 'life' : 'property'}`} />
+                  Оформить за {money(amount)} в период
+                </button>
+              )}
+              {c.kind === 'training' && (
+                <button className="primary" disabled={me.cash < amount} onClick={() => api.act({ type: 'BUY' })}>
+                  <Icon name="ui-training" />
+                  Пройти за {money(amount)}, расходы {signed(-trainingSaving(content, me, c))}
+                </button>
+              )}
+              {end}
+            </>
+          );
+        } else if (pending?.deck === 'ventures' && card && 'income' in card) {
           const max = Math.floor(me.cash / card.cost);
           main = (
             <>
@@ -142,6 +164,11 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
         <Icon name="ui-loan-repay" />
         Погасить {money(step)}
       </button>
+      {me.policies.map((x) => (
+        <button key={x.risk} className="ghost" onClick={() => api.act({ type: 'CANCEL_POLICY', risk: x.risk })}>
+          Отказаться: {RISK_TITLES[x.risk].toLowerCase()}
+        </button>
+      ))}
     </div>
   );
 
