@@ -4,9 +4,9 @@ import type { Board, OuterBoard, Rules } from './types.js';
 export const board: Board = {
   cells: [
     'opportunity', 'temptation', 'opportunity', 'market', 'opportunity', 'charity',
-    'opportunity', 'market', 'temptation', 'opportunity', 'baby', 'opportunity',
+    'opportunity', 'market', 'everyday', 'opportunity', 'baby', 'opportunity',
     'opportunity', 'temptation', 'market', 'opportunity', 'layoff', 'opportunity',
-    'opportunity', 'temptation', 'market', 'opportunity', 'opportunity', 'opportunity',
+    'opportunity', 'everyday', 'market', 'opportunity', 'opportunity', 'opportunity',
   ],
   paydayAt: [0, 6, 12, 18],
 };

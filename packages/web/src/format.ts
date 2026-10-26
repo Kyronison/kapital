@@ -1,4 +1,4 @@
-import type { AssetType } from '@kapital/content';
+import type { AssetType, Risk } from '@kapital/content';
 import { content } from './content.js';
 import type { GameEvent } from '@kapital/engine';
 
@@ -16,6 +16,7 @@ export const CELL_TITLES: Record<string, string> = {
   charity: 'Помощь',
   baby: 'Пополнение',
   layoff: 'Сокращение',
+  everyday: 'Будни',
   venture: 'Инвестиция',
   dream: 'Мечта',
   lawsuit: 'Иск',
@@ -61,16 +62,28 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'escaped': return `${who} выходит из «Круга забот»! Доход на «Свободном пути» ${money(e.outerIncome)}`;
     case 'crisis': return `${who}: кризис, следующий доход пропадёт`;
     case 'won': return `${who} побеждает: ${e.by === 'dream' ? 'мечта куплена' : 'доход удвоен'}`;
+    case 'covered': return `${who}: полис покрыл ${money(e.amount)}`;
+    case 'insured': return `${who} оформляет ${RISK_TITLES[e.risk].toLowerCase()}, взнос ${money(e.premium)} за период`;
+    case 'policy_cancelled': return `${who} отказывается от полиса`;
+    case 'subscribed': return `${who}: «${e.title}», ${money(e.amount)} за период ещё ${e.paydays} зарплаты`;
+    case 'trained': return `${who} учится за ${money(e.cost)}: расходы ниже на ${money(e.saving)}`;
+    case 'received': return `${who} получает ${money(e.amount)}: ${e.reason}`;
     case 'turn_started': return `Ходит ${who}`;
     case 'game_finished': return 'Партия окончена';
   }
 }
+
+export const RISK_TITLES: Record<Risk, string> = {
+  health: 'Полис здоровья',
+  property: 'Полис имущества',
+};
 
 export const DECK_TITLES: Record<string, string> = {
   smallDeals: 'Шанс',
   bigDeals: 'Проект',
   market: 'Новости рынка',
   temptations: 'Соблазн',
+  everyday: 'Будни',
   ventures: 'Инвестиция',
 };
 
@@ -80,7 +93,18 @@ export const DECK_BACKS: Record<string, string> = {
   bigDeals: 'decks/big.webp',
   market: 'decks/market.webp',
   temptations: 'decks/temptation.webp',
+  everyday: 'decks/market.webp',
   ventures: 'decks/venture.webp',
+};
+
+/** Картинки карт «Будней»: пока из первого набора, во втором появятся свои. */
+export const EVERYDAY_ART: Record<string, string> = {
+  spend: 'deals/temptation.webp',
+  monthly: 'deals/temptation.webp',
+  trouble: 'deals/market-expense.webp',
+  insurance: 'deals/charity.webp',
+  training: 'deals/venture.webp',
+  windfall: 'deals/payday.webp',
 };
 
 /** Клетки без карты: что произошло и какая картинка. */

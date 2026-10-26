@@ -1,4 +1,6 @@
-import type { AssetType, Content, DealCard, MarketCard, TemptationCard, VentureCard } from '@kapital/content';
+import type {
+  AssetType, Content, DealCard, EverydayCard, MarketCard, Risk, TemptationCard, VentureCard,
+} from '@kapital/content';
 
 export type PlayerId = string;
 
@@ -30,6 +32,20 @@ export interface OwnedVenture {
   income: number;
 }
 
+export interface Policy {
+  risk: Risk;
+  /** Взнос за период, зафиксирован при покупке. */
+  premium: number;
+}
+
+export interface Subscription {
+  cardId: string;
+  title: string;
+  amount: number;
+  /** Сколько зарплат ещё будет списываться. */
+  paydaysLeft: number;
+}
+
 export interface PlayerState {
   id: PlayerId;
   name: string;
@@ -57,6 +73,10 @@ export interface PlayerState {
   /** Сколько следующих доходов «Свободного пути» пропадёт после «Кризиса». */
   skipIncome: number;
   wonAtTurn: number | null;
+  policies: Policy[];
+  subscriptions: Subscription[];
+  /** На сколько тренинги снизили прочие расходы за период. */
+  savings: number;
 }
 
 export type Phase =
@@ -68,7 +88,7 @@ export type Phase =
   | 'dream'
   | 'end';
 
-export type DeckName = 'smallDeals' | 'bigDeals' | 'market' | 'temptations' | 'ventures';
+export type DeckName = 'smallDeals' | 'bigDeals' | 'market' | 'temptations' | 'everyday' | 'ventures';
 
 export interface DeckState {
   order: string[];
@@ -79,6 +99,7 @@ export type PendingCard =
   | { deck: 'smallDeals' | 'bigDeals'; card: DealCard }
   | { deck: 'market'; card: MarketCard }
   | { deck: 'temptations'; card: TemptationCard }
+  | { deck: 'everyday'; card: EverydayCard }
   | { deck: 'ventures'; card: VentureCard };
 
 export interface GameState {
@@ -107,6 +128,7 @@ export type Action =
   | { type: 'BUY_DREAM'; playerId: PlayerId }
   | { type: 'TAKE_LOAN'; playerId: PlayerId; amount: number }
   | { type: 'REPAY_LOAN'; playerId: PlayerId; amount: number }
+  | { type: 'CANCEL_POLICY'; playerId: PlayerId; risk: Risk }
   | { type: 'END_TURN'; playerId: PlayerId };
 
 export type GameEvent =
@@ -129,6 +151,12 @@ export type GameEvent =
   | { type: 'income_lost'; playerId: PlayerId }
   | { type: 'crisis'; playerId: PlayerId }
   | { type: 'won'; playerId: PlayerId; turn: number; by: 'dream' | 'income' }
+  | { type: 'covered'; playerId: PlayerId; risk: Risk; amount: number }
+  | { type: 'insured'; playerId: PlayerId; risk: Risk; premium: number }
+  | { type: 'policy_cancelled'; playerId: PlayerId; risk: Risk }
+  | { type: 'subscribed'; playerId: PlayerId; title: string; amount: number; paydays: number }
+  | { type: 'trained'; playerId: PlayerId; cost: number; saving: number }
+  | { type: 'received'; playerId: PlayerId; amount: number; reason: string }
   | { type: 'turn_started'; playerId: PlayerId }
   | { type: 'game_finished' };
 

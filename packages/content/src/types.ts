@@ -24,7 +24,8 @@ export type CellKind =
   | 'temptation'
   | 'charity'
   | 'baby'
-  | 'layoff';
+  | 'layoff'
+  | 'everyday';
 
 export interface Board {
   cells: CellKind[];
@@ -90,6 +91,25 @@ export interface TemptationCard {
   amount: number;
 }
 
+export type Risk = 'health' | 'property';
+
+/**
+ * Карта «Будней». Суммы заданы долями зарплаты: так событие одинаково ощутимо для любой профессии.
+ * - spend: разовая трата;
+ * - monthly: подписка, которая добавляется к расходам на несколько зарплат;
+ * - trouble: неприятность, от которой защищает полис;
+ * - insurance: предложение полиса с ежемесячным взносом;
+ * - training: обучение, которое навсегда снижает прочие расходы;
+ * - windfall: неожиданный приход денег.
+ */
+export type EverydayCard =
+  | { id: string; kind: 'spend'; title: string; share: number }
+  | { id: string; kind: 'monthly'; title: string; share: number; paydays: number }
+  | { id: string; kind: 'trouble'; title: string; share: number; risk: Risk }
+  | { id: string; kind: 'insurance'; title: string; share: number; risk: Risk }
+  | { id: string; kind: 'training'; title: string; share: number; saving: number }
+  | { id: string; kind: 'windfall'; title: string; share: number };
+
 export type OuterCellKind = 'venture' | 'dream' | 'lawsuit' | 'audit' | 'crisis' | 'charity';
 
 export interface OuterBoard {
@@ -150,6 +170,7 @@ export interface Content {
   bigDeals: DealCard[];
   market: MarketCard[];
   temptations: TemptationCard[];
+  everyday: EverydayCard[];
   outerBoard: OuterBoard;
   dreams: Dream[];
   ventures: VentureCard[];

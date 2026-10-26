@@ -4,7 +4,7 @@ import {
 } from '@kapital/engine';
 import type { ReactNode } from 'react';
 import { art, Icon } from '../art.js';
-import { dreamTitle, money, signed } from '../format.js';
+import { dreamTitle, money, RISK_TITLES, signed } from '../format.js';
 
 export interface Flash {
   key: number;
@@ -93,7 +93,24 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
           {money(p.bankLoan)}<small> · ещё {money(availableLoan(content, p))}</small>
         </Row>
         <Row icon="ui-family" label="Дети">{p.children}</Row>
+        {p.savings > 0 && <Row icon="ui-training" label="Тренинги снизили расходы" tone="good">{signed(-p.savings)}</Row>}
       </dl>
+      {(p.policies.length > 0 || p.subscriptions.length > 0) && (
+        <ul className="assets everyday">
+          {p.policies.map((x) => (
+            <li key={x.risk}>
+              <Icon name={`ui-insurance-${x.risk === 'health' ? 'life' : 'property'}`} size={16} />
+              {RISK_TITLES[x.risk]}<span>{signed(-x.premium)}</span>
+            </li>
+          ))}
+          {p.subscriptions.map((x, i) => (
+            <li key={`${x.cardId}-${i}`}>
+              <Icon name="ui-subscription" size={16} />
+              {x.title} <small className="muted">ещё {x.paydaysLeft}</small><span>{signed(-x.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       <Meter label={`Пассивный доход покрывает расходы на ${cover}%`} value={Math.min(passive, expenses)} max={expenses} />
       {p.assets.length > 0 || p.stocks.length > 0 ? (
         <ul className="assets">

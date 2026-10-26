@@ -1,7 +1,9 @@
 import { content } from '../content.js';
-import type { GameEvent } from '@kapital/engine';
+import { everydayAmount, trainingSaving, type GameEvent } from '@kapital/engine';
 import { art, Icon } from '../art.js';
-import { ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, SITUATIONS, dreamTitle, money, signed } from '../format.js';
+import {
+  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, EVERYDAY_ART, RISK_TITLES, SITUATIONS, dreamTitle, money, signed,
+} from '../format.js';
 import type { PublicGame, TableApi } from '../net.js';
 
 /** Совпадает с turnSeconds сервера по умолчанию. */
@@ -49,6 +51,43 @@ function faceOf(game: PublicGame): Face | null {
   const deck = DECK_TITLES[pending.deck]!;
   if (pending.deck === 'ventures' && 'income' in card) {
     return { deck, picture: 'deals/venture.webp', title: card.title, facts: [['Доля', money(card.cost)], ['Доход', signed(card.income)]] };
+  }
+  if (pending.deck === 'everyday') {
+    const c = pending.card;
+    const player = game.players[game.current]!;
+    const amount = everydayAmount(content, player, c);
+    const picture = EVERYDAY_ART[c.kind]!;
+    switch (c.kind) {
+      case 'spend':
+        return { deck, picture, title: c.title, facts: [['Трата', money(amount)]] };
+      case 'trouble': {
+        const covered = player.policies.some((x) => x.risk === c.risk);
+        return {
+          deck, picture, title: c.title, facts: [['Ущерб', money(amount)]],
+          note: covered ? `${RISK_TITLES[c.risk]} всё покрыл.` : `От такого защищает ${RISK_TITLES[c.risk].toLowerCase()}.`,
+        };
+      }
+      case 'monthly':
+        return {
+          deck, picture, title: c.title, facts: [['В период', money(amount)], ['Сколько', `${c.paydays} зарплаты`]],
+          note: 'Добавляется к расходам.',
+        };
+      case 'insurance': {
+        const has = player.policies.some((x) => x.risk === c.risk);
+        return {
+          deck, picture, title: c.title, facts: [['Взнос в период', money(amount)]],
+          note: has ? 'Такой полис уже есть.' : `Защищает от неприятностей: ${c.risk === 'health' ? 'здоровье' : 'дом и вещи'}. Отказаться можно в любой свой ход.`,
+        };
+      }
+      case 'training':
+        return {
+          deck, picture, title: c.title,
+          facts: [['Стоимость', money(amount)], ['Расходы', signed(-trainingSaving(content, player, c))]],
+          note: 'Прочие расходы снизятся навсегда.',
+        };
+      case 'windfall':
+        return { deck, picture, title: c.title, facts: [['Приход', signed(amount)]] };
+    }
   }
   if ('kind' in card) {
     switch (card.kind) {
