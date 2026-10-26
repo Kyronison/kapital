@@ -1,0 +1,23 @@
+{
+  "name": "kapital",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "sim": "tsx packages/sim/src/run.ts",
+    "sim:check": "tsx packages/sim/src/run.ts --games 400 --check"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
