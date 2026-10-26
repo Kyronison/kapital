@@ -23,3 +23,5 @@ jobs:
         run: pnpm sim:check
       - name: Проверка баланса быстрого режима
         run: pnpm sim --mode quick --games 400 --check
+      - name: Проверка сложности уровней «Тренировки»
+        run: pnpm sim:levels --games 300 --check

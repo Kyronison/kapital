@@ -7,6 +7,9 @@ import type { PublicGame, TableApi, View } from '../net.js';
 import { Actions } from './Actions.js';
 import { Board } from './Board.js';
 import { Center, TURN_SECONDS } from './Center.js';
+import { Stars } from './Campaign.js';
+import { goalText, nextLevel, saveStars } from '../campaign.js';
+import { levels } from '@kapital/content';
 import { Chat } from './Chat.js';
 import { Mentor } from './Mentor.js';
 import { ReportQuiz } from './ReportQuiz.js';
@@ -117,7 +120,57 @@ function Players({ game, view, me }: { game: PublicGame; view: View; me: string 
   );
 }
 
-export function Game({ api, view }: { api: TableApi; view: View }) {
+/** Итог уровня «Тренировки»: звёзды и переход к следующему. */
+function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onTraining: () => void }) {
+  const lv = view.level!;
+  const level = levels.find((l) => l.id === lv.id)!;
+  const result = lv.result!;
+  const next = nextLevel(level.id);
+  useEffect(() => {
+    if (result.passed) saveStars(level.id, result.stars);
+  }, [level.id, result]);
+  const play = (id: string) => {
+    api.leave();
+    api.startLevel(id, view.seats[0]?.name ?? '');
+  };
+  return (
+    <div className="overlay toast-in" role="dialog" aria-modal="true" aria-label={result.passed ? 'Уровень пройден' : 'Уровень не пройден'}>
+      <div className="overlay-card">
+        <img src={art(result.passed ? 'screens/win.webp' : 'screens/bankrupt.webp')} alt="" />
+        <h2>{result.passed ? `«${level.title}» пройден!` : 'Ходы закончились'}</h2>
+        {result.passed ? (
+          <>
+            <Stars n={result.stars} />
+            <p>Цель выполнена за {result.turns} ходов. {result.stars < 3 ? `Три звезды — за ${level.stars[0]} ходов.` : 'Лучший результат.'}</p>
+          </>
+        ) : (
+          <p>Цель: {goalText(level)}. Попробуйте ещё раз: вкладывайте раньше и следите за потоком.</p>
+        )}
+        <div className="row wrap center">
+          {result.passed && next && <button className="primary" autoFocus onClick={() => play(next.id)}>Следующий уровень</button>}
+          {!result.passed && <button className="primary" autoFocus onClick={() => play(level.id)}>Ещё раз</button>}
+          <button className="ghost" onClick={onTraining}>К уровням</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LevelGoal({ view }: { view: View }) {
+  const level = levels.find((l) => l.id === view.level!.id)!;
+  const pct = Math.floor(view.level!.share * 100);
+  return (
+    <section className="level-goal card">
+      <span className="muted">{level.title}</span>
+      <strong>Цель: {goalText(level)}</strong>
+      <div className="meter gold" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={`Цель выполнена на ${pct}%`}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+    </section>
+  );
+}
+
+export function Game({ api, view, onTraining }: { api: TableApi; view: View; onTraining: () => void }) {
   const game = view.game!;
   const me = game.players.find((p) => p.id === api.me);
   const seconds = useCountdown(view.turnDeadline);
@@ -137,7 +190,8 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
 
   return (
     <main className="game">
-      {game.status === 'finished' && !winSeen && (
+      {view.level?.result && <LevelResult api={api} view={view} onTraining={onTraining} />}
+      {game.status === 'finished' && !winSeen && !view.level && (
         <Overlay
           picture={winner ? 'screens/win.webp' : 'screens/bankrupt.webp'}
           confetti={!!winner}
@@ -172,6 +226,7 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
         {anyOuter && <Board game={game} circle="outer" center={turnCircle === 'outer' ? center : <span className="board-label">Свободный путь</span>} />}
       </div>
       <aside className="side">
+        {view.level && <LevelGoal view={view} />}
         {me && <Mentor game={game} me={me} />}
         {me && game.status === 'playing' && <Actions api={api} game={game} me={me} />}
         <ReportQuiz log={api.log} logStart={api.logStart} me={api.me} />
@@ -187,9 +242,9 @@ export function Game({ api, view }: { api: TableApi; view: View }) {
             })}
           </ol>
         </section>
-        <button className="ghost leave" onClick={api.leave}>
+        <button className="ghost leave" onClick={view.level ? onTraining : api.leave}>
           <Icon name="ui-exit" />
-          {game.status === 'playing' ? 'Выйти: партия сохранится' : 'В главное меню'}
+          {game.status === 'playing' ? 'Выйти: партия сохранится' : view.level ? 'К уровням' : 'В главное меню'}
         </button>
       </aside>
     </main>

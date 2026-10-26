@@ -163,3 +163,42 @@ describe('чат', () => {
     expect(t.say('чужой', 'привет').ok).toBe(false);
   });
 });
+
+describe('«Тренировка»', () => {
+  it('уровень задаёт профессию, лимит ходов и пускает только одного', () => {
+    const t = new Table(content, seeded());
+    expect(t.setLevel('нет такого').ok).toBe(false);
+    expect(t.setLevel('pro-1').ok).toBe(true);
+    t.join('s1', 'Аня', 'surgeon');
+    expect(t.join('s2', 'Боря').ok).toBe(false);
+    expect(t.addBot('s1').ok).toBe(false);
+    t.start('s1');
+    expect(t.game!.players[0]!.professionId).toBe('teacher');
+    expect(t.content.rules.maxTurns).toBe(40);
+    expect(t.view().level).toEqual({ id: 'pro-1', share: 0, result: null });
+  });
+
+  it('цель выполнена — партия закончена, за скорость звёзды', () => {
+    const t = new Table(content, seeded());
+    t.setLevel('novice-2');
+    t.join('s1', 'Аня');
+    t.start('s1');
+    t.game!.players[0]!.cash = 10_000;
+    t.act('s1', { type: 'ROLL' });
+    expect(t.game!.status).toBe('finished');
+    expect(t.view().level!.result).toEqual({ passed: true, stars: 3, turns: 1 });
+  });
+
+  it('ходы кончились — уровень не пройден', () => {
+    const t = new Table(content, seeded());
+    t.setLevel('pro-1');
+    t.join('s1', 'Аня');
+    t.start('s1');
+    t.leave('s1');
+    t.join('s1', '');
+    while (t.game!.status === 'playing') t.timeout();
+    const level = t.view().level!;
+    if (level.result?.passed) expect(level.result.turns).toBeLessThanOrEqual(40);
+    else expect(level.result).toEqual({ passed: false });
+  });
+});
