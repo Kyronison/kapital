@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Icon, playerColor } from '../art.js';
+import { art, Icon, playerColor } from '../art.js';
 import type { TableApi, View } from '../net.js';
 
 const MUTE_KEY = 'kapital:mute';
@@ -24,8 +24,19 @@ function blip() {
 
 const QUICK = ['Привет!', 'Удачи!', 'Хорошая сделка', 'Ого!', 'Спасибо за игру'];
 
+/** Стикер уходит в чат обычным сообщением вида `:clap:`, клиент рисует его картинкой. */
+const STICKERS: Record<string, string> = {
+  'thumbs-up': 'Класс', clap: 'Браво', deal: 'Сделка', coin: 'Деньги', rocket: 'Взлёт', fire: 'Огонь',
+  wow: 'Ого', laugh: 'Смешно', think: 'Хм', sad: 'Грустно', heart: 'Сердце', gg: 'Хорошая игра',
+};
+const stickerOf = (text: string) => {
+  const m = /^:([a-z-]+):$/.exec(text);
+  return m && m[1]! in STICKERS ? m[1]! : null;
+};
+
 export function Chat({ api, view }: { api: TableApi; view: View }) {
   const [text, setText] = useState('');
+  const [stickers, setStickers] = useState(false);
   const [muted, setMuted] = useState(() => {
     try {
       return localStorage.getItem(MUTE_KEY) === '1';
@@ -57,6 +68,7 @@ export function Chat({ api, view }: { api: TableApi; view: View }) {
     if (!t.trim()) return;
     api.say(t);
     setText('');
+    setStickers(false);
   };
 
   const color = (seatId: string) => playerColor(Math.max(0, view.seats.findIndex((s) => s.id === seatId)));
@@ -66,26 +78,47 @@ export function Chat({ api, view }: { api: TableApi; view: View }) {
       <h2>
         <Icon name="ui-chat" size={16} />Чат стола
         <button className="icon-button" onClick={toggleMute} aria-label={muted ? 'Включить звук' : 'Выключить звук'} title={muted ? 'Включить звук' : 'Выключить звук'}>
-          <Icon name={muted ? 'ui-sound-off' : 'ui-sound-on'} size={16} />
+          <Icon name={muted ? 'ui-mute' : 'ui-sound-on'} size={16} />
         </button>
       </h2>
       {view.chat.length === 0 ? (
-        <p className="muted">Пока тихо. Поздоровайтесь со столом.</p>
+        <div className="chat-empty">
+          <img src={art('screens/chat-empty.webp')} alt="" />
+          <p className="muted">Пока тихо. Поздоровайтесь со столом.</p>
+        </div>
       ) : (
         <ol ref={listRef}>
-          {view.chat.map((m) => (
-            <li key={m.n} className="chat-in">
-              <strong style={{ color: color(m.seatId) }}>{m.name}</strong> {m.text}
-            </li>
-          ))}
+          {view.chat.map((m) => {
+            const sticker = stickerOf(m.text);
+            return (
+              <li key={m.n} className="chat-in">
+                <strong style={{ color: color(m.seatId) }}>{m.name}</strong>{' '}
+                {sticker ? <img className="sticker sticker-pop" src={art(`stickers/${sticker}.webp`)} alt={STICKERS[sticker]} title={STICKERS[sticker]} /> : m.text}
+              </li>
+            );
+          })}
         </ol>
       )}
       <div className="quick">
         {QUICK.map((q) => <button key={q} className="chip" onClick={() => send(q)}>{q}</button>)}
       </div>
+      {stickers && (
+        <div className="sticker-picker">
+          {Object.entries(STICKERS).map(([id, label]) => (
+            <button key={id} type="button" onClick={() => send(`:${id}:`)} aria-label={label} title={label}>
+              <img src={art(`stickers/${id}.webp`)} alt="" />
+            </button>
+          ))}
+        </div>
+      )}
       <form className="row" onSubmit={(e) => { e.preventDefault(); send(text); }}>
+        <button type="button" className="icon-button" onClick={() => setStickers(!stickers)} aria-pressed={stickers} aria-label="Стикеры" title="Стикеры">
+          <Icon name="ui-emoji" size={20} />
+        </button>
         <input value={text} maxLength={200} onChange={(e) => setText(e.target.value)} placeholder="Сообщение" aria-label="Сообщение в чат" />
-        <button className="primary" type="submit" disabled={!text.trim()}>Отправить</button>
+        <button className="primary" type="submit" disabled={!text.trim()} aria-label="Отправить" title="Отправить">
+          <Icon name="ui-send" size={18} />
+        </button>
       </form>
     </section>
   );

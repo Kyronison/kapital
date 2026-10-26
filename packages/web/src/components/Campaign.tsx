@@ -1,15 +1,22 @@
 import { levels, type Level } from '@kapital/content';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { art, Icon } from '../art.js';
 import { goalText, isOpen, loadProgress, TIERS } from '../campaign.js';
+import { MAP_DESKTOP, MAP_MOBILE } from '../campaign-map.js';
 import { professionTitle } from '../format.js';
 import type { TableApi } from '../net.js';
 
 export const Stars = ({ n, of = 3 }: { n: number; of?: number }) => (
-  <span className="stars" aria-label={`${n} из ${of} звёзд`}>
-    {Array.from({ length: of }, (_, i) => <span key={i} className={i < n ? 'on star-pop' : ''} style={{ animationDelay: `${i * 150}ms` }}>★</span>)}
+  <span className="stars stars-pop" aria-label={`${n} из ${of} звёзд`}>
+    {Array.from({ length: of }, (_, i) => <span key={i} className={i < n ? 'on star-pop' : ''}>★</span>)}
   </span>
 );
+
+const narrow = window.matchMedia('(max-width: 800px)');
+const useNarrow = () => useSyncExternalStore((cb) => {
+  narrow.addEventListener('change', cb);
+  return () => narrow.removeEventListener('change', cb);
+}, () => narrow.matches);
 
 /** «Тренировка»: путь из уровней с целью и сроком. Следующий открывается после прохождения предыдущего. */
 export function Campaign({ api, name, onBack }: { api: TableApi; name: string; onBack: () => void }) {
@@ -17,6 +24,7 @@ export function Campaign({ api, name, onBack }: { api: TableApi; name: string; o
   const firstOpen = [...levels].reverse().find((l) => isOpen(l, progress)) ?? levels[0]!;
   const [picked, setPicked] = useState<Level>(firstOpen);
   const total = Object.values(progress).reduce((a, b) => a + b, 0);
+  const map = useNarrow() ? MAP_MOBILE : MAP_DESKTOP;
 
   return (
     <main className="campaign">
@@ -25,32 +33,40 @@ export function Campaign({ api, name, onBack }: { api: TableApi; name: string; o
         <h1><Icon name="ui-level" size={28} />Тренировка</h1>
         <span className="muted">Звёзд: {total} из {levels.length * 3}</span>
       </header>
-      <div className="campaign-body">
-        <ol className="tiers">
-          {TIERS.map((tier) => (
-            <li key={tier.id} className="tier">
-              <h2>{tier.title}</h2>
-              <div className="nodes">
-                {levels.filter((l) => l.tier === tier.id).map((l) => {
-                  const open = isOpen(l, progress);
-                  const stars = progress[l.id] ?? 0;
-                  return (
-                    <button
-                      key={l.id}
-                      className={`level-node${open ? '' : ' locked'}${stars ? ' done' : ''}${picked.id === l.id ? ' picked' : ''}`}
-                      disabled={!open}
-                      onClick={() => setPicked(l)}
-                      aria-label={`${l.title}${open ? '' : ', закрыт'}`}
-                    >
-                      {open ? <span className="num">{levels.indexOf(l) + 1}</span> : <Icon name="ui-lock" size={18} />}
-                      {stars > 0 && <Stars n={stars} />}
-                    </button>
-                  );
-                })}
-              </div>
+      <ul className="tier-badges">
+        {TIERS.map((tier) => {
+          const tierLevels = levels.filter((l) => l.tier === tier.id);
+          const open = isOpen(tierLevels[0]!, progress);
+          const stars = tierLevels.reduce((a, l) => a + (progress[l.id] ?? 0), 0);
+          return (
+            <li key={tier.id} className={open ? '' : 'locked'}>
+              <img src={art(`campaign/badges/${tier.id}${open ? '' : '-locked'}.webp`)} alt="" />
+              <span><strong>{tier.title}</strong><small className="muted">{stars} из {tierLevels.length * 3} ★</small></span>
             </li>
-          ))}
-        </ol>
+          );
+        })}
+      </ul>
+      <div className="campaign-body" style={{ ['--panel' as string]: `${map.panel * 100}%` }}>
+        <div className="campaign-map" style={{ aspectRatio: map.ratio, backgroundImage: `url(${art(map.file)})` }}>
+          {levels.map((l, i) => {
+            const [x, y] = map.nodes[i]!;
+            const open = isOpen(l, progress);
+            const stars = progress[l.id] ?? 0;
+            return (
+              <button
+                key={l.id}
+                className={`level-node${open ? '' : ' locked'}${stars ? ' done' : ''}${picked.id === l.id ? ' picked' : ''}`}
+                style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+                disabled={!open}
+                onClick={() => setPicked(l)}
+                aria-label={`Уровень ${i + 1}: ${l.title}${open ? '' : ', закрыт'}`}
+              >
+                {open ? <span className="num">{i + 1}</span> : <Icon name="ui-lock" size={16} />}
+                {stars > 0 && <Stars n={stars} />}
+              </button>
+            );
+          })}
+        </div>
         <section className="card level-card" key={picked.id}>
           <img src={art(`professions/${picked.professionId}.webp`)} alt="" />
           <span className="muted">{TIERS.find((t) => t.id === picked.tier)!.title} · уровень {levels.indexOf(picked) + 1}</span>

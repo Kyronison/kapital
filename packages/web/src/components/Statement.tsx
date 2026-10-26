@@ -94,7 +94,7 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
         </Row>
         <Row icon="ui-family" label="Дети">{p.children}</Row>
         {p.deposit > 0 && (
-          <Row icon="ui-bank" label="Вклад">
+          <Row icon="ui-deposit" label="Вклад">
             {money(p.deposit)}<small> · {signed(depositIncome(content, p))} за период</small>
           </Row>
         )}
@@ -110,7 +110,7 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
           ))}
           {p.subscriptions.map((x, i) => (
             <li key={`${x.cardId}-${i}`}>
-              <Icon name="ui-subscription" size={16} />
+              <Icon name="ui-spend-monthly" size={16} />
               {x.title} <small className="muted">ещё {x.paydaysLeft}</small><span>{signed(-x.amount)}</span>
             </li>
           ))}
@@ -123,7 +123,7 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
             <li key={a.id}><Icon name={`asset-${a.assetType}`} size={16} />{a.title}<span>{signed(a.flow)}</span></li>
           ))}
           {p.bonds.map((b) => (
-            <li key={b.id}><Icon name="ui-income" size={16} />{b.title} × {b.count}<span>{signed(b.count * b.coupon)}</span></li>
+            <li key={b.id}><Icon name="ui-bond" size={16} />{b.title} × {b.count}<span>{signed(b.count * b.coupon)}</span></li>
           ))}
           {p.stocks.map((s) => (
             <li key={s.ticker}><Icon name={`stock-${s.ticker.toLowerCase()}`} size={16} />Акции {s.ticker} × {s.shares}<span>по {Math.round(s.avgPrice)} К</span></li>

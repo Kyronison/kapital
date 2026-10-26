@@ -1,0 +1,131 @@
+/* КАПИТАЛ · набор 2. Independent CSS, no dependency on the first archive.
+   The host supplies game state, amounts, targets, and replay triggers.
+   Transform effects belong on their own wrappers. Decorative effects use aria-hidden.
+   Lottie is optional: .level-complete-confetti below works with plain HTML and CSS. */
+:root{--kap-emerald:#0F5C4D;--kap-gold:#E3A72F;--kap-cream:#F6F1E7;--kap-graphite:#1C2321;--kap-coral:#E0604A;--kap-sky:#4A90C2;--kap-plum:#7A4E8C;--kap-ease-out:cubic-bezier(.16,1,.3,1);--kap-ease-in-out:cubic-bezier(.45,0,.55,1)}
+
+/* .everyday-draw — 500ms ease-in-out: card enters from above, back -> face. */
+.everyday-draw{display:grid;perspective:1000px}
+.everyday-draw__inner{display:grid;transform-style:preserve-3d;animation:kap2-everyday-draw 500ms var(--kap-ease-in-out) both}
+.everyday-draw__face,.everyday-draw__back{grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.everyday-draw__back{transform:rotateY(180deg)}
+@keyframes kap2-everyday-draw{0%{transform:translateY(-70px) rotateY(180deg);opacity:0}20%{opacity:1}45%{transform:translateY(0) rotateY(180deg)}100%{transform:translateY(0) rotateY(0);opacity:1}}
+
+/* .shield-block — 700ms ease-out: shield flashes; trouble card rebounds and fades. */
+.shield-block{position:relative}
+.shield-block__shield{animation:kap2-shield-flash 700ms ease-out both;transform-origin:center}
+.shield-block__trouble{animation:kap2-trouble-rebound 700ms var(--kap-ease-out) both;transform-origin:center}
+@keyframes kap2-shield-flash{0%,100%{filter:drop-shadow(0 0 0 transparent);transform:scale(1)}35%{filter:drop-shadow(0 0 14px var(--kap-gold));transform:scale(1.07)}60%{filter:drop-shadow(0 0 7px var(--kap-gold));transform:scale(1)}}
+@keyframes kap2-trouble-rebound{0%{transform:translate(0,0);opacity:1}35%{transform:translate(var(--block-x,24px),0);opacity:1}100%{transform:translate(var(--rebound-x,-44px),-12px) rotate(-10deg);opacity:0}}
+
+/* .expense-drop — 600ms ease-out: old amount struck through, new amount falls in.
+   Width reduces from --expense-before to --expense-after. The new amount remains visible. */
+.expense-drop{display:inline-grid;position:relative;min-height:2.5em;width:var(--expense-after,196px);animation:kap2-expense-row 600ms var(--kap-ease-out) both}
+.expense-drop__old,.expense-drop__new{grid-area:1/1;align-self:center;justify-self:end;position:relative}
+.expense-drop__old{animation:kap2-expense-old 600ms ease-out both}
+.expense-drop__old::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:var(--kap-coral);transform-origin:left;animation:kap2-expense-strike 600ms ease-out both}
+.expense-drop__new{color:var(--kap-emerald);animation:kap2-expense-new 600ms var(--kap-ease-out) both}
+@keyframes kap2-expense-row{from{width:var(--expense-before,240px)}to{width:var(--expense-after,196px)}}
+@keyframes kap2-expense-strike{0%{transform:scaleX(0)}35%,100%{transform:scaleX(1)}}
+@keyframes kap2-expense-old{0%,40%{opacity:1}75%,100%{opacity:0}}
+@keyframes kap2-expense-new{0%,40%{transform:translateY(-18px);opacity:0}100%{transform:translateY(0);opacity:1}}
+
+/* .monthly-pin — 450ms ease-out: recurring expense row arrives with a gold pin. */
+.monthly-pin{position:relative;animation:kap2-monthly-pin 450ms var(--kap-ease-out) both}
+.monthly-pin::before{content:"";position:absolute;left:10px;top:-5px;width:9px;height:9px;border-radius:50%;background:var(--kap-gold);box-shadow:0 2px 0 rgb(28 35 33 / .18);animation:kap2-pin-head 450ms ease-out both}
+@keyframes kap2-monthly-pin{0%{transform:translateY(-22px) rotate(-4deg);opacity:0}70%{transform:translateY(2px) rotate(1deg);opacity:1}100%{transform:translateY(0) rotate(0);opacity:1}}
+@keyframes kap2-pin-head{0%,55%{transform:scale(0);opacity:0}85%{transform:scale(1.2);opacity:1}100%{transform:scale(1);opacity:1}}
+
+/* .chart-draw — 900ms linear. Put on a left-to-right SVG path with pathLength="100". */
+.chart-draw{stroke-dasharray:100;stroke-dashoffset:0;animation:kap2-chart-draw 900ms linear both}
+@keyframes kap2-chart-draw{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+
+/* .price-slider — 500ms ease-out. --price-from / --price-current are percentages.
+   The current value is clamped to 0..100%; the game supplies it. */
+.price-slider{position:relative;display:block;width:var(--slider-width,240px);height:30px}
+.price-slider::before{content:"";position:absolute;left:0;right:0;top:13px;height:4px;border-radius:2px;background:var(--kap-sky);opacity:.35}
+.price-slider__thumb{position:absolute;left:clamp(0%,var(--price-current,65%),100%);top:6px;width:18px;height:18px;border-radius:50%;background:var(--kap-sky);transform:translateX(-50%);animation:kap2-price-slider 500ms var(--kap-ease-out) both}
+@keyframes kap2-price-slider{from{left:clamp(0%,var(--price-from,0%),100%)}to{left:clamp(0%,var(--price-current,65%),100%)}}
+
+/* .drag-hint — 1.4s ease-in-out, infinite dashed target pulse. */
+.drag-hint{border:2px dashed var(--kap-emerald);border-radius:10px;animation:kap2-drag-hint 1.4s ease-in-out infinite}
+@keyframes kap2-drag-hint{0%,100%{border-color:rgb(15 92 77 / .35);box-shadow:0 0 0 0 rgb(15 92 77 / 0)}50%{border-color:var(--kap-emerald);box-shadow:0 0 0 5px rgb(15 92 77 / .08)}}
+
+/* .drop-ok — 350ms ease-out: small hop, persistent checkmark. */
+.drop-ok{position:relative;padding-right:30px;animation:kap2-drop-ok 350ms ease-out both}
+.drop-ok::after{content:"";position:absolute;right:12px;top:50%;width:7px;height:13px;border:solid var(--kap-emerald);border-width:0 2px 2px 0;transform:translateY(-65%) rotate(45deg);animation:kap2-check-appear 350ms ease-out both}
+@keyframes kap2-drop-ok{0%{transform:translateY(0)}40%{transform:translateY(-4px)}75%{transform:translateY(1px)}100%{transform:translateY(0)}}
+@keyframes kap2-check-appear{0%,35%{opacity:0}100%{opacity:1}}
+/* .drop-wrong — 350ms ease-out: 3px shake, then returns to --return-x/--return-y. */
+.drop-wrong{animation:kap2-drop-wrong 350ms ease-out both}
+@keyframes kap2-drop-wrong{0%{transform:translate(0,0)}15%{transform:translate(-3px,0)}30%{transform:translate(3px,0)}45%{transform:translate(-3px,0)}60%{transform:translate(3px,0)}100%{transform:translate(var(--return-x,0px),var(--return-y,0px))}}
+
+/* .level-unlock — 800ms ease-out: shackle opens, lock disappears, node flashes gold. */
+.level-unlock{position:relative;border-radius:50%;animation:kap2-level-glow 800ms ease-out both}
+.level-unlock__lock{animation:kap2-lock-fade 800ms ease-out both}
+.level-unlock__shackle{transform-box:fill-box;transform-origin:100% 100%;animation:kap2-shackle-open 800ms var(--kap-ease-out) both}
+@keyframes kap2-level-glow{0%,100%{box-shadow:0 0 0 0 rgb(227 167 47 / 0)}50%{box-shadow:0 0 0 8px rgb(227 167 47 / .4),0 0 24px rgb(227 167 47 / .25)}}
+@keyframes kap2-lock-fade{0%,55%{opacity:1}85%,100%{opacity:0}}
+@keyframes kap2-shackle-open{0%,15%{transform:translateY(0) rotate(0)}55%,100%{transform:translateY(-4px) rotate(-28deg)}}
+
+/* .star-pop — 400ms each, 150ms stagger within .stars-pop (total 700ms for three).
+   Set --star-delay for a custom sequence. Completed stars remain visible. */
+.star-pop{display:inline-block;animation:kap2-star-pop 400ms var(--kap-ease-out) both;animation-delay:var(--star-delay,0ms);transform-origin:center}
+.stars-pop>.star-pop:nth-child(1){--star-delay:0ms}.stars-pop>.star-pop:nth-child(2){--star-delay:150ms}.stars-pop>.star-pop:nth-child(3){--star-delay:300ms}
+@keyframes kap2-star-pop{0%{transform:scale(.4);opacity:0}65%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+
+/* .mentor-in — 400ms ease-out. Bubble follows after 400ms, appearing over 160ms. */
+.mentor-in{animation:kap2-mentor-in 400ms var(--kap-ease-out) both}
+.mentor-in__bubble{animation:kap2-appear 160ms ease-out 400ms both}
+@keyframes kap2-mentor-in{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* .chat-in — 200ms ease-out: new message rises into place. */
+.chat-in{animation:kap2-chat-in 200ms var(--kap-ease-out) both}
+@keyframes kap2-chat-in{from{transform:translateY(8px);opacity:0}to{transform:translateY(0);opacity:1}}
+/* .sticker-pop — 300ms ease-out: sticker scales with a restrained overshoot. */
+.sticker-pop{animation:kap2-sticker-pop 300ms var(--kap-ease-out) both}
+@keyframes kap2-sticker-pop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}
+
+/* .rating-up / .rating-down — 600ms ease-out. The host supplies the new number;
+   it remains visible. The directional arrow is decorative and fades. */
+.rating-up,.rating-down{display:inline-block;position:relative;font-variant-numeric:tabular-nums;animation:kap2-rating-number 600ms var(--kap-ease-out) both}
+.rating-up{color:var(--kap-emerald)}.rating-down{color:var(--kap-coral)}
+.rating-up::after,.rating-down::after{position:absolute;left:calc(100% + 8px);top:0;animation:kap2-rating-arrow-up 600ms ease-out both}
+.rating-up::after{content:"↑"}.rating-down::after{content:"↓";animation-name:kap2-rating-arrow-down}
+@keyframes kap2-rating-number{0%{transform:translateY(5px);opacity:0}45%,100%{transform:translateY(0);opacity:1}}
+@keyframes kap2-rating-arrow-up{0%{transform:translateY(5px);opacity:0}25%,65%{opacity:1}100%{transform:translateY(-14px);opacity:0}}
+@keyframes kap2-rating-arrow-down{0%{transform:translateY(-5px);opacity:0}25%,65%{opacity:1}100%{transform:translateY(14px);opacity:0}}
+
+/* .level-complete-confetti — 2.5s total CSS replacement for the Lottie file.
+   16 pieces: each 2s cubic-bezier(.2,.4,.55,1), delays 0..500ms. */
+.level-complete-confetti{position:relative;width:100%;height:var(--confetti-height,220px);overflow:hidden;pointer-events:none}
+.level-complete-confetti__piece{position:absolute;left:var(--x,50%);top:-24px;width:var(--size,17px);height:var(--size,17px);background:var(--kap-gold);border:2px solid var(--kap-cream);border-radius:50%;box-sizing:border-box;animation:kap2-confetti 2s cubic-bezier(.2,.4,.55,1) both;animation-delay:var(--delay,0ms)}
+.level-complete-confetti__piece:nth-child(even){border:0;border-radius:0;background:var(--kap-gold);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 58%,79% 96%,50% 74%,21% 96%,32% 58%,2% 35%,39% 35%)}
+.level-complete-confetti__piece:nth-child(1){--x:5%;--delay:0ms;--drift:25px}.level-complete-confetti__piece:nth-child(2){--x:11%;--delay:120ms;--drift:-20px}.level-complete-confetti__piece:nth-child(3){--x:17%;--delay:240ms;--drift:30px}.level-complete-confetti__piece:nth-child(4){--x:23%;--delay:360ms;--drift:-24px}.level-complete-confetti__piece:nth-child(5){--x:29%;--delay:480ms;--drift:18px}.level-complete-confetti__piece:nth-child(6){--x:35%;--delay:80ms;--drift:-32px}.level-complete-confetti__piece:nth-child(7){--x:41%;--delay:200ms;--drift:28px}.level-complete-confetti__piece:nth-child(8){--x:47%;--delay:320ms;--drift:-18px}.level-complete-confetti__piece:nth-child(9){--x:53%;--delay:440ms;--drift:26px}.level-complete-confetti__piece:nth-child(10){--x:59%;--delay:40ms;--drift:-28px}.level-complete-confetti__piece:nth-child(11){--x:65%;--delay:160ms;--drift:20px}.level-complete-confetti__piece:nth-child(12){--x:71%;--delay:280ms;--drift:-24px}.level-complete-confetti__piece:nth-child(13){--x:77%;--delay:400ms;--drift:30px}.level-complete-confetti__piece:nth-child(14){--x:83%;--delay:500ms;--drift:-20px}.level-complete-confetti__piece:nth-child(15){--x:89%;--delay:100ms;--drift:12px}.level-complete-confetti__piece:nth-child(16){--x:95%;--delay:300ms;--drift:-30px}
+@keyframes kap2-confetti{0%{transform:translate(0,0) rotate(0) rotateY(0);opacity:0}10%{opacity:1}80%{opacity:1}100%{transform:translate(var(--drift,24px),calc(var(--confetti-height,220px) + 48px)) rotate(180deg) rotateY(540deg);opacity:0}}
+
+/* Reduced motion: simple 120ms appearance and explicit final states.
+   Blocking/dismissed content stays gone; accepted rows, new values, chart, stars,
+   mentor and chat stay visible. Price/return positions snap to the final values. */
+@media(prefers-reduced-motion:reduce){
+ .everyday-draw__inner,.shield-block__shield,.expense-drop,.monthly-pin,.drag-hint,.drop-ok,.drop-wrong,.level-unlock,.star-pop,.mentor-in,.mentor-in__bubble,.chat-in,.sticker-pop,.rating-up,.rating-down{animation:kap2-appear 120ms linear both;animation-delay:0ms;transform:none;filter:none}
+ .everyday-draw .everyday-draw__back{display:none}
+ .everyday-draw .everyday-draw__face{transform:none;backface-visibility:visible}
+ .shield-block .shield-block__trouble{display:none;animation:none;opacity:0}
+ .expense-drop{width:var(--expense-after,196px)}
+ .expense-drop__old{display:none;animation:none}
+ .expense-drop__new{animation:kap2-appear 120ms linear both;transform:none;opacity:1}
+ .monthly-pin::before,.drop-ok::after{animation:kap2-appear 120ms linear both}
+ .monthly-pin::before{transform:none}
+ .chart-draw{animation:none;stroke-dashoffset:0}
+ .price-slider__thumb{animation:none;left:clamp(0%,var(--price-current,65%),100%)}
+ .drag-hint{border-color:var(--kap-emerald);box-shadow:none}
+ .drop-wrong{transform:translate(var(--return-x,0px),var(--return-y,0px))}
+ .level-unlock{box-shadow:0 0 0 2px var(--kap-gold)}
+ .level-unlock__lock{display:none;animation:none;opacity:0}
+ .level-unlock__shackle{animation:none}
+ .stars-pop>.star-pop{animation-delay:0ms}
+ .rating-up::after,.rating-down::after,.level-complete-confetti__piece{display:none;animation:none}
+ .level-complete-confetti{animation:kap2-appear 120ms linear both}
+}
+@keyframes kap2-appear{from{opacity:0}to{opacity:1}}
