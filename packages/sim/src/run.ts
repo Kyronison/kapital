@@ -1,13 +1,14 @@
-import { defaultContent, type Content } from '@kapital/content';
+import { contentFor, type Content, type GameMode } from '@kapital/content';
 import { applyAction, botAction, createGame, type GameState } from '@kapital/engine';
 import { parseArgs } from 'node:util';
 
-/** Целевой коридор: медиана ходов до выхода из «Круга забот» для каждой профессии. */
-const TARGET_MEDIAN: [number, number] = [20, 30];
+/** Целевые коридоры медиан для каждой профессии: ходы до выхода и ходы на «Свободном пути». */
+const TARGETS: Record<GameMode, { inner: [number, number]; outer: [number, number] }> = {
+  classic: { inner: [20, 30], outer: [6, 14] },
+  quick: { inner: [10, 16], outer: [3, 8] },
+};
 /** Допустимая доля партий, в которых бот не вышел за лимит ходов. */
 const MAX_TIMEOUT_SHARE = 0.05;
-/** Коридор для медианы ходов на «Свободном пути» от выхода до победы. */
-const TARGET_OUTER_MEDIAN: [number, number] = [6, 14];
 /** Защита от зацикливания бота внутри одного хода. */
 const MAX_ACTIONS_PER_GAME = 20000;
 
@@ -43,15 +44,20 @@ const { values } = parseArgs({
     games: { type: 'string', default: '2000' },
     seed: { type: 'string', default: '1' },
     check: { type: 'boolean', default: false },
+    mode: { type: 'string', default: 'classic' },
   },
 });
 
-const content = defaultContent;
+const mode = values.mode as GameMode;
+if (mode !== 'classic' && mode !== 'quick') throw new Error(`Неизвестный режим: ${mode}`);
+const content = contentFor(mode);
+const TARGET_MEDIAN = TARGETS[mode].inner;
+const TARGET_OUTER_MEDIAN = TARGETS[mode].outer;
 const games = Number(values.games);
 const baseSeed = Number(values.seed);
 const failures: string[] = [];
 
-console.log(`Симуляция: ${games} партий на профессию, ставка кредита ${content.rules.loanRate * 100}%\n`);
+console.log(`Режим ${mode}: ${games} партий на профессию, ставка кредита ${content.rules.loanRate * 100}%\n`);
 console.log('                      Круг забот               Свободный путь');
 console.log('Профессия      Поток  Медиана  25%–75%  Не вышли  Медиана  Победы');
 for (const prof of content.professions) {

@@ -1,6 +1,6 @@
 import type { Content, DealCard, MarketCard, TemptationCard, VentureCard } from '@kapital/content';
 import {
-  availableLoan, hasEscaped, passiveIncome, professionOf, roundUpToStep, totalExpenses,
+  availableLoan, baseExpenses, hasEscaped, passiveIncome, professionOf, roundUpToStep, totalExpenses,
 } from './finance.js';
 import { Rng } from './rng.js';
 import type {
@@ -49,6 +49,18 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
     };
   });
 
+  let nextAssetId = 1;
+  if (content.rules.startPassiveShare > 0) {
+    for (const p of players) {
+      const flow = Math.round(content.rules.startPassiveShare * baseExpenses(content, p));
+      const cost = flow * 10;
+      p.assets.push({
+        id: `a${nextAssetId++}`, cardId: 'starter', assetType: 'vending', title: 'Стартовый бизнес',
+        cost, down: cost, mortgage: 0, flow,
+      });
+    }
+  }
+
   return {
     seed: seed >>> 0,
     rng: rng.state,
@@ -67,7 +79,7 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
       temptations: deck(content.temptations),
       ventures: deck(content.ventures),
     },
-    nextAssetId: 1,
+    nextAssetId,
   };
 }
 
@@ -291,7 +303,7 @@ const fail = (error: string): ActionResult => ({ ok: false, error });
 export function dreamPrice(content: Content, p: PlayerState): number {
   const dream = content.dreams.find((d) => d.id === p.dreamId);
   if (!dream) throw new Error(`Неизвестная мечта: ${p.dreamId}`);
-  return dream.priceInIncomes * p.startOuterIncome;
+  return Math.round(dream.priceInIncomes * content.rules.dreamPriceFactor * p.startOuterIncome);
 }
 
 /** Единственная точка изменения состояния. Не мутирует входной state. */

@@ -135,7 +135,13 @@ export interface Rules {
   outerGoalMultiplier: number;
   lawsuitShare: number;
   auditShare: number;
+  /** Множитель цены мечты: меньше 1 в быстром режиме. */
+  dreamPriceFactor: number;
+  /** Доля расходов, которую с самого начала покрывает стартовый бизнес. 0 — без него. */
+  startPassiveShare: number;
 }
+
+export type GameMode = 'classic' | 'quick';
 
 export interface Content {
   professions: Profession[];

@@ -24,6 +24,19 @@ export const rules: Rules = {
   outerGoalMultiplier: 2,
   lawsuitShare: 0.5,
   auditShare: 0.25,
+  dreamPriceFactor: 1,
+  startPassiveShare: 0,
+};
+
+/**
+ * Быстрый режим: каждый начинает с бизнесом, который покрывает половину расходов,
+ * а цель второго круга ближе. Доля одинакова для всех профессий, поэтому баланс сохраняется.
+ */
+export const quickRules: Partial<Rules> = {
+  startPassiveShare: 0.5,
+  outerGoalMultiplier: 1.5,
+  dreamPriceFactor: 0.5,
+  maxTurns: 60,
 };
 
 /** «Свободный путь»: 16 клеток, доход на рубежах 0, 4, 8, 12. */
