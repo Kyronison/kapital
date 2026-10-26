@@ -7,7 +7,8 @@
     "test": "vitest run",
     "typecheck": "tsc -b",
     "sim": "tsx packages/sim/src/run.ts",
-    "sim:check": "tsx packages/sim/src/run.ts --games 400 --check"
+    "sim:check": "tsx packages/sim/src/run.ts --games 400 --check",
+    "server": "tsx packages/server/src/main.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

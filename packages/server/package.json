@@ -1,0 +1,19 @@
+{
+  "name": "@kapital/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@colyseus/core": "0.16.26",
+    "@colyseus/ws-transport": "0.16.5",
+    "@kapital/content": "workspace:*",
+    "@kapital/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "colyseus.js": "0.16.22"
+  }
+}

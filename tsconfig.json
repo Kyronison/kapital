@@ -1,8 +1,17 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/content" },
-    { "path": "packages/engine" },
-    { "path": "packages/sim" }
+    {
+      "path": "packages/content"
+    },
+    {
+      "path": "packages/engine"
+    },
+    {
+      "path": "packages/sim"
+    },
+    {
+      "path": "packages/server"
+    }
   ]
 }
