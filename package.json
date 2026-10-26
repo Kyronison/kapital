@@ -8,6 +8,7 @@
     "typecheck": "tsc -b",
     "sim": "tsx packages/sim/src/run.ts",
     "sim:check": "tsx packages/sim/src/run.ts --games 400 --check",
+    "start": "tsx packages/server/src/main.ts",
     "server": "tsx packages/server/src/main.ts",
     "web": "pnpm --filter @kapital/web dev",
     "build:web": "pnpm --filter @kapital/web build"
