@@ -136,7 +136,12 @@ function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onT
   return (
     <div className="overlay toast-in" role="dialog" aria-modal="true" aria-label={result.passed ? 'Уровень пройден' : 'Уровень не пройден'}>
       <div className="overlay-card">
-        <img src={art(result.passed ? 'screens/win.webp' : 'screens/bankrupt.webp')} alt="" />
+        {result.passed && (
+          <div className="level-complete-confetti" aria-hidden="true">
+            {Array.from({ length: 16 }, (_, i) => <span key={i} className="level-complete-confetti__piece" />)}
+          </div>
+        )}
+        <img src={art(result.passed ? 'campaign/level-complete.webp' : 'campaign/level-failed.webp')} alt="" />
         <h2>{result.passed ? `«${level.title}» пройден!` : 'Ходы закончились'}</h2>
         {result.passed ? (
           <>
@@ -193,7 +198,7 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
       {view.level?.result && <LevelResult api={api} view={view} onTraining={onTraining} />}
       {game.status === 'finished' && !winSeen && !view.level && (
         <Overlay
-          picture={winner ? 'screens/win.webp' : 'screens/bankrupt.webp'}
+          picture={winner ? 'screens/win.webp' : 'screens/time-up.webp'}
           confetti={!!winner}
           title={winner ? (winner.id === api.me ? 'Вы победили!' : `Победил ${winner.name}`) : 'Партия окончена'}
           text={winner ? `${winner.name} ${winner.wonAtTurn ? `на ${winner.wonAtTurn}-м ходу ` : ''}добился финансовой свободы.` : `За ${content.rules.maxTurns} ходов никто не дошёл до цели. Попробуйте ещё раз: вкладывайте раньше и держите кредит под контролем.`}

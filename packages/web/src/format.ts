@@ -1,4 +1,4 @@
-import type { AssetType, Risk } from '@kapital/content';
+import type { AssetType, EverydayCard, Risk } from '@kapital/content';
 import { content } from './content.js';
 import type { GameEvent } from '@kapital/engine';
 
@@ -97,19 +97,31 @@ export const DECK_BACKS: Record<string, string> = {
   bigDeals: 'decks/big.webp',
   market: 'decks/market.webp',
   temptations: 'decks/temptation.webp',
-  everyday: 'decks/market.webp',
+  everyday: 'decks/everyday.webp',
   ventures: 'decks/venture.webp',
 };
 
-/** Картинки карт «Будней»: пока из первого набора, во втором появятся свои. */
-export const EVERYDAY_ART: Record<string, string> = {
-  spend: 'deals/temptation.webp',
-  monthly: 'deals/temptation.webp',
-  trouble: 'deals/market-expense.webp',
-  insurance: 'deals/charity.webp',
-  training: 'deals/venture.webp',
-  windfall: 'deals/payday.webp',
+/** Картинки карт «Будней»: своя у вида карты, у некоторых карт — особая. */
+const EVERYDAY_KIND_ART: Record<EverydayCard['kind'], string> = {
+  spend: 'everyday/spend-once.webp',
+  monthly: 'everyday/spend-monthly.webp',
+  trouble: 'everyday/trouble-health.webp',
+  insurance: 'everyday/insurance-life.webp',
+  training: 'everyday/training.webp',
+  windfall: 'everyday/bonus.webp',
 };
+const EVERYDAY_CARD_ART: Record<string, string> = {
+  'ev-spend-2': 'everyday/gift.webp',
+  'ev-spend-3': 'everyday/repair.webp',
+  'ev-property-1': 'everyday/trouble-property.webp',
+  'ev-property-2': 'everyday/trouble-property.webp',
+  'ev-property-3': 'everyday/trouble-property.webp',
+  'ev-property-4': 'everyday/repair.webp',
+  'ev-ins-property': 'everyday/insurance-property.webp',
+  'ev-training-2': 'everyday/consultation.webp',
+  'ev-windfall-2': 'everyday/tax-refund.webp',
+};
+export const everydayArt = (c: EverydayCard) => EVERYDAY_CARD_ART[c.id] ?? EVERYDAY_KIND_ART[c.kind];
 
 /** Клетки без карты: что произошло и какая картинка. */
 export const SITUATIONS: Record<string, { art: string; text: string }> = {

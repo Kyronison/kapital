@@ -2,7 +2,7 @@ import { content } from '../content.js';
 import { everydayAmount, roi, trainingSaving, type GameEvent } from '@kapital/engine';
 import { art, Icon } from '../art.js';
 import {
-  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, EVERYDAY_ART, RISK_TITLES, SITUATIONS, dreamTitle, money, percent, signed,
+  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, everydayArt, RISK_TITLES, SITUATIONS, dreamTitle, money, percent, signed,
 } from '../format.js';
 import type { PublicGame, TableApi } from '../net.js';
 
@@ -56,7 +56,7 @@ function faceOf(game: PublicGame): Face | null {
     const c = pending.card;
     const player = game.players[game.current]!;
     const amount = everydayAmount(content, player, c);
-    const picture = EVERYDAY_ART[c.kind]!;
+    const picture = everydayArt(c);
     switch (c.kind) {
       case 'spend':
         return { deck, picture, title: c.title, facts: [['Трата', money(amount)]] };
@@ -105,7 +105,7 @@ function faceOf(game: PublicGame): Face | null {
         };
       case 'bond':
         return {
-          deck, picture: 'deals/venture.webp', title: card.title,
+          deck, picture: 'invest/bonds.webp', title: card.title,
           facts: [['Номинал', money(card.price)], ['Купон', signed(card.coupon)], ['Доходность', percent(roi(card.coupon, card.price))]],
           note: 'Облигации можно вернуть по номиналу в любой свой ход.',
         };

@@ -191,7 +191,7 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
         </button>
       )}
       <button className="ghost" disabled={me.cash < depositStep} onClick={() => api.act({ type: 'DEPOSIT', amount: depositStep })}>
-        <Icon name="ui-bank" />
+        <Icon name="ui-deposit" />
         На вклад +{money(depositStep)}
       </button>
       {me.deposit > 0 && (
@@ -201,7 +201,7 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
       )}
       {me.bonds.map((b) => (
         <button key={b.id} className="ghost" onClick={() => api.act({ type: 'SELL_BOND', bondId: b.id })}>
-          <Icon name="ui-sell" />
+          <Icon name="ui-bond" />
           Вернуть «{b.title}» за {money(b.count * b.price)}
         </button>
       ))}

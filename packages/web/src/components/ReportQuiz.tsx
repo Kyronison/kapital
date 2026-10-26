@@ -1,7 +1,7 @@
 import { content } from '../content.js';
 import type { GameEvent } from '@kapital/engine';
 import { useEffect, useRef, useState, type DragEvent } from 'react';
-import { Icon } from '../art.js';
+import { art, Icon } from '../art.js';
 import { money, signed } from '../format.js';
 import { updateSettings, useSettings } from '../settings.js';
 
@@ -113,7 +113,7 @@ export function ReportQuiz({ log, logStart, me }: { log: GameEvent[]; logStart: 
   return (
     <section className="report-quiz card">
       <h2>
-        Заполните отчёт
+        <Icon name="ui-chart" size={16} />Заполните отчёт
         <small className="muted">верно {settings.reportRight} из {settings.reportTotal}</small>
       </h2>
       <ul className="quiz-lines">
@@ -126,7 +126,7 @@ export function ReportQuiz({ log, logStart, me }: { log: GameEvent[]; logStart: 
               onClick={() => setPicked(picked === l.key ? null : l.key)}
               aria-pressed={picked === l.key}
             >
-              <Icon name="ui-cashflow" size={14} />{l.label}
+              <Icon name="ui-drag" size={14} />{l.label}
             </button>
           </li>
         ))}
@@ -145,7 +145,8 @@ export function ReportQuiz({ log, logStart, me }: { log: GameEvent[]; logStart: 
         ))}
       </div>
       {feedback && (
-        <p key={`${feedback.key}-${feedback.ok}`} className={feedback.ok ? 'quiz-ok drop-ok' : 'quiz-wrong'}>
+        <p key={`${feedback.key}-${feedback.ok}`} className={feedback.ok ? 'quiz-ok' : 'quiz-wrong'}>
+          <img className={feedback.ok ? 'drop-ok-mark' : 'drop-wrong'} src={art(feedback.ok ? 'report/drop-ok.webp' : 'report/drop-wrong.webp')} alt="" />
           {feedback.ok ? 'Верно. ' : 'Не туда. '}{feedback.ok ? feedback.why : 'Попробуйте другой раздел.'}
         </p>
       )}

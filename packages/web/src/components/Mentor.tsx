@@ -1,12 +1,15 @@
 import { content } from '../content.js';
 import type { PlayerState } from '@kapital/engine';
-import { Icon } from '../art.js';
+import { art } from '../art.js';
 import { percent } from '../format.js';
 import type { PublicGame } from '../net.js';
 import { updateSettings, useSettings } from '../settings.js';
 
+type Pose = 'wave' | 'point' | 'think' | 'explain' | 'celebrate' | 'warn';
+
 interface Hint {
   id: string;
+  pose: Pose;
   title: string;
   text: string;
 }
@@ -18,47 +21,47 @@ function hintsFor(game: PublicGame, me: PlayerState): Hint[] {
   const rate = percent(content.rules.loanRate);
   const hints: [boolean, Hint][] = [
     [me.circle === 'outer', {
-      id: 'outer', title: 'Вы на «Свободном пути»',
+      id: 'outer', pose: 'celebrate', title: 'Вы на «Свободном пути»',
       text: 'Зарплаты больше нет, зато доход от капитала вырос в 10 раз. Покупайте доли инвестиций или копите на мечту. Кредитов здесь не дают.',
     }],
     [mine && game.phase === 'roll' && me.turnsTaken === 0, {
-      id: 'welcome', title: 'Цель игры',
+      id: 'welcome', pose: 'wave', title: 'Цель игры',
       text: 'Ниже ваш финансовый отчёт. Нужно, чтобы пассивный доход от активов покрыл все расходы. Тогда вы выйдете из «Круга забот». Бросьте кубик.',
     }],
     [mine && game.phase === 'choose_deal', {
-      id: 'choose_deal', title: 'Малая или крупная сделка',
+      id: 'choose_deal', pose: 'point', title: 'Малая или крупная сделка',
       text: '«Шанс» — недорогие сделки со взносом до 6 000 К. «Проект» — дорогие, но с большим потоком. В начале обычно хватает только на «Шанс».',
     }],
     [mine && pending?.deck !== 'everyday' && !!pending && 'kind' in pending.card && pending.card.kind === 'asset', {
-      id: 'deal_asset', title: 'Стоит ли покупать',
+      id: 'deal_asset', pose: 'think', title: 'Стоит ли покупать',
       text: `Смотрите на поток и доходность. Если доходность выше ставки кредита (${rate} за период), сделку выгодно купить даже в долг. Отрицательный поток — это пассив, а не актив.`,
     }],
     [!!pending && 'kind' in pending.card && pending.card.kind === 'stock', {
-      id: 'stock', title: 'Акции',
+      id: 'stock', pose: 'explain', title: 'Акции',
       text: 'Под ценой указан её обычный диапазон. Покупайте ниже середины, продавайте выше. Продать по цене на столе может любой владелец, даже не в свой ход.',
     }],
     [!!pending && 'kind' in pending.card && pending.card.kind === 'bond', {
-      id: 'bond', title: 'Облигации',
+      id: 'bond', pose: 'explain', title: 'Облигации',
       text: 'Доход у облигаций ниже, чем у бизнеса, зато их можно вернуть по номиналу в любой свой ход. Это запас на чёрный день.',
     }],
     [mine && pending?.deck === 'everyday', {
-      id: 'everyday', title: 'Будни',
+      id: 'everyday', pose: 'warn', title: 'Будни',
       text: 'Неприятности бьют по наличным. Полис стоит небольшого взноса каждый период и полностью закрывает свою неприятность. Тренинг навсегда снижает расходы.',
     }],
     [game.phase === 'market' && pending?.deck === 'market', {
-      id: 'market', title: 'Покупатель на рынке',
+      id: 'market', pose: 'point', title: 'Покупатель на рынке',
       text: 'Покупатель предлагает долю от цены актива. Вы получите эту сумму минус долг по ипотеке. Продавайте, если выручка покрывает много периодов потока.',
     }],
     [mine && game.phase === 'charity', {
-      id: 'charity', title: 'Помощь',
+      id: 'charity', pose: 'explain', title: 'Помощь',
       text: 'Пожертвование стоит 10% дохода. Взамен три хода вы бросаете два кубика и чаще проходите зарплату.',
     }],
     [me.bankLoan > 0, {
-      id: 'loan', title: 'Кредит банка',
+      id: 'loan', pose: 'warn', title: 'Кредит банка',
       text: `За кредит каждый период платится ${rate} суммы, и это входит в расходы. Гасите его, когда появятся свободные деньги, иначе платёж съедает поток.`,
     }],
     [me.children > 0, {
-      id: 'baby', title: 'Пополнение',
+      id: 'baby', pose: 'celebrate', title: 'Пополнение',
       text: 'Каждый ребёнок добавляет расходы за период. Больше трёх детей не бывает.',
     }],
   ];
@@ -71,9 +74,9 @@ export function Mentor({ game, me }: { game: PublicGame; me: PlayerState }) {
   const hint = hintsFor(game, me).find((h) => !settings.seenHints.includes(h.id));
   if (!hint) return null;
   return (
-    <section className="mentor card mentor-in" aria-live="polite">
-      <span className="mentor-face" aria-hidden="true"><Icon name="ui-hint" size={22} /></span>
-      <div>
+    <section className="mentor card mentor-in" aria-live="polite" key={hint.id}>
+      <img className="mentor-face" src={art(`mentor/${hint.pose}.webp`)} alt="" />
+      <div className="mentor-in__bubble">
         <h2>{hint.title}</h2>
         <p>{hint.text}</p>
         <div className="row">

@@ -1,3 +1,4 @@
+import { levels } from '@kapital/content';
 import { content } from '../content.js';
 import { useState, type ReactNode } from 'react';
 import { art, Icon } from '../art.js';
@@ -46,12 +47,12 @@ export function Home({ api, onTraining }: { api: TableApi; onTraining: () => voi
         {!roomId && (
           <button className="kap-button training-entry" onClick={() => { remember(); onTraining(); }}>
             <Icon name="ui-level" />
-            Тренировка: 15 уровней с целью и сроком
+            Тренировка: {levels.length} уровней с целью и сроком
           </button>
         )}
         {!roomId && saves.length > 0 && (
           <section className="saves card">
-            <h2><Icon name="ui-clock" size={18} />Незаконченные партии</h2>
+            <h2><Icon name="ui-archive" size={18} />Незаконченные партии</h2>
             <ul>
               {saves.map((x) => (
                 <li key={x.saveId}>
@@ -61,7 +62,7 @@ export function Home({ api, onTraining }: { api: TableApi; onTraining: () => voi
                       {x.mode === 'quick' ? 'Быстрая' : 'Классика'} · ход {x.turn} · {new Date(x.savedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
                     </small>
                   </span>
-                  <button className="primary" onClick={() => api.resume(x)}>Продолжить</button>
+                  <button className="primary" onClick={() => api.resume(x)}><Icon name="ui-continue" size={16} />Продолжить</button>
                   <button className="ghost" aria-label="Убрать из списка" title="Убрать из списка" onClick={() => { forgetSave(x.saveId); setSaves(loadSaves()); }}>×</button>
                 </li>
               ))}
