@@ -1,5 +1,5 @@
 import type {
-  AssetCard, AssetType, DealCard, ExpenseCard, MarketCard, OfferCard, StockCard, TemptationCard,
+  AssetCard, AssetType, BondCard, DealCard, ExpenseCard, MarketCard, OfferCard, StockCard, TemptationCard,
 } from './types.js';
 
 const asset = (
@@ -20,17 +20,26 @@ const stockPrices: [string, number][] = [
   ['GOLD', 5], ['GOLD', 10], ['GOLD', 15], ['GOLD', 25], ['GOLD', 40], ['GOLD', 20],
 ];
 
+const range = (ticker: string) => stockPrices.filter(([t]) => t === ticker).map(([, price]) => price);
+
 const stocks: StockCard[] = stockPrices.map(([ticker, price], i) => ({
   id: `stock-${i + 1}`,
   kind: 'stock',
   ticker,
   title: `Акции «${TICKERS[ticker]}» по ${price} К`,
   price,
+  low: Math.min(...range(ticker)),
+  high: Math.max(...range(ticker)),
 }));
+
+const bonds: BondCard[] = [
+  ['Облигации города', 30], ['Облигации энергосети', 40], ['Облигации застройщика', 50], ['Государственный заём', 30],
+].map(([title, coupon], i) => ({ id: `bond-${i + 1}`, kind: 'bond', title: title as string, price: 1000, coupon: coupon as number }));
 
 /** Колода «Шанс»: малые сделки с взносом до 6 000 К. */
 export const smallDeals: DealCard[] = [
   ...stocks,
+  ...bonds,
   asset('studio-1', 'studio', 'Студия у метро', 40000, 4000, 300),
   asset('studio-2', 'studio', 'Студия в новостройке', 45000, 5000, 400),
   asset('studio-3', 'studio', 'Студия после ремонта', 50000, 6000, 600),

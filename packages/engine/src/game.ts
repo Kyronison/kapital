@@ -50,6 +50,8 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
       policies: [],
       subscriptions: [],
       savings: 0,
+      deposit: 0,
+      bonds: [],
     };
   });
 
@@ -123,7 +125,7 @@ class Turn {
     const salaryPaid = p.layoffPaydays === 0;
     if (!salaryPaid) p.layoffPaydays--;
     const salary = salaryPaid ? professionOf(this.content, p).salary : 0;
-    const amount = salary + passiveIncome(p) - totalExpenses(this.content, p);
+    const amount = salary + passiveIncome(this.content, p) - totalExpenses(this.content, p);
     p.cash += amount;
     this.events.push({ type: 'payday', playerId: p.id, amount, salaryPaid });
     for (const sub of p.subscriptions) sub.paydaysLeft--;
@@ -135,6 +137,22 @@ class Turn {
   settle(p: PlayerState) {
     const { loanStep } = this.content.rules;
     while (p.cash < 0) {
+      // сначала свои сбережения: вклад, затем облигации по номиналу
+      if (p.deposit > 0) {
+        const amount = Math.min(p.deposit, roundUpToStep(-p.cash, this.content.rules.depositStep));
+        p.deposit -= amount;
+        p.cash += amount;
+        this.events.push({ type: 'withdrawn', playerId: p.id, amount, forced: true });
+        continue;
+      }
+      const bond = p.bonds[0];
+      if (bond) {
+        p.bonds.shift();
+        const proceeds = bond.count * bond.price;
+        p.cash += proceeds;
+        this.events.push({ type: 'bond_sold', playerId: p.id, bondId: bond.id, proceeds });
+        continue;
+      }
       const need = roundUpToStep(-p.cash, loanStep);
       const loan = Math.min(need, availableLoan(this.content, p));
       if (loan > 0) {
@@ -306,7 +324,7 @@ class Turn {
         p.escapedAtTurn = p.turnsTaken;
         p.circle = 'outer';
         p.position = 0;
-        p.startOuterIncome = passiveIncome(p) * outerIncomeMultiplier;
+        p.startOuterIncome = passiveIncome(this.content, p) * outerIncomeMultiplier;
         p.outerIncome = p.startOuterIncome;
         this.events.push({ type: 'escaped', playerId: p.id, turn: p.turnsTaken, outerIncome: p.outerIncome });
       }
@@ -443,6 +461,15 @@ export function applyAction(content: Content, state: GameState, action: Action):
         });
         t.events.push({ type: 'bought', playerId: p.id, cardId: card.id, price: card.down });
         s.phase = 'end';
+      } else if (card.kind === 'bond') {
+        const count = action.shares ?? 0;
+        if (!Number.isInteger(count) || count <= 0) return fail('Укажите целое число облигаций');
+        const price = count * card.price;
+        if (p.cash < price) return fail('Не хватает денег на облигации');
+        p.cash -= price;
+        p.bonds.push({ id: `b${s.nextAssetId++}`, cardId: card.id, title: card.title, count, price: card.price, coupon: card.coupon });
+        t.events.push({ type: 'bought', playerId: p.id, cardId: card.id, price });
+        s.phase = 'end';
       } else {
         const shares = action.shares ?? 0;
         if (!Number.isInteger(shares) || shares <= 0) return fail('Укажите целое число акций');
@@ -497,7 +524,7 @@ export function applyAction(content: Content, state: GameState, action: Action):
 
     case 'DONATE': {
       if (!isCurrent || s.phase !== 'charity') return fail('Сейчас нельзя пожертвовать');
-      const income = p.circle === 'inner' ? professionOf(content, p).salary + passiveIncome(p) : p.outerIncome;
+      const income = p.circle === 'inner' ? professionOf(content, p).salary + passiveIncome(content, p) : p.outerIncome;
       const amount = Math.round(rules.charityShare * income);
       if (p.cash < amount) return fail('Не хватает денег на пожертвование');
       p.cash -= amount;
@@ -542,6 +569,38 @@ export function applyAction(content: Content, state: GameState, action: Action):
       p.bankLoan -= amount;
       p.cash -= amount;
       t.events.push({ type: 'loan_repaid', playerId: p.id, amount });
+      break;
+    }
+
+    case 'DEPOSIT':
+    case 'WITHDRAW': {
+      if (!isCurrent) return fail('Вкладом распоряжаются только в свой ход');
+      const { amount } = action;
+      if (!Number.isInteger(amount) || amount <= 0 || amount % rules.depositStep !== 0) {
+        return fail(`Сумма кратна ${rules.depositStep}`);
+      }
+      if (action.type === 'DEPOSIT') {
+        if (amount > p.cash) return fail('Не хватает денег');
+        p.cash -= amount;
+        p.deposit += amount;
+        t.events.push({ type: 'deposited', playerId: p.id, amount });
+      } else {
+        if (amount > p.deposit) return fail('На вкладе меньше');
+        p.deposit -= amount;
+        p.cash += amount;
+        t.events.push({ type: 'withdrawn', playerId: p.id, amount, forced: false });
+      }
+      break;
+    }
+
+    case 'SELL_BOND': {
+      if (!isCurrent) return fail('Облигации продают только в свой ход');
+      const bond = p.bonds.find((b) => b.id === action.bondId);
+      if (!bond) return fail('Таких облигаций нет');
+      p.bonds = p.bonds.filter((b) => b !== bond);
+      const proceeds = bond.count * bond.price;
+      p.cash += proceeds;
+      t.events.push({ type: 'bond_sold', playerId: p.id, bondId: bond.id, proceeds });
       break;
     }
 

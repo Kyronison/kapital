@@ -83,6 +83,8 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
         if (short > 0) return { type: 'TAKE_LOAN', playerId, amount: roundUpToStep(short, rules.loanStep) };
         return { type: 'BUY', playerId };
       }
+      // облигации боту не нужны: бизнес доходнее
+      if (card.kind === 'bond') return end;
       const holds = p.stocks.some((x) => x.ticker === card.ticker);
       if (!s.pendingResolved && card.price <= 10 && !holds) {
         const shares = Math.floor((p.cash * 0.5) / card.price);
@@ -95,7 +97,7 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
       return p.cash >= dreamPrice(content, p) ? { type: 'BUY_DREAM', playerId } : end;
 
     case 'charity': {
-      const income = p.circle === 'inner' ? professionOf(content, p).salary + passiveIncome(p) : p.outerIncome;
+      const income = p.circle === 'inner' ? professionOf(content, p).salary + passiveIncome(content, p) : p.outerIncome;
       const amount = Math.round(rules.charityShare * income);
       return p.cash > 3 * amount ? { type: 'DONATE', playerId } : end;
     }

@@ -80,7 +80,7 @@ describe('клетки', () => {
     if (card.kind === 'asset') {
       s = act(s, { type: 'TAKE_LOAN', playerId: 'p1', amount: 5000 });
       s = act(s, { type: 'BUY', playerId: 'p1' });
-      expect(passiveIncome(s.players[0]!)).toBe(card.flow);
+      expect(passiveIncome(content, s.players[0]!)).toBe(card.flow);
       expect(s.players[0]!.assets[0]!.mortgage).toBe(card.cost - card.down);
     } else {
       s = act(s, { type: 'BUY', playerId: 'p1', shares: 10 });
