@@ -22,9 +22,16 @@ export interface ChatMessage {
   at: number;
 }
 
+export interface LevelView {
+  id: string;
+  share: number;
+  result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
+}
+
 export interface View {
   hostId: string | null;
   mode: GameMode;
+  level: LevelView | null;
   seats: Seat[];
   game: PublicGame | null;
   chat: ChatMessage[];
@@ -90,6 +97,7 @@ export function useTable() {
   const [log, setLog] = useState<{ events: GameEvent[]; start: number }>({ events: [], start: 0 });
   const [error, setError] = useState<string | null>(null);
   const [seat, setSeat] = useState<SeatTicket | null>(null);
+  const current = useRef<Room | null>(null);
 
   const attach = useCallback((r: Room) => {
     try {
@@ -97,7 +105,7 @@ export function useTable() {
     } catch {
       // без sessionStorage просто не будет переподключения после перезагрузки
     }
-    r.onMessage('view', (v: View) => setView(v));
+    r.onMessage('view', (v: View) => current.current === r && setView(v));
     r.onMessage('events', (e: GameEvent[]) =>
       setLog((prev) => {
         const all = [...prev.events, ...e];
@@ -108,10 +116,15 @@ export function useTable() {
     r.onMessage('error', (m: { error: string }) => setError(m.error));
     r.onMessage('seat', (t: SeatTicket) => setSeat(t));
     r.onLeave(() => {
+      // старая комната могла закрыться уже после входа в новую: тогда ничего не трогаем
+      if (current.current !== r) return;
+      current.current = null;
       setRoom(null);
       setSeat(null);
       setView(null);
+      setLog({ events: [], start: 0 });
     });
+    current.current = r;
     setRoom(r);
     // обработчики готовы: просим место и стол
     r.send('hello');
@@ -174,13 +187,20 @@ export function useTable() {
     clearError: () => setError(null),
     me: seat?.seatId ?? room?.sessionId ?? null,
     create: (opts: JoinOptions) => run(() => client.current.create(ROOM, opts)),
+    startLevel: (levelId: string, name: string) => run(() => client.current.create(ROOM, { levelId, name })),
     join: (roomId: string, opts: JoinOptions) => run(() => client.current.joinById(roomId, opts)),
     // партия ещё идёт на сервере — входим в ту же комнату, иначе сервер поднимет её из сохранения
     resume: (save: SavedGame) => run(() =>
       client.current.joinById(save.saveId, { key: save.key })
         .catch(() => client.current.joinOrCreate(ROOM, { restore: save.saveId, key: save.key }))),
     leave: () => {
-      void room?.leave(true);
+      const r = current.current;
+      current.current = null;
+      setRoom(null);
+      setSeat(null);
+      setView(null);
+      setLog({ events: [], start: 0 });
+      void r?.leave(true);
       const url = new URL(location.href);
       url.searchParams.delete('room');
       history.replaceState(null, '', url);

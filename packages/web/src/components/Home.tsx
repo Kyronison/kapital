@@ -6,7 +6,7 @@ import { updateSettings, useSettings } from '../settings.js';
 
 const nf = new Intl.NumberFormat('ru-RU');
 
-export function Home({ api }: { api: TableApi }) {
+export function Home({ api, onTraining }: { api: TableApi; onTraining: () => void }) {
   const roomId = new URLSearchParams(location.search).get('room');
   const [name, setName] = useState(() => {
     try {
@@ -20,12 +20,16 @@ export function Home({ api }: { api: TableApi }) {
   const [saves, setSaves] = useState(loadSaves);
   const settings = useSettings();
 
-  const submit = () => {
+  const remember = () => {
     try {
       localStorage.setItem('kapital:name', name);
     } catch {
       // имя просто не запомнится
     }
+  };
+
+  const submit = () => {
+    remember();
     const opts = { name, professionId: professionId || undefined, dreamId: dreamId || undefined };
     if (roomId) api.join(roomId, opts);
     else api.create(opts);
@@ -39,6 +43,12 @@ export function Home({ api }: { api: TableApi }) {
           Получите профессию, вкладывайте свободные деньги в активы и выйдите из «Круга забот», когда пассивный
           доход покроет расходы. Побеждает тот, кто первым купит свою мечту или удвоит доход.
         </p>
+        {!roomId && (
+          <button className="kap-button training-entry" onClick={() => { remember(); onTraining(); }}>
+            <Icon name="ui-level" />
+            Тренировка: 15 уровней с целью и сроком
+          </button>
+        )}
         {!roomId && saves.length > 0 && (
           <section className="saves card">
             <h2><Icon name="ui-clock" size={18} />Незаконченные партии</h2>

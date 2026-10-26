@@ -194,3 +194,30 @@ export interface Content {
   ventures: VentureCard[];
   rules: Rules;
 }
+
+export type LevelTier = 'novice' | 'amateur' | 'pro' | 'expert' | 'investor';
+
+/** Цель уровня «Тренировки». */
+export type LevelGoal =
+  | { kind: 'passive'; amount: number }
+  | { kind: 'cover'; share: number }
+  | { kind: 'cash'; amount: number }
+  | { kind: 'escape' }
+  | { kind: 'win' };
+
+export interface Level {
+  id: string;
+  tier: LevelTier;
+  title: string;
+  /** Что нужно сделать и в чём урок. */
+  brief: string;
+  professionId: string;
+  dreamId: string;
+  mode: GameMode;
+  /** Изменения правил на этом уровне. */
+  rules?: Partial<Rules>;
+  goal: LevelGoal;
+  maxTurns: number;
+  /** За сколько ходов три и две звезды; дольше — одна. */
+  stars: [number, number];
+}

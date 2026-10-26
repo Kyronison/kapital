@@ -19,6 +19,8 @@ export interface RoomOptions {
 /** Параметры создания комнаты от клиента: restore — номер сохранённой партии. */
 export interface CreateOptions {
   restore?: string;
+  /** Уровень «Тренировки»: стол на одного, партия начинается сразу. */
+  levelId?: string;
 }
 
 export interface JoinOptions {
@@ -59,6 +61,10 @@ export class KapitalRoom extends Room {
     } else {
       this.table = new Table(content);
       this.saveId = this.roomId;
+      if (options.levelId) {
+        const r = this.table.setLevel(options.levelId);
+        if (!r.ok) throw new Error(r.error);
+      }
     }
     this.opts = {
       turnSeconds: options.turnSeconds ?? 30,
@@ -91,6 +97,7 @@ export class KapitalRoom extends Room {
     const r = this.table.join(client.sessionId, String(options.name ?? ''), options.professionId, options.dreamId, key);
     if (!r.ok) throw new Error(r.error);
     client.send('seat', { ...r.value, saveId: this.saveId });
+    if (this.table.level && !this.table.started) this.table.start(client.sessionId);
     this.publish([]);
   }
 

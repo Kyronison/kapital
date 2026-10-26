@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { contentFor, type Content, type GameMode } from '@kapital/content';
+import { contentFor, contentForLevel, levels, type Content, type GameMode, type Level } from '@kapital/content';
 import {
-  applyAction, botAction, createGame, MAX_PLAYERS, type Action, type GameEvent, type GameState,
+  applyAction, botAction, createGame, levelProgress, levelStars, MAX_PLAYERS, type Action, type GameEvent, type GameState,
 } from '@kapital/engine';
 
 export interface Seat {
@@ -24,9 +24,18 @@ export interface ChatMessage {
   at: number;
 }
 
+/** Итог уровня «Тренировки»: null, пока партия идёт. */
+export interface LevelView {
+  id: string;
+  /** Насколько цель выполнена, от 0 до 1. */
+  share: number;
+  result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
+}
+
 export interface TableView {
   hostId: string | null;
   mode: GameMode;
+  level: LevelView | null;
   seats: Seat[];
   game: PublicGame | null;
   chat: ChatMessage[];
@@ -44,6 +53,7 @@ export interface TableSnapshot {
   seats: Seat[];
   hostId: string | null;
   mode: GameMode;
+  levelId?: string | null;
   game: GameState | null;
   chat: ChatMessage[];
   botCount: number;
@@ -71,6 +81,8 @@ export class Table {
   game: GameState | null = null;
   // по умолчанию короткая партия: полную выбирают осознанно
   mode: GameMode = 'quick';
+  /** Уровень «Тренировки»: одиночная партия со своей целью и сроком. */
+  level: Level | null = null;
   chat: ChatMessage[] = [];
   private botCount = 0;
   private chatCount = 0;
@@ -92,6 +104,7 @@ export class Table {
     t.seats = snap.seats.map((s) => ({ ...s, connected: s.bot }));
     t.hostId = snap.hostId;
     t.mode = snap.mode;
+    t.level = levels.find((l) => l.id === snap.levelId) ?? null;
     t.game = snap.game;
     t.chat = snap.chat;
     t.chatCount = snap.chat.at(-1)?.n ?? 0;
@@ -102,7 +115,7 @@ export class Table {
 
   snapshot(): TableSnapshot {
     return {
-      v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, game: this.game, chat: this.chat,
+      v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, game: this.game, chat: this.chat,
       botCount: this.botCount, keys: [...this.keys],
     };
   }
@@ -118,11 +131,22 @@ export class Table {
 
   /** Правила зависят от режима, который создатель выбирает в лобби. */
   get content(): Content {
-    return contentFor(this.mode, this.base);
+    return this.level ? contentForLevel(this.level, this.base) : contentFor(this.mode, this.base);
+  }
+
+  /** Стол уровня «Тренировки». Выбирается при создании, до входа игроков. */
+  setLevel(levelId: unknown): Result {
+    const level = levels.find((l) => l.id === levelId);
+    if (!level) return err('Неизвестный уровень');
+    if (this.seats.length > 0) return err('Уровень выбирают до входа игроков');
+    this.level = level;
+    this.mode = level.mode;
+    return ok(undefined);
   }
 
   setMode(session: string, mode: unknown): Result {
     if (this.seatOf(session) !== this.hostId) return err('Режим выбирает создатель стола');
+    if (this.level) return err('У уровня свой режим');
     if (this.started) return err('Партия уже началась');
     if (mode !== 'classic' && mode !== 'quick') return err('Неизвестный режим');
     this.mode = mode;
@@ -151,6 +175,11 @@ export class Table {
       return ok({ seatId: id, key: this.keys.get(id)! });
     }
     if (this.seats.length >= MAX_PLAYERS) return err('Все места заняты');
+    if (this.level && this.seats.length > 0) return err('Уровень проходят в одиночку');
+    if (this.level) {
+      professionId = this.level.professionId;
+      dreamId = this.level.dreamId;
+    }
     if (professionId && !this.content.professions.some((p) => p.id === professionId)) {
       return err('Неизвестная профессия');
     }
@@ -165,6 +194,7 @@ export class Table {
 
   addBot(session: string): Result {
     if (this.seatOf(session) !== this.hostId) return err('Добавлять ботов может только создатель стола');
+    if (this.level) return err('Уровень проходят в одиночку');
     if (this.started) return err('Партия уже началась');
     if (this.seats.length >= MAX_PLAYERS) return err('Все места заняты');
     this.botCount++;
@@ -240,7 +270,17 @@ export class Table {
     const r = applyAction(this.content, this.game!, action);
     if (!r.ok) return err(r.error);
     this.game = r.state;
-    return ok(r.events);
+    return ok([...r.events, ...this.checkLevel()]);
+  }
+
+  /** Цель уровня выполнена: партия заканчивается победой, даже если до мечты далеко. */
+  private checkLevel(): GameEvent[] {
+    const game = this.game!;
+    if (!this.level || game.status !== 'playing') return [];
+    const p = game.players[0]!;
+    if (!levelProgress(this.content, this.level, game, p).done) return [];
+    this.game = { ...game, status: 'finished', winnerId: p.id };
+    return [{ type: 'game_finished' }];
   }
 
   private autopilot(seat: Seat): boolean {
@@ -311,6 +351,19 @@ export class Table {
       const { decks: _decks, rng: _rng, seed: _seed, ...rest } = this.game;
       game = rest;
     }
-    return { hostId: this.hostId, mode: this.mode, seats: this.seats, game, chat: this.chat };
+    return { hostId: this.hostId, mode: this.mode, level: this.levelView(), seats: this.seats, game, chat: this.chat };
+  }
+
+  private levelView(): LevelView | null {
+    const level = this.level;
+    if (!level) return null;
+    const game = this.game;
+    const p = game?.players[0];
+    if (!game || !p) return { id: level.id, share: 0, result: null };
+    const progress = levelProgress(this.content, level, game, p);
+    const result = game.status === 'playing' ? null
+      : progress.done ? { passed: true as const, stars: levelStars(level, p.turnsTaken), turns: p.turnsTaken }
+      : { passed: false as const };
+    return { id: level.id, share: progress.share, result };
   }
 }
