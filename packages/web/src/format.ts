@@ -67,6 +67,7 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'landed': return `${who} → ${CELL_TITLES[e.cell] ?? e.cell}`;
     case 'card_drawn': return `${who}: «${cardTitle(e.deck, e.cardId)}»`;
     case 'bought': return `${who} покупает за ${money(e.price)}`;
+    case 'venture_rolled': return `${who}: на кубике ${e.roll} — ${e.success ? 'проект взлетел' : 'проект закрылся, вложение пропало'}`;
     case 'sold': return `${who} продаёт, выручка ${signed(e.proceeds)}`;
     case 'paid': return `${who} платит ${money(e.amount)}: ${e.reason}`;
     case 'loan_taken': return `${who} берёт кредит ${money(e.amount)}${e.forced ? ' (не хватило денег)' : ''}`;
@@ -78,7 +79,7 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'bankrupt': return `${who} банкротится и начинает заново`;
     case 'escaped': return `${who} выходит из «Круга забот»! Доход на «Свободном пути» ${money(e.outerIncome)}`;
     case 'crisis': return `${who}: кризис, следующий доход пропадёт`;
-    case 'won': return `${who} побеждает: ${e.by === 'dream' ? 'мечта куплена' : 'доход удвоен'}`;
+    case 'won': return `${who} побеждает: ${e.by === 'dream' ? 'мечта куплена' : 'доход вырос до цели'}`;
     case 'covered': return `${who}: полис покрыл ${money(e.amount)}`;
     case 'insured': return `${who} оформляет ${RISK_TITLES[e.risk].toLowerCase()}, взнос ${money(e.premium)} за период`;
     case 'policy_cancelled': return `${who} отказывается от полиса`;

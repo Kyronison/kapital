@@ -4,7 +4,7 @@ import {
   applyAction, availableLoan, botAction, cashflow, dreamPrice, hasEscaped, passiveIncome, totalExpenses,
   type GameState,
 } from '../src/index.js';
-import { act, cellIndex, content, newGame, placeBefore } from './helpers.js';
+import { act, cellIndex, content, newGame, placeBefore, seedForRoll } from './helpers.js';
 
 describe('создание партии', () => {
   it('выдаёт стартовые деньги профессии', () => {
@@ -232,6 +232,24 @@ describe('«Свободный путь»', () => {
     expect(s.players[0]!.cash).toBe(1_000_000 - 2 * card.cost);
   });
 
+  it('рискованный проект: удача на кубике — доход, неудача — деньги пропали', () => {
+    const card = content.ventures.find((c) => c.odds === 4)!;
+    const offer = (roll: number) => {
+      const s = outerGame();
+      s.phase = 'deal';
+      s.pending = { deck: 'ventures', card };
+      s.rng = seedForRoll(roll);
+      return act(s, { type: 'BUY', playerId: 'p1', shares: 1 });
+    };
+    const won = offer(4).players[0]!;
+    expect(won.outerIncome).toBe(20000 + card.income);
+    expect(won.cash).toBe(50000 - card.cost);
+    const lost = offer(3).players[0]!;
+    expect(lost.outerIncome).toBe(20000);
+    expect(lost.ventures).toHaveLength(0);
+    expect(lost.cash).toBe(50000 - card.cost);
+  });
+
   it('кредитов на внешнем круге нет', () => {
     const r = applyAction(content, outerGame(), { type: 'TAKE_LOAN', playerId: 'p1', amount: 1000 });
     expect(r.ok).toBe(false);
@@ -278,9 +296,9 @@ describe('«Свободный путь»', () => {
     expect(s.phase).toBe('end');
   });
 
-  it('удвоение дохода — победа в конце хода', () => {
+  it('доход вырос до цели — победа в конце хода', () => {
     let s = outerGame();
-    s.players[0]!.outerIncome = 40000;
+    s.players[0]!.outerIncome = content.rules.outerGoalMultiplier * 20000;
     s = act(s, { type: 'ROLL', playerId: 'p1' });
     s = act(s, { type: 'END_TURN', playerId: 'p1' });
     expect(s.winnerId).toBe('p1');

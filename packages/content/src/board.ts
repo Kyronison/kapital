@@ -21,10 +21,13 @@ export const rules: Rules = {
   charityTurns: 3,
   maxTurns: 120,
   outerIncomeMultiplier: 10,
-  outerGoalMultiplier: 2,
+  // главный путь к победе — мечта: её покупают только на своей клетке, и удача броска даёт шанс
+  // тому, кто вышел позже. Цель по доходу — запасной путь, и она далеко. По симуляции на четверых
+  // первый вышедший выигрывает около 61% партий; когда целью было удвоение дохода, было 75%.
+  outerGoalMultiplier: 4,
   lawsuitShare: 0.5,
   auditShare: 0.25,
-  dreamPriceFactor: 1,
+  dreamPriceFactor: 0.4,
   startPassiveShare: 0,
   depositRate: 0.01,
   depositStep: 1000,
@@ -33,12 +36,12 @@ export const rules: Rules = {
 /**
  * Быстрый режим: каждый начинает с бизнесом, который покрывает треть расходов,
  * а цели второго круга ближе. Доля одинакова для всех профессий, поэтому баланс сохраняется.
- * По симуляции: выход за 11–16 ходов, второй круг за 6–7, вся партия около 20 ходов.
+ * По симуляции: выход за 11–16 ходов, второй круг в одиночку около 10, на четверых партия около 18 ходов.
  */
 export const quickRules: Partial<Rules> = {
   startPassiveShare: 0.33,
-  outerGoalMultiplier: 1.3,
-  dreamPriceFactor: 0.35,
+  outerGoalMultiplier: 2.5,
+  dreamPriceFactor: 0.2,
   maxTurns: 40,
 };
 

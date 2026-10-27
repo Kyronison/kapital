@@ -77,7 +77,7 @@ export const levels: Level[] = [
   },
   {
     id: 'pro-3', tier: 'pro', title: 'До мечты', professionId: 'nurse', dreamId: 'world-trip', mode: 'quick',
-    brief: 'Выйдите на «Свободный путь» и победите: купите мечту или удвойте доход.',
+    brief: 'Выйдите на «Свободный путь» и победите: накопите на мечту и купите её.',
     goal: { kind: 'win' }, maxTurns: 30, stars: [19, 25],
   },
   {
@@ -128,31 +128,31 @@ export const levels: Level[] = [
   {
     id: 'investor-1', tier: 'investor', title: 'Классика целиком', professionId: 'teacher', dreamId: 'sea-house', mode: 'classic',
     brief: 'Полная партия без поблажек: выход из «Круга забот» и победа на «Свободном пути».',
-    goal: { kind: 'win' }, maxTurns: 45, stars: [36, 41],
+    goal: { kind: 'win' }, maxTurns: 47, stars: [38, 43],
   },
   {
     id: 'investor-2', tier: 'investor', title: 'Снизу вверх', professionId: 'courier', dreamId: 'space-flight', mode: 'classic',
     brief: 'Самая скромная профессия и самая дорогая мечта. Победите в полной партии.',
-    goal: { kind: 'win' }, maxTurns: 45, stars: [36, 41],
+    goal: { kind: 'win' }, maxTurns: 50, stars: [40, 45],
   },
   {
     id: 'investor-3', tier: 'investor', title: 'Под давлением', professionId: 'surgeon', dreamId: 'film-studio', mode: 'classic',
     brief: 'Кредит 8% за период, а расходы хирурга велики. Победите в полной партии.',
-    rules: { loanRate: 0.08 }, goal: { kind: 'win' }, maxTurns: 45, stars: [36, 41],
+    rules: { loanRate: 0.08 }, goal: { kind: 'win' }, maxTurns: 50, stars: [40, 45],
   },
   {
     id: 'investor-4', tier: 'investor', title: 'Дорогой капитал', professionId: 'developer', dreamId: 'yacht', mode: 'classic',
     brief: 'Кредит 9% за период. Пройдите партию целиком и победите.',
-    rules: { loanRate: 0.09 }, goal: { kind: 'win' }, maxTurns: 45, stars: [36, 41],
+    rules: { loanRate: 0.09 }, goal: { kind: 'win' }, maxTurns: 50, stars: [40, 45],
   },
   {
     id: 'investor-5', tier: 'investor', title: 'Без страховки от судьбы', professionId: 'engineer', dreamId: 'own-school', mode: 'classic',
     brief: 'Сокращение лишает трёх зарплат. Победите в полной партии.',
-    rules: { layoffPaydays: 3 }, goal: { kind: 'win' }, maxTurns: 45, stars: [36, 41],
+    rules: { layoffPaydays: 3 }, goal: { kind: 'win' }, maxTurns: 50, stars: [40, 45],
   },
   {
     id: 'investor-6', tier: 'investor', title: 'Финал', professionId: 'lawyer', dreamId: 'space-flight', mode: 'classic',
     brief: 'Всё сразу: кредит 8%, долгое сокращение и самая дорогая мечта. Докажите, что вы инвестор.',
-    rules: { loanRate: 0.08, layoffPaydays: 3 }, goal: { kind: 'win' }, maxTurns: 45, stars: [36, 41],
+    rules: { loanRate: 0.08, layoffPaydays: 3 }, goal: { kind: 'win' }, maxTurns: 50, stars: [40, 45],
   },
 ];

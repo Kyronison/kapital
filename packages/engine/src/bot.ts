@@ -11,6 +11,8 @@ const BIG_DEAL_BUDGET = 15000;
 const SELL_AT_FLOWS = 10;
 /** Минимальный запас наличных после досрочного погашения кредита. */
 const CASH_RESERVE = 2000;
+/** Какую долю свободных денег бот ставит на рискованный проект. */
+const RISKY_SHARE = 0.5;
 
 function reactiveSale(content: Content, s: GameState, p: PlayerState): Action | null {
   const pending = s.pending;
@@ -57,8 +59,12 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
     case 'deal': {
       const pending = s.pending;
       if (pending?.deck === 'ventures') {
-        // на «Свободном пути» держим запас в половину дохода
-        const shares = Math.floor((p.cash - p.outerIncome / 2) / pending.card.cost);
+        // на «Свободном пути» держим запас в половину дохода; в рискованный проект — не больше половины свободных денег
+        const spare = p.cash - p.outerIncome / 2;
+        // кто вышел позже соперника, тому нечего терять: ставит на риск все свободные деньги
+        const behind = s.players.some((o) => o.id !== p.id && o.circle === 'outer' && o.escapedAtTurn! < p.escapedAtTurn!);
+        const budget = pending.card.odds === undefined ? spare : spare * (behind ? 1 : RISKY_SHARE);
+        const shares = Math.floor(budget / pending.card.cost);
         return shares > 0 ? { type: 'BUY', playerId, shares } : end;
       }
       if (pending?.deck === 'everyday') {

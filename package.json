@@ -13,7 +13,8 @@
     "server": "tsx packages/server/src/main.ts",
     "web": "pnpm --filter @kapital/web dev",
     "build:web": "pnpm --filter @kapital/web build",
-    "sim:levels": "tsx packages/sim/src/levels.ts"
+    "sim:levels": "tsx packages/sim/src/levels.ts",
+    "sim:table": "tsx packages/sim/src/table.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

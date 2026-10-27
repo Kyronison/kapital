@@ -1,5 +1,5 @@
 import { content } from '../content.js';
-import { passiveIncome, totalExpenses, type GameEvent } from '@kapital/engine';
+import { outerProgress, passiveIncome, totalExpenses, type GameEvent } from '@kapital/engine';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { art, Icon, playerColor, Token } from '../art.js';
 import { describe, money, professionTitle } from '../format.js';
@@ -94,7 +94,7 @@ function Players({ game, view, me }: { game: PublicGame; view: View; me: string 
         {game.players.map((p, i) => {
           const seat = view.seats.find((s) => s.id === p.id);
           const pct = p.circle === 'outer'
-            ? Math.min(100, Math.floor((p.outerIncome / (content.rules.outerGoalMultiplier * p.startOuterIncome)) * 100))
+            ? Math.floor(outerProgress(content, p) * 100)
             : Math.min(100, Math.floor((passiveIncome(content, p) / totalExpenses(content, p)) * 100));
           return (
             <li key={p.id} className={`${i === game.current ? 'current' : ''}${p.circle === 'outer' ? ' outer' : ''}`}>
@@ -212,7 +212,7 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
           burst
           autoClose={moment.playerId !== api.me}
           title={moment.playerId === api.me ? 'Вы на «Свободном пути»!' : `${name(moment.playerId)} на «Свободном пути»`}
-          text="Пассивный доход покрыл расходы. Теперь цель — купить мечту или удвоить доход."
+          text="Пассивный доход покрыл расходы. Теперь цель — накопить на мечту и купить её на своей клетке."
           onClose={closeMoment}
         />
       )}
