@@ -13,6 +13,7 @@
     "@fontsource-variable/unbounded": "^5.3.0",
     "@kapital/content": "workspace:*",
     "@kapital/engine": "workspace:*",
+    "@kapital/protocol": "workspace:*",
     "colyseus.js": "0.16.22",
     "react": "18.3.1",
     "react-dom": "18.3.1"

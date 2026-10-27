@@ -1,6 +1,7 @@
 import { Room, type Client, type Delayed } from '@colyseus/core';
 import { defaultContent, type Content } from '@kapital/content';
 import type { GameEvent } from '@kapital/engine';
+import type { ChatMessage, CreateOptions, JoinOptions, ServerMessages } from '@kapital/protocol';
 import { SaveStore } from './saves.js';
 import { Table, type Result } from './table.js';
 
@@ -16,27 +17,12 @@ export interface RoomOptions {
   saves?: SaveStore | null;
 }
 
-/** Параметры создания комнаты от клиента: restore — номер сохранённой партии. */
-export interface CreateOptions {
-  restore?: string;
-  /** Уровень «Тренировки»: стол на одного, партия начинается сразу. */
-  levelId?: string;
-}
-
-export interface JoinOptions {
-  name?: string;
-  professionId?: string;
-  dreamId?: string;
-  /** Ключ места: с ним клиент возвращается в сохранённую партию. */
-  key?: string;
-}
-
 /**
  * Комната одной партии. Клиент только присылает намерения; правила проверяет движок.
  * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `chat`,
  * `pass` (не продавать по открытой цене, пока ход ждёт ответа соперников).
- * Сообщения сервера: `view` (стол без скрытых данных), `events`, `error` и `seat` — только своему
- * клиенту: id места, ключ возврата и номер сохранения.
+ * Сообщения сервера: `view` (стол без скрытых данных), `events`, `chat`; `error` и `seat` — только своему
+ * клиенту: id места, ключ возврата и номер сохранения. Формы — в @kapital/protocol.
  */
 export class KapitalRoom extends Room {
   maxClients = 6;
@@ -74,10 +60,7 @@ export class KapitalRoom extends Room {
       reconnectSeconds: options.reconnectSeconds ?? 60,
     };
 
-    this.onMessage('action', (client, message: unknown) => {
-      if (typeof message !== 'object' || message === null) return this.reply(client, { ok: false, error: 'Неверное действие' });
-      this.handle(client, this.table.act(client.sessionId, message as Record<string, unknown>));
-    });
+    this.onMessage('action', (client, message: unknown) => this.handle(client, this.table.act(client.sessionId, message)));
     this.onMessage('start', (client) => {
       // комнату не запираем: вернуться по ключу места можно и после старта, новых игроков не пустит стол
       this.handle(client, this.table.start(client.sessionId));
@@ -88,18 +71,26 @@ export class KapitalRoom extends Room {
     this.onMessage('hello', (client) => {
       const seatId = this.table.seatOf(client.sessionId);
       const key = this.table.keyOf(seatId);
-      if (key) client.send('seat', { seatId, key, saveId: this.saveId });
-      client.send('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+      if (key) this.tell(client, 'seat', { seatId, key, saveId: this.saveId });
+      this.tell(client, 'view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+      this.tell(client, 'chat', this.table.chat);
     });
     this.onMessage('pass', (client) => this.handle(client, this.table.pass(client.sessionId)));
-    this.onMessage('chat', (client, text: unknown) => this.handle(client, this.table.say(client.sessionId, text)));
+    this.onMessage('chat', (client, text: unknown) => {
+      const r = this.table.say(client.sessionId, text);
+      this.reply(client, r);
+      if (r.ok) {
+        this.broadcast('chat', [r.value] satisfies ChatMessage[]);
+        this.persist();
+      }
+    });
   }
 
   onJoin(client: Client, options: JoinOptions = {}) {
     const key = typeof options.key === 'string' ? options.key : undefined;
     const r = this.table.join(client.sessionId, String(options.name ?? ''), options.professionId, options.dreamId, key);
     if (!r.ok) throw new Error(r.error);
-    client.send('seat', { ...r.value, saveId: this.saveId });
+    this.tell(client, 'seat', { ...r.value, saveId: this.saveId });
     if (this.table.level && !this.table.started) this.table.start(client.sessionId);
     this.publish([]);
   }
@@ -110,7 +101,7 @@ export class KapitalRoom extends Room {
     try {
       await this.allowReconnection(client, this.opts.reconnectSeconds);
       const r = this.table.join(client.sessionId, '');
-      if (r.ok) client.send('seat', { ...r.value, saveId: this.saveId });
+      if (r.ok) this.tell(client, 'seat', { ...r.value, saveId: this.saveId });
       this.publish([]);
     } catch {
       // не вернулся: место остаётся за ботом
@@ -136,8 +127,13 @@ export class KapitalRoom extends Room {
       .catch((e: unknown) => console.error('Не удалось сохранить партию', e));
   }
 
+  /** Типизированная отправка: имя и форма сообщения берутся из протокола. */
+  private tell<K extends keyof ServerMessages>(client: Client, type: K, payload: ServerMessages[K]) {
+    client.send(type, payload);
+  }
+
   private reply(client: Client, r: Result<unknown>) {
-    if (!r.ok) client.send('error', { error: r.error });
+    if (!r.ok) this.tell(client, 'error', { error: r.error });
   }
 
   private handle(client: Client, r: Result<GameEvent[] | void>) {
@@ -148,8 +144,8 @@ export class KapitalRoom extends Room {
   private publish(events: GameEvent[]) {
     this.resetTurnTimer();
     this.resetHoldTimer();
-    if (events.length) this.broadcast('events', events);
-    this.broadcast('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+    if (events.length) this.broadcast('events', events satisfies ServerMessages['events']);
+    this.broadcast('view', { ...this.table.view(), turnDeadline: this.turnDeadline } satisfies ServerMessages['view']);
     this.persist();
     this.scheduleBots();
   }

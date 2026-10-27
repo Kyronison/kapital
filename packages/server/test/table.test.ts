@@ -70,7 +70,10 @@ describe('партия', () => {
     const t = tableWith('Аня', 'Боря');
     t.start('s1');
     expect(t.act('s2', { type: 'ROLL', playerId: 's1' }).ok).toBe(false);
-    expect(t.act('s1', { type: 'ROLL', playerId: 's2' }).ok).toBe(true);
+    // игрока определяет сервер: сообщение с playerId отбрасывается целиком
+    expect(t.act('s1', { type: 'ROLL', playerId: 's2' }).ok).toBe(false);
+    expect(t.act('s2', { type: 'ROLL' }).ok).toBe(false);
+    expect(t.act('s1', { type: 'ROLL' }).ok).toBe(true);
   });
 
   it('клиенты не видят колоды и состояние ГПСЧ', () => {

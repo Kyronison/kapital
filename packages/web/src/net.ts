@@ -1,49 +1,10 @@
 import type { GameMode } from '@kapital/content';
-import type { GameEvent, GameState } from '@kapital/engine';
+import type { GameEvent } from '@kapital/engine';
+import type { ChatMessage, ClientAction, JoinOptions, SeatTicket, ServerMessages, TableView } from '@kapital/protocol';
 import { Client, type Room } from 'colyseus.js';
+
+export type { ChatMessage, PublicGame, ReactionView as Reaction, Seat, TableView as View } from '@kapital/protocol';
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-export interface Seat {
-  id: string;
-  name: string;
-  professionId: string | null;
-  dreamId: string | null;
-  bot: boolean;
-  connected: boolean;
-}
-
-export type PublicGame = Omit<GameState, 'decks' | 'rng' | 'seed'>;
-
-export interface ChatMessage {
-  n: number;
-  seatId: string;
-  name: string;
-  text: string;
-  at: number;
-}
-
-export interface LevelView {
-  id: string;
-  share: number;
-  result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
-}
-
-/** Ход ждёт, пока соперники решат, продавать ли по открытой цене. */
-export interface Reaction {
-  until: number;
-  waiting: string[];
-}
-
-export interface View {
-  hostId: string | null;
-  reaction: Reaction | null;
-  mode: GameMode;
-  level: LevelView | null;
-  seats: Seat[];
-  game: PublicGame | null;
-  chat: ChatMessage[];
-  turnDeadline: number | null;
-}
 
 /** Незаконченная партия на этом устройстве: по ключу место возвращается даже после перезапуска сервера. */
 export interface SavedGame {
@@ -79,18 +40,6 @@ export function forgetSave(saveId: string) {
   writeSaves(loadSaves().filter((x) => x.saveId !== saveId));
 }
 
-interface SeatTicket {
-  seatId: string;
-  key: string;
-  saveId: string;
-}
-
-export interface JoinOptions {
-  name: string;
-  professionId?: string;
-  dreamId?: string;
-}
-
 const WS = location.protocol === 'https:' ? 'wss' : 'ws';
 // при разработке сайт отдаёт Vite, а игра на порту 2567; собранный сайт раздаёт сам игровой сервер
 const SERVER_URL =
@@ -101,7 +50,8 @@ const TOKEN_KEY = 'kapital:reconnect';
 export function useTable() {
   const client = useRef(new Client(SERVER_URL));
   const [room, setRoom] = useState<Room | null>(null);
-  const [view, setView] = useState<View | null>(null);
+  const [view, setView] = useState<TableView | null>(null);
+  const [chat, setChat] = useState<ChatMessage[]>([]);
   // журнал хранит последние 200 событий; logStart — номер первого из них с начала партии
   const [log, setLog] = useState<{ events: GameEvent[]; start: number }>({ events: [], start: 0 });
   const [error, setError] = useState<string | null>(null);
@@ -114,16 +64,21 @@ export function useTable() {
     } catch {
       // без sessionStorage просто не будет переподключения после перезагрузки
     }
-    r.onMessage('view', (v: View) => current.current === r && setView(v));
-    r.onMessage('events', (e: GameEvent[]) =>
+    // имена и формы сообщений — из протокола, тот же тип использует сервер
+    const on = <K extends keyof ServerMessages>(type: K, handler: (payload: ServerMessages[K]) => void) =>
+      r.onMessage(type, (payload: ServerMessages[K]) => current.current === r && handler(payload));
+    on('view', setView);
+    on('events', (e) =>
       setLog((prev) => {
         const all = [...prev.events, ...e];
         const drop = Math.max(0, all.length - 200);
         return { events: all.slice(drop), start: prev.start + drop };
       }),
     );
-    r.onMessage('error', (m: { error: string }) => setError(m.error));
-    r.onMessage('seat', (t: SeatTicket) => setSeat(t));
+    on('error', (m) => setError(m.error));
+    on('seat', setSeat);
+    // при входе приходит весь чат, затем по одному сообщению
+    on('chat', (list) => setChat((prev) => [...prev.filter((m) => !list.some((x) => x.n === m.n)), ...list].slice(-50)));
     r.onLeave(() => {
       // старая комната могла закрыться уже после входа в новую: тогда ничего не трогаем
       if (current.current !== r) return;
@@ -131,6 +86,7 @@ export function useTable() {
       setRoom(null);
       setSeat(null);
       setView(null);
+      setChat([]);
       setLog({ events: [], start: 0 });
     });
     current.current = r;
@@ -190,6 +146,7 @@ export function useTable() {
   return {
     room,
     view,
+    chat,
     log: log.events,
     logStart: log.start,
     error,
@@ -208,6 +165,7 @@ export function useTable() {
       setRoom(null);
       setSeat(null);
       setView(null);
+      setChat([]);
       setLog({ events: [], start: 0 });
       void r?.leave(true);
       const url = new URL(location.href);
@@ -224,7 +182,7 @@ export function useTable() {
       setError(null);
       room?.send(type, payload);
     },
-    act: (action: Record<string, unknown>) => {
+    act: (action: ClientAction) => {
       setError(null);
       room?.send('action', action);
     },

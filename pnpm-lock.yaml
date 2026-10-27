@@ -29,6 +29,15 @@ importers:
         specifier: workspace:*
         version: link:../content
 
+  packages/protocol:
+    dependencies:
+      '@kapital/content':
+        specifier: workspace:*
+        version: link:../content
+      '@kapital/engine':
+        specifier: workspace:*
+        version: link:../engine
+
   packages/server:
     dependencies:
       '@colyseus/core':
@@ -43,6 +52,9 @@ importers:
       '@kapital/engine':
         specifier: workspace:*
         version: link:../engine
+      '@kapital/protocol':
+        specifier: workspace:*
+        version: link:../protocol
     devDependencies:
       colyseus.js:
         specifier: 0.16.22
@@ -71,6 +83,9 @@ importers:
       '@kapital/engine':
         specifier: workspace:*
         version: link:../engine
+      '@kapital/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       colyseus.js:
         specifier: 0.16.22
         version: 0.16.22
