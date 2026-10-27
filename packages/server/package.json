@@ -12,9 +12,11 @@
     "@colyseus/ws-transport": "0.16.5",
     "@kapital/content": "workspace:*",
     "@kapital/engine": "workspace:*",
-    "@kapital/protocol": "workspace:*"
+    "@kapital/protocol": "workspace:*",
+    "nodemailer": "10.2.1"
   },
   "devDependencies": {
+    "@types/nodemailer": "8.0.2",
     "colyseus.js": "0.16.22"
   }
 }

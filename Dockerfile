@@ -16,10 +16,10 @@ RUN pnpm build:web
 FROM node:22-alpine
 WORKDIR /app
 RUN corepack enable
-ENV NODE_ENV=production PORT=8080 KAPITAL_SAVE_DIR=/data/saves
+ENV NODE_ENV=production PORT=8080 KAPITAL_DATA_DIR=/data
 COPY --from=build /app /app
-# сохранения партий живут на постоянном диске, смонтированном в /data
-RUN mkdir -p /data/saves && chown -R node:node /data
+# база, секрет шифрования и сохранения живут на постоянном диске, смонтированном в /data
+RUN mkdir -p /data && chown -R node:node /data
 USER node
 EXPOSE 8080
 CMD ["pnpm", "start"]

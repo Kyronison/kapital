@@ -8,7 +8,8 @@ import { Actions } from './Actions.js';
 import { Board } from './Board.js';
 import { Center } from './Center.js';
 import { Stars } from './Campaign.js';
-import { goalText, nextLevel, saveStars } from '../campaign.js';
+import { goalText, nextLevel } from '../campaign.js';
+import { saveStars } from '../campaign-progress.js';
 import { levels } from '@kapital/content';
 import { Chat } from './Chat.js';
 import { Mentor } from './Mentor.js';
@@ -131,7 +132,7 @@ function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onT
   }, [level.id, result]);
   const play = (id: string) => {
     api.leave();
-    api.startLevel(id, view.seats[0]?.name ?? '');
+    api.startLevel(id);
   };
   return (
     <div className="overlay toast-in" role="dialog" aria-modal="true" aria-label={result.passed ? 'Уровень пройден' : 'Уровень не пройден'}>

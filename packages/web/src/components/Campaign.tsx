@@ -1,7 +1,8 @@
 import { levels, type Level } from '@kapital/content';
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { art, Icon } from '../art.js';
-import { goalText, isOpen, loadProgress, TIERS } from '../campaign.js';
+import { goalText, isOpen, TIERS } from '../campaign.js';
+import { useProgress } from '../campaign-progress.js';
 import { MAP_DESKTOP, MAP_MOBILE } from '../campaign-map.js';
 import { professionTitle } from '../format.js';
 import type { TableApi } from '../net.js';
@@ -19,10 +20,12 @@ const useNarrow = () => useSyncExternalStore((cb) => {
 }, () => narrow.matches);
 
 /** «Тренировка»: путь из уровней с целью и сроком. Следующий открывается после прохождения предыдущего. */
-export function Campaign({ api, name, onBack }: { api: TableApi; name: string; onBack: () => void }) {
-  const progress = loadProgress();
+export function Campaign({ api, onBack }: { api: TableApi; onBack: () => void }) {
+  const progress = useProgress();
   const firstOpen = [...levels].reverse().find((l) => isOpen(l, progress)) ?? levels[0]!;
   const [picked, setPicked] = useState<Level>(firstOpen);
+  // прогресс приходит из аккаунта чуть позже первого рендера: выбранный уровень подтягивается за ним
+  useEffect(() => setPicked(firstOpen), [firstOpen]);
   const total = Object.values(progress).reduce((a, b) => a + b, 0);
   const map = useNarrow() ? MAP_MOBILE : MAP_DESKTOP;
 
@@ -78,7 +81,7 @@ export function Campaign({ api, name, onBack }: { api: TableApi; name: string; o
             <dt>Режим</dt><dd>{picked.mode === 'quick' ? 'Быстрый, со стартовым бизнесом' : 'Классика, с нуля'}</dd>
             <dt>Звёзды</dt><dd>3 — за {picked.stars[0]} ходов, 2 — за {picked.stars[1]}, 1 — за {picked.maxTurns}</dd>
           </dl>
-          <button className="primary big" onClick={() => api.startLevel(picked.id, name)}>
+          <button className="primary big" onClick={() => api.startLevel(picked.id)}>
             {progress[picked.id] ? 'Пройти ещё раз' : 'Начать уровень'}
           </button>
         </section>

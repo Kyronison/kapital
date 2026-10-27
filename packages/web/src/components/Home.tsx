@@ -1,37 +1,28 @@
 import { levels } from '@kapital/content';
 import { content } from '../content.js';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { art, Icon } from '../art.js';
-import { forgetSave, loadSaves, type TableApi } from '../net.js';
+import { hideSave, listSaves, type AccountApi } from '../auth.js';
+import type { SaveSummary, TableApi } from '../net.js';
 import { updateSettings, useSettings } from '../settings.js';
 
 const nf = new Intl.NumberFormat('ru-RU');
 
-export function Home({ api, onTraining }: { api: TableApi; onTraining: () => void }) {
+export function Home({ api, auth, onTraining }: { api: TableApi; auth: AccountApi; onTraining: () => void }) {
   const roomId = new URLSearchParams(location.search).get('room');
-  const [name, setName] = useState(() => {
-    try {
-      return localStorage.getItem('kapital:name') ?? '';
-    } catch {
-      return '';
-    }
-  });
   const [professionId, setProfessionId] = useState('');
   const [dreamId, setDreamId] = useState('');
-  const [saves, setSaves] = useState(loadSaves);
+  const [saves, setSaves] = useState<SaveSummary[]>([]);
   const settings = useSettings();
+  const account = auth.state.status === 'in' ? auth.state.account : null;
 
-  const remember = () => {
-    try {
-      localStorage.setItem('kapital:name', name);
-    } catch {
-      // имя просто не запомнится
-    }
-  };
+  // незаконченные партии лежат в аккаунте: список один на все устройства
+  useEffect(() => {
+    listSaves().then(setSaves).catch(() => setSaves([]));
+  }, []);
 
   const submit = () => {
-    remember();
-    const opts = { name, professionId: professionId || undefined, dreamId: dreamId || undefined };
+    const opts = { professionId: professionId || undefined, dreamId: dreamId || undefined };
     if (roomId) api.join(roomId, opts);
     else api.create(opts);
   };
@@ -45,7 +36,7 @@ export function Home({ api, onTraining }: { api: TableApi; onTraining: () => voi
           доход покроет расходы. Побеждает тот, кто первым купит свою мечту.
         </p>
         {!roomId && (
-          <button className="kap-button training-entry" onClick={() => { remember(); onTraining(); }}>
+          <button className="kap-button training-entry" onClick={onTraining}>
             <Icon name="ui-level" />
             Тренировка: {levels.length} уровней с целью и сроком
           </button>
@@ -62,19 +53,17 @@ export function Home({ api, onTraining }: { api: TableApi; onTraining: () => voi
                       {x.mode === 'quick' ? 'Быстрая' : 'Классика'} · ход {x.turn} · {new Date(x.savedAt).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}
                     </small>
                   </span>
-                  <button className="primary" onClick={() => api.resume(x)}><Icon name="ui-continue" size={16} />Продолжить</button>
-                  <button className="ghost" aria-label="Убрать из списка" title="Убрать из списка" onClick={() => { forgetSave(x.saveId); setSaves(loadSaves()); }}>×</button>
+                  <button className="primary" onClick={() => api.resume(x.saveId)}><Icon name="ui-continue" size={16} />Продолжить</button>
+                  <button className="ghost" aria-label="Убрать из списка" title="Убрать из списка" onClick={() => { void hideSave(x.saveId).catch(() => undefined); setSaves(saves.filter((s) => s.saveId !== x.saveId)); }}>×</button>
                 </li>
               ))}
             </ul>
           </section>
         )}
+        {account && !roomId && <Profile auth={auth} />}
       </section>
       <form className="join card" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-        <label className="field">
-          <span>Имя</span>
-          <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} placeholder="Как вас называть" />
-        </label>
+        {account && <p className="muted">За стол садится <strong>{account.user.name}</strong>. Имя меняется в профиле.</p>}
 
         <fieldset>
           <legend>Профессия</legend>
@@ -131,6 +120,73 @@ export function Home({ api, onTraining }: { api: TableApi; onTraining: () => voi
         )}
       </form>
     </main>
+  );
+}
+
+const PROVIDER_TITLES = { email: 'Почта', google: 'Google', yandex: 'Яндекс', telegram: 'Telegram' } as const;
+
+/** Профиль: имя за столом, пароль и способы входа. Новые способы привязываются к этому же аккаунту. */
+function Profile({ auth }: { auth: AccountApi }) {
+  const account = auth.state.status === 'in' ? auth.state.account : null;
+  const providers = auth.state.status === 'in' ? auth.state.providers : null;
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(account?.user.name ?? '');
+  const [password, setPassword] = useState('');
+  const [note, setNote] = useState<string | null>(null);
+  if (!account || !providers) return null;
+
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    const patch: { name?: string; password?: string } = {};
+    if (name.trim() && name.trim() !== account.user.name) patch.name = name;
+    if (password) patch.password = password;
+    auth.update(patch).then(() => { setNote('Сохранено'); setPassword(''); }).catch((err: Error) => setNote(err.message));
+  };
+  const linked = (p: keyof typeof PROVIDER_TITLES) => account.logins.find((l) => l.provider === p);
+
+  return (
+    <section className="saves card profile">
+      <h2>
+        <Icon name="ui-user" size={18} />
+        {account.user.name}
+        <button type="button" className="link" onClick={() => setOpen(!open)}>{open ? 'Свернуть' : 'Профиль'}</button>
+        <button type="button" className="link" onClick={() => void auth.logout()}>Выйти</button>
+      </h2>
+      {open && (
+        <form className="join" onSubmit={save}>
+          <label className="field">
+            <span>Имя за столом</span>
+            <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>{account.hasPassword ? 'Новый пароль' : 'Пароль для входа без письма'}</span>
+            <input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="не короче 8 символов" />
+          </label>
+          <div className="row wrap">
+            <button className="primary" type="submit">Сохранить</button>
+            {note && <span className="muted">{note}</span>}
+          </div>
+          <div className="logins">
+            <span className="muted">Способы входа</span>
+            <ul>
+              {(Object.keys(PROVIDER_TITLES) as (keyof typeof PROVIDER_TITLES)[]).map((p) => {
+                const l = linked(p);
+                const available = p === 'email' ? providers.email : p === 'telegram' ? !!providers.telegram : providers[p];
+                if (!l && !available) return null;
+                return (
+                  <li key={p}>
+                    <strong>{PROVIDER_TITLES[p]}</strong>
+                    {l ? <span className="muted">{l.label ?? 'привязан'}</span>
+                      : p === 'google' || p === 'yandex' ? <a className="link" href={`/api/auth/oauth/${p}/start`}>Привязать</a>
+                      : <span className="muted">{p === 'email' ? 'введите код из письма на экране входа' : 'войдите через виджет на экране входа'}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </form>
+      )}
+    </section>
   );
 }
 

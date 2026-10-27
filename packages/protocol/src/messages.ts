@@ -61,10 +61,9 @@ export interface TableView {
   turnDeadline: number | null;
 }
 
-/** Место за столом, которое получил клиент: по ключу он вернётся на него после перерыва. */
+/** Место за столом, которое получил клиент. Место закреплено за аккаунтом: вернуться можно с любого устройства. */
 export interface SeatTicket {
   seatId: string;
-  key: string;
   /** Номер сохранения: по нему партию поднимают после перезапуска сервера. */
   saveId: string;
 }
@@ -89,12 +88,39 @@ export interface ServerMessages {
 export const TURN_SECONDS_OPTIONS = [30, 60, 90, 0] as const;
 export const DEFAULT_TURN_SECONDS = 30;
 
+/** Имя игрока берётся из аккаунта, а не из запроса. */
 export interface JoinOptions {
-  name?: string;
   professionId?: string;
   dreamId?: string;
-  /** Ключ места: с ним клиент возвращается в сохранённую партию. */
-  key?: string;
+}
+
+/** Способы входа, настроенные на сервере; telegram — имя бота для виджета. */
+export interface AuthProviders {
+  email: boolean;
+  google: boolean;
+  yandex: boolean;
+  telegram: string | null;
+}
+
+export interface AccountLogin {
+  provider: 'email' | 'google' | 'yandex' | 'telegram';
+  label: string | null;
+}
+
+/** Ответ /api/auth/me: аккаунт вошедшего игрока. */
+export interface Account {
+  user: { id: string; name: string; email: string | null };
+  logins: AccountLogin[];
+  hasPassword: boolean;
+}
+
+/** Незаконченная партия игрока из /api/saves. */
+export interface SaveSummary {
+  saveId: string;
+  players: string[];
+  mode: string;
+  turn: number;
+  savedAt: number;
 }
 
 /** Параметры создания комнаты: restore — номер сохранённой партии, levelId — уровень «Тренировки». */

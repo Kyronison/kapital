@@ -9,28 +9,6 @@ export const TIERS: { id: LevelTier; title: string }[] = [
   { id: 'investor', title: 'Инвестор' },
 ];
 
-const KEY = 'kapital:campaign';
-
-/** Лучший результат по каждому пройденному уровню, в звёздах. */
-export function loadProgress(): Record<string, number> {
-  try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as unknown;
-    return raw && typeof raw === 'object' ? (raw as Record<string, number>) : {};
-  } catch {
-    return {};
-  }
-}
-
-export function saveStars(levelId: string, stars: number) {
-  const progress = loadProgress();
-  if ((progress[levelId] ?? 0) >= stars) return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ ...progress, [levelId]: stars }));
-  } catch {
-    // прогресс проживёт до перезагрузки
-  }
-}
-
 /** Уровень открыт, если пройден предыдущий. */
 export function isOpen(level: Level, progress: Record<string, number>): boolean {
   const i = levels.indexOf(level);
