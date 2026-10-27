@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { art, Icon } from '../art.js';
-import type { AccountApi } from '../auth.js';
+import { keepInvite, type AccountApi } from '../auth.js';
 
 type Step = { kind: 'email' } | { kind: 'code'; email: string; needName: boolean } | { kind: 'password' };
 
@@ -118,9 +118,9 @@ export function Login({ auth, invited }: { auth: AccountApi; invited: boolean })
         {providers && (providers.google || providers.yandex || providers.telegram) && (
           <div className="providers">
             {providers.email && <span className="muted">или</span>}
-            {providers.google && <a className="kap-button provider" href="/api/auth/oauth/google/start"><Icon name="ui-user" size={16} />Войти через Google</a>}
+            {providers.google && <a className="kap-button provider" href="/api/auth/oauth/google/start" onClick={keepInvite}><Icon name="ui-user" size={16} />Войти через Google</a>}
             {providers.yandex && (
-              <a className="kap-button provider provider-yandex" href="/api/auth/oauth/yandex/start">
+              <a className="kap-button provider provider-yandex" href="/api/auth/oauth/yandex/start" onClick={keepInvite}>
                 <span className="provider-mark" aria-hidden="true">Я</span>
                 Войти с Яндекс ID
               </a>

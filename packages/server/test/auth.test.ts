@@ -179,8 +179,8 @@ describe('профиль, партии и прогресс', () => {
     db.recordGame('lv-2', { levelId: 'novice-1', stars: 1, players: [{ id, bot: false, won: true }] });
     expect((await me('/api/progress')).body).toEqual({ 'novice-1': 2 });
     const rating = (await me('/api/rating')).body as unknown as Rating;
-    expect(rating.me).toMatchObject({ name: 'Геннадий', stars: 2, points: 20 });
-    expect(rating.top.some((x) => x.userId === id)).toBe(true);
+    expect(rating.training.me).toMatchObject({ name: 'Геннадий', value: 2, place: 1 });
+    expect(rating.stats).toEqual({ games: 0, wins: 0, stars: 2, levels: 1 });
   });
 
   it('по билету игрок входит в комнату, а партия появляется в его списке', async () => {
@@ -208,18 +208,37 @@ describe('профиль, партии и прогресс', () => {
 });
 
 describe('рейтинг', () => {
-  it('победа над людьми весит больше победы над ботами, повтор итога не считается', () => {
+  const win = (d: Db, game: string, winner: string, others: string[]) =>
+    d.recordGame(game, { levelId: null, stars: null, players: [winner, ...others].map((id) => ({ id, bot: false, won: id === winner })) });
+
+  it('очко партий — уникальный побеждённый соперник за месяц, место после 5 зачётных партий', () => {
+    let now = Date.UTC(2026, 9, 10);
+    const d = Db.memory(() => now);
+    for (const [id, name] of [['a', 'Аня'], ['b', 'Боря'], ['c', 'Вика'], ['g', 'Гоша']] as const) d.createUser(id, name, null);
+    win(d, 'g1', 'a', ['b', 'c']);
+    win(d, 'g1', 'a', ['b', 'c']); // повтор итога той же партии
+    win(d, 'g2', 'a', ['b', 'c']); // те же соперники: очков не прибавляет
+    win(d, 'g3', 'a', ['b', 'g']); // +1 за Гошу
+    // на двоих партия не зачётная
+    d.recordGame('duo', { levelId: null, stars: null, players: [{ id: 'a', bot: false, won: true }, { id: 'x', bot: false, won: false }] });
+    expect(d.rating('a').games).toMatchObject({ counted: 3, players: 0, me: { value: 3, place: null } });
+    win(d, 'g4', 'b', ['a', 'c']);
+    win(d, 'g5', 'c', ['a', 'b']);
+    const r = d.rating('a');
+    expect(r.games.me).toMatchObject({ value: 3, place: 1 });
+    expect(r.games.counted).toBe(5);
+    expect(r.stats).toMatchObject({ games: 6, wins: 4 }); // в статистике и партия на двоих
+    // новый месяц по Москве: счёт с нуля
+    now = Date.UTC(2026, 9, 31, 21, 30);
+    expect(d.rating('a').games.me.value).toBe(0);
+  });
+
+  it('в тренировке равные звёзды делят место', () => {
     const d = Db.memory();
-    d.createUser('a', 'Аня', null);
-    d.createUser('b', 'Боря', null);
-    d.createUser('c', 'Вика', null);
-    d.recordGame('g1', { levelId: null, stars: null, players: [{ id: 'a', bot: false, won: true }, { id: 'b', bot: false, won: false }] });
-    d.recordGame('g1', { levelId: null, stars: null, players: [{ id: 'a', bot: false, won: true }, { id: 'b', bot: false, won: false }] });
-    d.recordGame('g2', { levelId: null, stars: null, players: [{ id: 'b', bot: false, won: true }, { id: 'bot-1', bot: true, won: false }] });
-    const r = d.rating('c');
-    expect(r.top.map((x) => [x.name, x.points, x.place])).toEqual([['Аня', 55, 1], ['Боря', 25, 2]]);
-    expect(r.me).toMatchObject({ name: 'Вика', points: 0, place: null });
-    expect(r.players).toBe(2);
-    expect(d.rating('b').me).toMatchObject({ games: 2, wins: 1, winsVsPeople: 0 });
+    for (const id of ['a', 'b', 'c']) d.createUser(id, id, null);
+    d.setStars('a', 'novice-1', 3);
+    d.setStars('b', 'novice-1', 3);
+    d.setStars('c', 'novice-1', 1);
+    expect(d.rating('c').training.top.map((r) => [r.userId, r.place])).toEqual([['a', 1], ['b', 1], ['c', 3]]);
   });
 });

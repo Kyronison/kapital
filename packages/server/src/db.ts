@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
-import { RATING_POINTS, type AccountLogin, type PlayerStats, type Rating, type SaveSummary } from '@kapital/protocol';
+import { RATING_RULES, type AccountLogin, type Rating, type RatingBoard, type RatingRow, type SaveSummary } from '@kapital/protocol';
 import type { TableSnapshot } from './table.js';
 import { Vault } from './vault.js';
 
@@ -275,31 +275,31 @@ export class Db {
     }
   }
 
-  /** Итоги всех игроков с местами; без очков места нет. */
-  private standings(): PlayerStats[] {
-    const p = RATING_POINTS;
-    const rows = this.sql.prepare(`
-      WITH lv AS (SELECT user_id, SUM(stars) stars FROM progress GROUP BY user_id),
-      tb AS (SELECT user_id, COUNT(*) games, SUM(won) wins, SUM(CASE WHEN won = 1 AND humans > 1 THEN 1 ELSE 0 END) wins_people
-        FROM results WHERE level_id IS NULL GROUP BY user_id),
-      s AS (SELECT u.id, u.name, u.created_at, COALESCE(lv.stars, 0) stars, COALESCE(tb.games, 0) games, COALESCE(tb.wins, 0) wins,
-        COALESCE(tb.wins_people, 0) wins_people FROM users u LEFT JOIN lv ON lv.user_id = u.id LEFT JOIN tb ON tb.user_id = u.id),
-      pts AS (SELECT *, stars * ${p.star} + wins_people * ${p.winVsPeople} + (wins - wins_people) * ${p.winVsBots} + games * ${p.game} points FROM s)
-      SELECT *, CASE WHEN points > 0 THEN RANK() OVER (ORDER BY points DESC) END place FROM pts
-      ORDER BY points DESC, wins DESC, created_at`).all() as {
-        id: string; name: string; stars: number; games: number; wins: number; wins_people: number; points: number; place: number | null;
-      }[];
-    return rows.map((r) => ({
-      userId: r.id, name: r.name, points: r.points, place: r.place, games: r.games, wins: r.wins, winsVsPeople: r.wins_people, stars: r.stars,
-    }));
-  }
-
-  /** Рейтинг: первые limit игроков с очками и строка самого игрока. */
+  /** Рейтинг: лучшие limit в каждой таблице, свои строки и итоги для профиля. */
   rating(userId: string, limit = 50): Rating {
-    const all = this.standings();
-    const ranked = all.filter((r) => r.place !== null);
-    const me = all.find((r) => r.userId === userId) ?? { userId, name: '', points: 0, place: null, games: 0, wins: 0, winsVsPeople: 0, stars: 0 };
-    return { top: ranked.slice(0, limit), me, players: ranked.length };
+    const since = monthStartMsk(this.now());
+    const training = this.sql.prepare(`SELECT u.id, u.name, COALESCE(SUM(p.stars), 0) value
+      FROM users u LEFT JOIN progress p ON p.user_id = u.id GROUP BY u.id`).all() as Row[];
+    const games = this.sql.prepare(`
+      WITH q AS (SELECT DISTINCT game_id FROM results WHERE level_id IS NULL AND humans >= ?),
+      counted AS (SELECT r.user_id, COUNT(*) n FROM results r JOIN q USING (game_id) GROUP BY r.user_id),
+      beaten AS (SELECT w.user_id, COUNT(DISTINCT o.user_id) v FROM results w JOIN q USING (game_id)
+        JOIN results o ON o.game_id = w.game_id AND o.user_id <> w.user_id
+        WHERE w.won = 1 AND w.finished_at >= ? GROUP BY w.user_id)
+      SELECT u.id, u.name, COALESCE(b.v, 0) value, COALESCE(c.n, 0) counted
+      FROM users u LEFT JOIN beaten b ON b.user_id = u.id LEFT JOIN counted c ON c.user_id = u.id`)
+      .all(RATING_RULES.minHumans, since) as (Row & { counted: number })[];
+    const stats = this.sql.prepare(`SELECT
+        (SELECT COUNT(*) FROM results WHERE user_id = ? AND level_id IS NULL) games,
+        (SELECT COALESCE(SUM(won), 0) FROM results WHERE user_id = ? AND level_id IS NULL) wins,
+        (SELECT COALESCE(SUM(stars), 0) FROM progress WHERE user_id = ?) stars,
+        (SELECT COUNT(*) FROM progress WHERE user_id = ?) levels`).get(userId, userId, userId, userId) as Rating['stats'];
+    const counted = games.find((r) => r.id === userId)?.counted ?? 0;
+    return {
+      training: board(training, userId, limit, (r) => r.value > 0),
+      games: { ...board(games, userId, limit, (r) => r.value > 0 && r.counted >= RATING_RULES.qualifyGames), since, counted },
+      stats,
+    };
   }
 
   /** Просроченные сессии и коды. */
@@ -308,4 +308,29 @@ export class Db {
     this.sql.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now);
     this.sql.prepare('DELETE FROM email_codes WHERE expires_at <= ?').run(now);
   }
+}
+
+type Row = { id: string; name: string; value: number };
+
+/** Таблица по убыванию value; при равенстве место общее. Кто не прошёл допуск, остаётся без места. */
+function board<R extends Row>(rows: R[], userId: string, limit: number, admitted: (r: R) => boolean): RatingBoard {
+  const ranked = rows.filter(admitted).sort((a, b) => b.value - a.value);
+  const out: RatingRow[] = [];
+  ranked.forEach((r, i) => {
+    const place = i > 0 && ranked[i - 1]!.value === r.value ? out[i - 1]!.place : i + 1;
+    out.push({ userId: r.id, name: r.name, value: r.value, place });
+  });
+  const mine = out.find((r) => r.userId === userId);
+  const row = rows.find((r) => r.id === userId);
+  return {
+    top: out.slice(0, limit),
+    me: mine ?? { userId, name: row?.name ?? '', value: row?.value ?? 0, place: null },
+    players: out.length,
+  };
+}
+
+/** Начало текущего календарного месяца по Москве (UTC+3, без перехода на летнее время). */
+export function monthStartMsk(now: number): number {
+  const msk = new Date(now + 3 * 3600_000);
+  return Date.UTC(msk.getUTCFullYear(), msk.getUTCMonth(), 1) - 3 * 3600_000;
 }

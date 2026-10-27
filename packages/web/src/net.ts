@@ -98,7 +98,9 @@ export function useTable() {
       client.current.auth.token = await ticket();
       attach(await f());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось подключиться к серверу');
+      const text = e instanceof Error ? e.message : '';
+      // Colyseus отвечает по-английски, когда комнаты уже нет: партия закончилась или ссылка старая
+      setError(/not found|не найден/i.test(text) ? 'Этой игры уже нет: партия закончилась или ссылка устарела.' : text || 'Не удалось подключиться к серверу');
     }
   }, [attach]);
 

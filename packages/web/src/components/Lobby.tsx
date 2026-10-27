@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { art, Icon, playerColor } from '../art.js';
 import { dreamTitle, professionTitle } from '../format.js';
 import { Chat } from './Chat.js';
+import { LearningOptions } from './LearningOptions.js';
 import type { TableApi, View } from '../net.js';
-import { TURN_SECONDS_OPTIONS } from '@kapital/protocol';
+import { RATING_RULES, TURN_SECONDS_OPTIONS } from '@kapital/protocol';
 
 const MAX_SEATS = 6;
 
@@ -14,6 +15,7 @@ const MODES = [
 
 export function Lobby({ api, view }: { api: TableApi; view: View }) {
   const isHost = view.hostId === api.me;
+  const humans = view.seats.filter((s) => !s.bot).length;
   const link = `${location.origin}${location.pathname}?room=${api.room?.roomId ?? ''}`;
   const [copied, setCopied] = useState(false);
 
@@ -33,14 +35,24 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
           <h1>Стол ждёт игроков</h1>
           <button className="ghost" onClick={api.leave}><Icon name="ui-exit" size={18} />Выйти</button>
         </div>
-        <p className="muted">Отправьте друзьям ссылку. За столом до 6 мест, пустые можно занять ботами, а можно сыграть и одному.</p>
+        <p className="muted">
+          {view.seats.length < 2
+            ? 'Пока вы один. Отправьте друзьям ссылку: за столом до 6 мест, пустые можно занять ботами.'
+            : 'Отправьте ссылку остальным друзьям или начинайте: пустые места можно занять ботами.'}
+        </p>
         <div className="invite">
           <Icon name="ui-link" />
           <input readOnly value={link} onFocus={(e) => e.target.select()} aria-label="Ссылка-приглашение" />
           <button onClick={copy} className="kap-button">
             <Icon name="ui-copy" />
-            {copied ? 'Скопировано' : 'Копировать'}
+            {copied ? 'Ссылка скопирована' : 'Скопировать ссылку'}
           </button>
+          {'share' in navigator && (
+            <button className="kap-button" onClick={() => void navigator.share({ title: 'Капитал', text: 'Сыграем в «Капитал»?', url: link }).catch(() => undefined)}>
+              <Icon name="ui-send" />
+              Поделиться
+            </button>
+          )}
         </div>
         <ul className="seats">
           {view.seats.map((s, i) => (
@@ -88,6 +100,16 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
               <small>{s === 0 ? 'Для игры с друзьями, которые не торопятся' : s === 30 ? 'Быстро: потом ход доиграет бот' : s === 60 ? 'Есть время прочитать карту' : 'Спокойно посчитать окупаемость'}</small>
             </label>
           ))}
+        </fieldset>
+        <p className="rating-hint">
+          <Icon name="ui-trophy" size={16} />
+          {humans >= RATING_RULES.minHumans
+            ? `За победу вы можете получить до ${humans - 1} очков рейтинга: по одному за каждого соперника, которого ещё не обыгрывали в этом месяце.`
+            : `Партия пойдёт в рейтинг, если за столом будет от ${RATING_RULES.minHumans} человек (боты не считаются).`}
+        </p>
+        <fieldset className="lobby-learning">
+          <legend>Обучение</legend>
+          <LearningOptions />
         </fieldset>
         {view.seats.length < 2 && (
           <div className="waiting">

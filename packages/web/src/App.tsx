@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Logo } from './art.js';
-import { useAccount } from './auth.js';
+import { restoreInvite, useAccount } from './auth.js';
 import { resetProgress } from './campaign-progress.js';
 import { applyRules } from './content.js';
 import { Campaign } from './components/Campaign.js';
@@ -36,6 +36,11 @@ export function App() {
     // api меняется каждый рендер; важен только момент выхода
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.state.status]);
+  // приглашение, отложенное на время входа через Яндекс или Google, открывается сразу после входа
+  const [, setInvite] = useState(false);
+  useEffect(() => {
+    if (signedIn && restoreInvite()) setInvite(true);
+  }, [signedIn]);
   // новый экран открывается сверху, а не с прокруткой предыдущего; после партии итоги в шапке свежие
   useEffect(() => {
     window.scrollTo(0, 0);

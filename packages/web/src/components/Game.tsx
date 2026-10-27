@@ -154,6 +154,7 @@ function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onT
         )}
         <div className="row wrap center">
           {result.passed && next && <button className="primary" autoFocus onClick={() => play(next.id)}>Следующий уровень</button>}
+          {result.passed && result.stars < 3 && <button onClick={() => play(level.id)}>Повторить и улучшить</button>}
           {!result.passed && <button className="primary" autoFocus onClick={() => play(level.id)}>Ещё раз</button>}
           <button className="ghost" onClick={onTraining}>К уровням</button>
         </div>
@@ -265,7 +266,7 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
         </section>
         <button className="ghost leave" onClick={view.level ? onTraining : api.leave}>
           <Icon name="ui-exit" />
-          {game.status === 'playing' ? 'Выйти: партия сохранится' : view.level ? 'К уровням' : 'В главное меню'}
+          {view.level ? 'К уровням' : game.status === 'playing' ? 'В кабинет: партия сохранится' : 'В кабинет'}
         </button>
       </aside>
     </main>
