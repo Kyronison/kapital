@@ -4,7 +4,7 @@ import {
   applyAction, botAction, createGame, levelProgress, levelStars, MAX_PLAYERS, type Action, type GameEvent, type GameState,
 } from '@kapital/engine';
 import {
-  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type LevelView, type ReactionView, type Seat, type SeatTicket, type TableView,
+  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type EventBatch, type LevelView, type ReactionView, type Seat, type SeatTicket, type TableView,
 } from '@kapital/protocol';
 
 /** Всё, что нужно, чтобы продолжить партию после перезапуска сервера. */
@@ -15,6 +15,7 @@ export interface TableSnapshot {
   mode: GameMode;
   levelId?: string | null;
   turnSeconds?: number;
+  log?: EventBatch;
   game: GameState | null;
   chat: ChatMessage[];
   botCount: number;
@@ -22,6 +23,8 @@ export interface TableSnapshot {
 }
 
 export const CHAT_LIMIT = 50;
+/** Сколько последних событий партии хранится для вернувшихся игроков. */
+export const LOG_LIMIT = 200;
 const CHAT_TEXT_MAX = 200;
 /** Не больше стольких сообщений за окно, чтобы чат нельзя было залить. */
 const CHAT_BURST = 5;
@@ -49,6 +52,8 @@ export class Table {
   /** Уровень «Тренировки»: одиночная партия со своей целью и сроком. */
   level: Level | null = null;
   chat: ChatMessage[] = [];
+  /** Последние события партии: журнал для тех, кто перезагрузил страницу или вернулся позже. */
+  log: EventBatch = { start: 0, events: [] };
   private botCount = 0;
   private chatCount = 0;
   /** Соединение → место. Место получает id первого соединения и сохраняет его навсегда. */
@@ -72,6 +77,7 @@ export class Table {
     t.hostId = snap.hostId;
     t.mode = snap.mode;
     t.turnSeconds = snap.turnSeconds ?? DEFAULT_TURN_SECONDS;
+    t.log = snap.log ?? { start: 0, events: [] };
     t.level = levels.find((l) => l.id === snap.levelId) ?? null;
     t.game = snap.game;
     t.chat = snap.chat;
@@ -84,7 +90,7 @@ export class Table {
   snapshot(): TableSnapshot {
     return {
       v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, turnSeconds: this.turnSeconds,
-      game: this.game, chat: this.chat,
+      log: this.log, game: this.game, chat: this.chat,
       botCount: this.botCount, keys: [...this.keys],
     };
   }
@@ -193,7 +199,7 @@ export class Table {
     const seat = this.seats.find((s) => s.id === id);
     if (seat) seat.connected = false;
     // ушедший соперник больше не задерживает ход
-    const events = this.settleHold();
+    const events = this.record(this.settleHold());
     // создатель ушёл посреди партии: старшим становится следующий, кто на связи
     if (this.hostId === id) this.hostId = this.seats.find((s) => !s.bot && s.connected)?.id ?? this.hostId;
     return events;
@@ -254,7 +260,7 @@ export class Table {
     const id = this.seatOf(session);
     if (!this.hold || !this.waiting().includes(id)) return err('Сейчас ничего не ждём');
     this.hold.passed.add(id);
-    return ok(this.settleHold());
+    return ok(this.record(this.settleHold()));
   }
 
   get reaction(): ReactionView | null {
@@ -265,7 +271,16 @@ export class Table {
   expireHold(): GameEvent[] {
     if (!this.hold) return [];
     this.hold = null;
-    return this.endTurnNow();
+    return this.record(this.endTurnNow());
+  }
+
+  /** Запоминает события в журнале и возвращает их же: удобно оборачивать результат. */
+  private record(events: GameEvent[]): GameEvent[] {
+    if (!events.length) return events;
+    const all = [...this.log.events, ...events];
+    const drop = Math.max(0, all.length - LOG_LIMIT);
+    this.log = { start: this.log.start + drop, events: all.slice(drop) };
+    return events;
   }
 
   private apply(action: Action): Result<GameEvent[]> {
@@ -279,7 +294,7 @@ export class Table {
     const r = applyAction(this.content, game, action);
     if (!r.ok) return err(r.error);
     this.game = r.state;
-    return ok([...r.events, ...this.checkLevel(), ...this.settleHold()]);
+    return ok(this.record([...r.events, ...this.checkLevel(), ...this.settleHold()]));
   }
 
   /** Люди на связи (кроме текущего), которым есть что продать по открытой карте. */

@@ -68,11 +68,16 @@ export function useTable() {
     const on = <K extends keyof ServerMessages>(type: K, handler: (payload: ServerMessages[K]) => void) =>
       r.onMessage(type, (payload: ServerMessages[K]) => current.current === r && handler(payload));
     on('view', setView);
-    on('events', (e) =>
+    on('events', (batch) =>
       setLog((prev) => {
-        const all = [...prev.events, ...e];
+        // пачка стыкуется с журналом по сквозному номеру; при входе или пропуске заменяет его целиком
+        const next = prev.start + prev.events.length;
+        const all = batch.start === next ? [...prev.events, ...batch.events]
+          : batch.start > next || batch.start < prev.start ? batch.events
+          : [...prev.events.slice(0, batch.start - prev.start), ...batch.events];
+        const start = batch.start === next ? prev.start : batch.start > next || batch.start < prev.start ? batch.start : prev.start;
         const drop = Math.max(0, all.length - 200);
-        return { events: all.slice(drop), start: prev.start + drop };
+        return { events: all.slice(drop), start: start + drop };
       }),
     );
     on('error', (m) => setError(m.error));

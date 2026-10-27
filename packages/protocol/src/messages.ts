@@ -69,9 +69,16 @@ export interface SeatTicket {
   saveId: string;
 }
 
+/** Пачка событий движка. `start` — сквозной номер первого события с начала партии. */
+export interface EventBatch {
+  start: number;
+  events: GameEvent[];
+}
+
 export interface ServerMessages {
   view: TableView;
-  events: GameEvent[];
+  /** После каждого действия — новые события; при входе — последние события партии, чтобы восстановить журнал. */
+  events: EventBatch;
   /** Все сообщения чата при входе, затем по одному новому. */
   chat: ChatMessage[];
   seat: SeatTicket;

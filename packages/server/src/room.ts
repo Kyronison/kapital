@@ -76,6 +76,7 @@ export class KapitalRoom extends Room {
       if (key) this.tell(client, 'seat', { seatId, key, saveId: this.saveId });
       this.tell(client, 'view', { ...this.table.view(), turnDeadline: this.turnDeadline });
       this.tell(client, 'chat', this.table.chat);
+      if (this.table.log.events.length) this.tell(client, 'events', this.table.log);
     });
     this.onMessage('pass', (client) => this.handle(client, this.table.pass(client.sessionId)));
     this.onMessage('chat', (client, text: unknown) => {
@@ -146,7 +147,11 @@ export class KapitalRoom extends Room {
   private publish(events: GameEvent[]) {
     this.resetTurnTimer();
     this.resetHoldTimer();
-    if (events.length) this.broadcast('events', events satisfies ServerMessages['events']);
+    if (events.length) {
+      // номер первого из новых событий: они уже записаны в журнал стола последними
+      const start = this.table.log.start + this.table.log.events.length - events.length;
+      this.broadcast('events', { start, events } satisfies ServerMessages['events']);
+    }
     this.broadcast('view', { ...this.table.view(), turnDeadline: this.turnDeadline } satisfies ServerMessages['view']);
     this.persist();
     this.scheduleBots();
