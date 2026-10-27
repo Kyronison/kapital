@@ -12,6 +12,7 @@ export const dreams: Dream[] = [
 ];
 
 const v = (id: string, title: string, cost: number, income: number): VentureCard => ({ id, title, cost, income });
+const risky = (id: string, title: string, cost: number, income: number, odds: number): VentureCard => ({ id, title, cost, income, odds });
 
 /** Крупные инвестиции «Свободного пути»: доли покупают только за наличные. Цена и доход — за одну долю. */
 export const ventures: VentureCard[] = [
@@ -39,4 +40,13 @@ export const ventures: VentureCard[] = [
   v('venture-22', 'Дата-центр', 400000, 52000),
   v('venture-23', 'Горнолыжный курорт', 350000, 38500),
   v('venture-24', 'Порт для яхт', 160000, 16000),
+  // рискованные проекты: доход выше, но половина или треть из них закрывается сразу
+  risky('startup-1', 'Стартап доставки продуктов', 20000, 5000, 4),
+  risky('startup-2', 'Мобильная игра', 15000, 6000, 5),
+  risky('startup-3', 'Лаборатория новых лекарств', 60000, 15000, 4),
+  risky('startup-4', 'Сеть электрозаправок', 50000, 12500, 4),
+  risky('startup-5', 'Производство дронов', 40000, 16000, 5),
+  risky('startup-6', 'Вертикальная ферма', 30000, 7500, 4),
+  risky('startup-7', 'Прокат электросамокатов', 25000, 10000, 5),
+  risky('startup-8', 'Студия анимации', 35000, 8750, 4),
 ];

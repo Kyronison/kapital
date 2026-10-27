@@ -48,6 +48,6 @@ export function goalText(level: Level): string {
     : g.kind === 'cover' ? `пассивный доход покрывает ${Math.round(g.share * 100)}% расходов`
     : g.kind === 'cash' ? `${money(g.amount)} наличными`
     : g.kind === 'escape' ? 'выход из «Круга забот»'
-    : 'победа: мечта или удвоенный доход';
+    : 'победа: купить мечту';
   return `${goal} за ${level.maxTurns} ходов`;
 }

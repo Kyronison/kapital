@@ -1,5 +1,6 @@
 import type { Content, Level } from '@kapital/content';
 import { passiveIncome, totalExpenses } from './finance.js';
+import { outerProgress } from './game.js';
 import type { GameState, PlayerState } from './types.js';
 
 export interface LevelProgress {
@@ -22,7 +23,7 @@ export function levelProgress(content: Content, level: Level, game: GameState | 
     case 'escape':
       return p.circle === 'outer' ? { done: true, share: 1 } : of(passiveIncome(content, p), totalExpenses(content, p));
     case 'win':
-      return { done: game.winnerId === p.id, share: p.circle === 'outer' ? 0.5 + 0.5 * Math.min(1, p.outerIncome / (content.rules.outerGoalMultiplier * p.startOuterIncome)) : 0.5 * Math.min(1, passiveIncome(content, p) / totalExpenses(content, p)) };
+      return { done: game.winnerId === p.id, share: p.circle === 'outer' ? 0.5 + 0.5 * outerProgress(content, p) : 0.5 * Math.min(1, passiveIncome(content, p) / totalExpenses(content, p)) };
   }
 }
 

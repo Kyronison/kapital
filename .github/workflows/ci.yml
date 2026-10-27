@@ -23,5 +23,7 @@ jobs:
         run: pnpm sim:check
       - name: Проверка баланса быстрого режима
         run: pnpm sim --mode quick --games 400 --check
+      - name: Шанс отыграться в партии на четверых
+        run: pnpm sim:table --games 400 --check && pnpm sim:table --mode quick --games 400 --check
       - name: Проверка сложности уровней «Тренировки»
         run: pnpm sim:levels --games 300 --check

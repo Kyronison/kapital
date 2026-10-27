@@ -153,6 +153,7 @@ export type GameEvent =
   | { type: 'landed'; playerId: PlayerId; cell: string }
   | { type: 'card_drawn'; playerId: PlayerId; deck: DeckName; cardId: string }
   | { type: 'bought'; playerId: PlayerId; cardId: string; price: number }
+  | { type: 'venture_rolled'; playerId: PlayerId; cardId: string; roll: number; success: boolean }
   | { type: 'sold'; playerId: PlayerId; what: string; proceeds: number }
   | { type: 'paid'; playerId: PlayerId; amount: number; reason: string }
   | { type: 'loan_taken'; playerId: PlayerId; amount: number; forced: boolean }

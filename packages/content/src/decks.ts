@@ -136,11 +136,17 @@ const TYPE_TITLE: Record<AssetType, string> = {
 };
 
 const MULTIPLIERS = [0.9, 1.1, 1.25, 1.4, 1.6];
+/**
+ * Дом на 4 квартиры и жилой комплекс куплены с ипотекой на 90%: при 160% выручка была бы
+ * в 7 раз больше взноса, а у комплекса это 280 000 К за одну карту. Для них потолок — 3 взноса.
+ */
+const LEVERAGED_MULTIPLIERS = [0.9, 1.0, 1.1, 1.15, 1.2];
+const LEVERAGED: AssetType[] = ['fourplex', 'complex'];
 const ALL_TYPES = Object.keys(TYPE_TITLE) as AssetType[];
 
 const offers: OfferCard[] = ALL_TYPES.flatMap((assetType, t) =>
   // по 3–4 предложения на тип, разные множители
-  MULTIPLIERS.filter((_, i) => (i + t) % 4 !== 3).map((multiplier, i) => ({
+  (LEVERAGED.includes(assetType) ? LEVERAGED_MULTIPLIERS : MULTIPLIERS).filter((_, i) => (i + t) % 4 !== 3).map((multiplier, i) => ({
     id: `offer-${assetType}-${i + 1}`,
     kind: 'offer' as const,
     assetType,

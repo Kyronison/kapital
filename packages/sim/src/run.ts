@@ -4,8 +4,9 @@ import { parseArgs } from 'node:util';
 
 /** Целевые коридоры медиан для каждой профессии: ходы до выхода и ходы на «Свободном пути». */
 const TARGETS: Record<GameMode, { inner: [number, number]; outer: [number, number] }> = {
-  classic: { inner: [20, 30], outer: [6, 14] },
-  quick: { inner: [10, 16], outer: [3, 8] },
+  // второй круг длиннее, чем был: мечту покупают на своей клетке, и до неё нужно дойти
+  classic: { inner: [20, 30], outer: [10, 18] },
+  quick: { inner: [10, 16], outer: [6, 13] },
 };
 /** Допустимая доля партий, в которых бот не вышел за лимит ходов. */
 const MAX_TIMEOUT_SHARE = 0.05;

@@ -368,6 +368,16 @@ export function dreamPrice(content: Content, p: PlayerState): number {
   return Math.round(dream.priceInIncomes * content.rules.dreamPriceFactor * p.startOuterIncome);
 }
 
+/**
+ * Насколько игрок «Свободного пути» близок к победе, от 0 до 1: главный путь — накопить на мечту,
+ * запасной — вырастить доход до цели.
+ */
+export function outerProgress(content: Content, p: PlayerState): number {
+  if (p.circle !== 'outer' || p.startOuterIncome <= 0) return 0;
+  const income = p.outerIncome / (content.rules.outerGoalMultiplier * p.startOuterIncome);
+  return Math.min(1, Math.max(income, p.cash / dreamPrice(content, p)));
+}
+
 /** Единственная точка изменения состояния. Не мутирует входной state. */
 export function applyAction(content: Content, state: GameState, action: Action): ActionResult {
   if (state.status !== 'playing') return fail('Партия завершена');
@@ -420,6 +430,16 @@ export function applyAction(content: Content, state: GameState, action: Action):
         const price = shares * card.cost;
         if (p.cash < price) return fail('Не хватает денег: на «Свободном пути» покупают только за наличные');
         p.cash -= price;
+        if (card.odds !== undefined) {
+          const roll = t.rng.int(1, 6);
+          const success = roll >= card.odds;
+          t.events.push({ type: 'venture_rolled', playerId: p.id, cardId: card.id, roll, success });
+          if (!success) {
+            t.events.push({ type: 'paid', playerId: p.id, amount: price, reason: `${card.title}: проект закрылся` });
+            s.phase = 'end';
+            break;
+          }
+        }
         p.ventures.push({
           id: `v${s.nextAssetId++}`, cardId: card.id, title: card.title, shares, cost: price, income: shares * card.income,
         });

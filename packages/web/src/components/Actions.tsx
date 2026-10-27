@@ -111,7 +111,7 @@ export function Actions({ api, game, me, reaction }: { api: TableApi; game: Publ
               <input type="number" min={1} max={Math.max(1, max)} value={shares} onChange={(e) => setShares(Number(e.target.value))} aria-label="Сколько долей" />
               <button className="primary" disabled={shares < 1 || shares > max} onClick={() => api.act({ type: 'BUY', shares })}>
                 <Icon name="ui-buy" />
-                Купить долей: {shares} за {money(shares * card.cost)}
+                {card.odds !== undefined ? 'Рискнуть' : 'Купить'} долей: {shares} за {money(shares * card.cost)}
               </button>
               {end}
             </>

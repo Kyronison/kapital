@@ -50,7 +50,12 @@ function faceOf(game: PublicGame): Face | null {
   const card = pending.card;
   const deck = DECK_TITLES[pending.deck]!;
   if (pending.deck === 'ventures' && 'income' in card) {
-    return { deck, picture: 'deals/venture.webp', title: card.title, facts: [['Доля', money(card.cost)], ['Доход', signed(card.income)]] };
+    const face: Face = { deck, picture: 'deals/venture.webp', title: card.title, facts: [['Доля', money(card.cost)], ['Доход', signed(card.income)]] };
+    if (card.odds !== undefined) {
+      face.facts.push(['Риск', `успех при ${card.odds}+ на кубике`]);
+      face.note = `Рискованный проект: после покупки бросают кубик. Меньше ${card.odds} — проект закрывается, деньги пропадают.`;
+    }
+    return face;
   }
   if (pending.deck === 'everyday') {
     const c = pending.card;

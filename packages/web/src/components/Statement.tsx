@@ -54,11 +54,11 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
         <Cash cash={p.cash} flash={flash} />
         <dl>
           <Row icon="ui-income" label="Доход за период">{money(p.outerIncome)}</Row>
-          <Row icon="ui-trophy" label="Цель: удвоить доход">{money(goal)}</Row>
           <Row icon="cell-dream" label="Цена мечты">{money(price)}</Row>
+          <Row icon="ui-trophy" label="Или доход за период">{money(goal)}</Row>
         </dl>
-        <Meter label={`Доход: ${Math.min(100, Math.floor((p.outerIncome / goal) * 100))}% цели`} value={p.outerIncome} max={goal} gold />
         <Meter label={`Накоплено на мечту: ${Math.min(100, Math.floor((p.cash / price) * 100))}%`} value={p.cash} max={price} gold />
+        <Meter label={`Доход: ${Math.min(100, Math.floor((p.outerIncome / goal) * 100))}% запасной цели`} value={p.outerIncome} max={goal} gold />
         {p.ventures.length > 0 && (
           <ul className="assets">
             {p.ventures.map((v) => (
