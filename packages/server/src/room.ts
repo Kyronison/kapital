@@ -33,7 +33,8 @@ export interface JoinOptions {
 
 /**
  * Комната одной партии. Клиент только присылает намерения; правила проверяет движок.
- * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `chat`.
+ * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `chat`,
+ * `pass` (не продавать по открытой цене, пока ход ждёт ответа соперников).
  * Сообщения сервера: `view` (стол без скрытых данных), `events`, `error` и `seat` — только своему
  * клиенту: id места, ключ возврата и номер сохранения.
  */
@@ -45,6 +46,7 @@ export class KapitalRoom extends Room {
   private saveId = '';
   private saving: Promise<void> = Promise.resolve();
   private botTimer: Delayed | null = null;
+  private holdTimer: Delayed | null = null;
   private turnTimer: Delayed | null = null;
   private turnKey = '';
   private turnDeadline: number | null = null;
@@ -89,6 +91,7 @@ export class KapitalRoom extends Room {
       if (key) client.send('seat', { seatId, key, saveId: this.saveId });
       client.send('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
     });
+    this.onMessage('pass', (client) => this.handle(client, this.table.pass(client.sessionId)));
     this.onMessage('chat', (client, text: unknown) => this.handle(client, this.table.say(client.sessionId, text)));
   }
 
@@ -102,8 +105,7 @@ export class KapitalRoom extends Room {
   }
 
   async onLeave(client: Client, consented?: boolean) {
-    this.table.leave(client.sessionId);
-    this.publish([]);
+    this.publish(this.table.leave(client.sessionId));
     if (consented || !this.table.started) return;
     try {
       await this.allowReconnection(client, this.opts.reconnectSeconds);
@@ -118,6 +120,7 @@ export class KapitalRoom extends Room {
   async onDispose() {
     this.botTimer?.clear();
     this.turnTimer?.clear();
+    this.holdTimer?.clear();
     this.persist();
     await this.saving;
   }
@@ -144,6 +147,7 @@ export class KapitalRoom extends Room {
 
   private publish(events: GameEvent[]) {
     this.resetTurnTimer();
+    this.resetHoldTimer();
     if (events.length) this.broadcast('events', events);
     this.broadcast('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
     this.persist();
@@ -157,6 +161,21 @@ export class KapitalRoom extends Room {
       const events = this.table.botStep();
       if (events) this.publish(events);
     }, this.opts.botDelayMs);
+  }
+
+  /** Окно ответа соперников закрывается по времени, даже если кто-то молчит. */
+  private resetHoldTimer() {
+    const reaction = this.table.reaction;
+    if (!reaction) {
+      this.holdTimer?.clear();
+      this.holdTimer = null;
+      return;
+    }
+    if (this.holdTimer) return;
+    this.holdTimer = this.clock.setTimeout(() => {
+      this.holdTimer = null;
+      this.publish(this.table.expireHold());
+    }, Math.max(0, reaction.until - Date.now()));
   }
 
   /** Таймер на весь ход человека; у ботов и отключившихся таймера нет. */

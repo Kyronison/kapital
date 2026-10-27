@@ -32,8 +32,19 @@ export interface LevelView {
   result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
 }
 
+/**
+ * Окно ответа: текущий игрок закончил ход, а на столе цена, по которой соперники-люди
+ * могут продать свои акции или активы. Ход перейдёт, когда все ответят или выйдет время.
+ */
+export interface ReactionView {
+  until: number;
+  /** Места, от которых ждём продажи или «Пропустить». */
+  waiting: string[];
+}
+
 export interface TableView {
   hostId: string | null;
+  reaction: ReactionView | null;
   mode: GameMode;
   level: LevelView | null;
   seats: Seat[];
@@ -65,6 +76,8 @@ const CHAT_TEXT_MAX = 200;
 /** Не больше стольких сообщений за окно, чтобы чат нельзя было залить. */
 const CHAT_BURST = 5;
 const CHAT_WINDOW_MS = 10_000;
+/** Сколько ждать ответа соперников на открытую цену. */
+export const REACTION_MS = 12_000;
 
 export type Result<T = void> = { ok: true; value: T } | { ok: false; error: string };
 
@@ -91,6 +104,8 @@ export class Table {
   /** Место → секретный ключ возврата. В view не попадает. */
   private keys = new Map<string, string>();
   private recentChat = new Map<string, number[]>();
+  /** Отложенный конец хода, пока соперники решают, продавать ли. */
+  private hold: { until: number; passed: Set<string> } | null = null;
 
   constructor(
     private readonly base: Content,
@@ -203,19 +218,22 @@ export class Table {
   }
 
   /** Игрок ушёл: в лобби освобождает место, в партии за него ходит бот, пока он не вернётся. */
-  leave(session: string): void {
+  leave(session: string): GameEvent[] {
     const id = this.seatOf(session);
     this.sessions.delete(session);
     if (!this.started) {
       this.seats = this.seats.filter((s) => s.id !== id);
       this.keys.delete(id);
       if (this.hostId === id) this.hostId = this.seats.find((s) => !s.bot)?.id ?? null;
-      return;
+      return [];
     }
     const seat = this.seats.find((s) => s.id === id);
     if (seat) seat.connected = false;
+    // ушедший соперник больше не задерживает ход
+    const events = this.settleHold();
     // создатель ушёл посреди партии: старшим становится следующий, кто на связи
     if (this.hostId === id) this.hostId = this.seats.find((s) => !s.bot && s.connected)?.id ?? this.hostId;
+    return events;
   }
 
   /** Сообщение в чат стола. Видят все за столом. */
@@ -266,11 +284,79 @@ export class Table {
     return this.apply({ ...action, playerId: this.seatOf(session) } as Action);
   }
 
+  /** Соперник не будет продавать по открытой цене: ход можно передавать. */
+  pass(session: string): Result<GameEvent[]> {
+    const id = this.seatOf(session);
+    if (!this.hold || !this.waiting().includes(id)) return err('Сейчас ничего не ждём');
+    this.hold.passed.add(id);
+    return ok(this.settleHold());
+  }
+
+  get reaction(): ReactionView | null {
+    return this.hold ? { until: this.hold.until, waiting: this.waiting() } : null;
+  }
+
+  /** Время на ответ вышло: ход переходит, даже если кто-то не успел. */
+  expireHold(): GameEvent[] {
+    if (!this.hold) return [];
+    this.hold = null;
+    return this.endTurnNow();
+  }
+
   private apply(action: Action): Result<GameEvent[]> {
-    const r = applyAction(this.content, this.game!, action);
+    const game = this.game!;
+    const currentId = game.players[game.current]!.id;
+    if (this.hold && action.playerId === currentId) return err('Ход уже завершён: ждём ответа соперников');
+    if (action.type === 'END_TURN' && action.playerId === currentId && game.phase !== 'roll' && this.reactors().length > 0) {
+      this.hold = { until: this.now() + REACTION_MS, passed: new Set() };
+      return ok([]);
+    }
+    const r = applyAction(this.content, game, action);
     if (!r.ok) return err(r.error);
     this.game = r.state;
-    return ok([...r.events, ...this.checkLevel()]);
+    return ok([...r.events, ...this.checkLevel(), ...this.settleHold()]);
+  }
+
+  /** Люди на связи (кроме текущего), которым есть что продать по открытой карте. */
+  private reactors(): string[] {
+    const game = this.game!;
+    const pending = game.pending;
+    if (!pending) return [];
+    const currentId = game.players[game.current]!.id;
+    return this.seats.filter((s) => !s.bot && s.connected && s.id !== currentId).flatMap((s) => {
+      const p = game.players.find((x) => x.id === s.id);
+      if (!p || p.circle !== 'inner') return [];
+      if (game.phase === 'market' && pending.deck === 'market' && pending.card.kind === 'offer') {
+        const type = pending.card.assetType;
+        return p.assets.some((a) => a.assetType === type) ? [s.id] : [];
+      }
+      if (game.phase === 'deal' && pending.deck === 'smallDeals' && pending.card.kind === 'stock') {
+        const ticker = pending.card.ticker;
+        return p.stocks.some((h) => h.ticker === ticker) ? [s.id] : [];
+      }
+      return [];
+    });
+  }
+
+  private waiting(): string[] {
+    const passed = this.hold?.passed;
+    return this.reactors().filter((id) => !passed?.has(id));
+  }
+
+  /** Все ответили, продали всё или ушли: доделываем отложенный конец хода. */
+  private settleHold(): GameEvent[] {
+    if (!this.hold || this.waiting().length > 0) return [];
+    this.hold = null;
+    return this.endTurnNow();
+  }
+
+  private endTurnNow(): GameEvent[] {
+    const game = this.game!;
+    if (game.status !== 'playing') return [];
+    const r = applyAction(this.content, game, { type: 'END_TURN', playerId: game.players[game.current]!.id });
+    if (!r.ok) return [];
+    this.game = r.state;
+    return [...r.events, ...this.checkLevel()];
   }
 
   /** Цель уровня выполнена: партия заканчивается победой, даже если до мечты далеко. */
@@ -299,8 +385,8 @@ export class Table {
     for (const id of order) {
       const seat = this.seats.find((s) => s.id === id);
       if (!seat || !this.autopilot(seat)) continue;
-      // текущий бот ходит, только если ответные продажи уже сделаны
-      if (id === currentId && this.pendingReactions(currentId)) continue;
+      // текущий бот ходит, только если ответные продажи уже сделаны и ход не ждёт людей
+      if (id === currentId && (this.hold || this.pendingReactions(currentId))) continue;
       const action = botAction(this.content, game, id);
       if (!action) continue;
       const r = this.apply(action);
@@ -323,7 +409,7 @@ export class Table {
     if (!game || game.status !== 'playing') return [];
     const currentId = game.players[game.current]!.id;
     const events: GameEvent[] = [];
-    for (let i = 0; i < 50 && this.game!.status === 'playing' && this.game!.players[this.game!.current]!.id === currentId; i++) {
+    for (let i = 0; i < 50 && !this.hold && this.game!.status === 'playing' && this.game!.players[this.game!.current]!.id === currentId; i++) {
       const action = botAction(this.content, this.game!, currentId);
       const r = action ? this.apply(action) : err('нет действия');
       if (!r.ok) {
@@ -352,7 +438,7 @@ export class Table {
       const { decks: _decks, rng: _rng, seed: _seed, ...rest } = this.game;
       game = rest;
     }
-    return { hostId: this.hostId, mode: this.mode, level: this.levelView(), seats: this.seats, game, chat: this.chat };
+    return { hostId: this.hostId, reaction: this.reaction, mode: this.mode, level: this.levelView(), seats: this.seats, game, chat: this.chat };
   }
 
   private levelView(): LevelView | null {

@@ -2,13 +2,26 @@ import { content } from '../content.js';
 import {
   availableLoan, dreamPrice, everydayAmount, passiveIncome, professionOf, trainingSaving, type PlayerState,
 } from '@kapital/engine';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '../art.js';
 import { money, RISK_TITLES, signed } from '../format.js';
-import type { PublicGame, TableApi } from '../net.js';
+import type { PublicGame, Reaction, TableApi } from '../net.js';
 
-export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me: PlayerState }) {
+function useSecondsLeft(until: number | null) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!until) return;
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, [until]);
+  return until ? Math.max(0, Math.ceil((until - now) / 1000)) : null;
+}
+
+export function Actions({ api, game, me, reaction }: { api: TableApi; game: PublicGame; me: PlayerState; reaction: Reaction | null }) {
   const myTurn = game.players[game.current]!.id === me.id;
+  const secondsLeft = useSecondsLeft(reaction?.until ?? null);
+  const awaitingMe = reaction?.waiting.includes(me.id) ?? false;
+  const awaited = (reaction?.waiting ?? []).map((id) => game.players.find((p) => p.id === id)?.name ?? id);
   const [shares, setShares] = useState(10);
   const pending = game.pending;
   const step = content.rules.loanStep;
@@ -39,8 +52,18 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
     }
   }
 
+  if (awaitingMe) {
+    sales.push(
+      <button key="pass" className="ghost" onClick={() => api.send('pass')}>
+        Не продавать{secondsLeft !== null ? ` · ${secondsLeft} с` : ''}
+      </button>,
+    );
+  }
+
   let main: JSX.Element | null = null;
-  if (myTurn) {
+  if (myTurn && reaction) {
+    main = <p className="muted">Ход завершён. Ждём, продадут ли соперники по этой цене: {awaited.join(', ')}{secondsLeft !== null ? `, ещё ${secondsLeft} с` : ''}.</p>;
+  } else if (myTurn) {
     switch (game.phase) {
       case 'roll':
         main = (
@@ -173,7 +196,7 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
     }
   }
 
-  const loan = myTurn && game.phase !== 'roll' && (
+  const loan = myTurn && !reaction && game.phase !== 'roll' && (
     <div className="loan">
       {me.circle === 'inner' && (
         <button className="ghost" disabled={availableLoan(content, me) < step} onClick={() => api.act({ type: 'TAKE_LOAN', amount: step })}>
@@ -216,6 +239,7 @@ export function Actions({ api, game, me }: { api: TableApi; game: PublicGame; me
   return (
     <section className={`actions card${myTurn ? ' my-turn' : ''}`}>
       <h2>{myTurn ? 'Ваш ход' : `Ходит ${game.players[game.current]!.name}`}</h2>
+      {awaitingMe && <p className="muted">Ход ждёт вашего решения: продайте по этой цене или пропустите.</p>}
       {(main || sales.length > 0) && <div className="row wrap">{main}{sales}</div>}
       {!myTurn && sales.length === 0 && <p className="muted">Ждём хода соперника. Если на столе окажется выгодная цена, здесь появится кнопка продажи.</p>}
       {loan}

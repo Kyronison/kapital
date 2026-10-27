@@ -28,8 +28,15 @@ export interface LevelView {
   result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
 }
 
+/** Ход ждёт, пока соперники решат, продавать ли по открытой цене. */
+export interface Reaction {
+  until: number;
+  waiting: string[];
+}
+
 export interface View {
   hostId: string | null;
+  reaction: Reaction | null;
   mode: GameMode;
   level: LevelView | null;
   seats: Seat[];

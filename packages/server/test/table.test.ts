@@ -1,6 +1,6 @@
 import { defaultContent } from '@kapital/content';
 import { describe, expect, it } from 'vitest';
-import { Table } from '../src/table.js';
+import { REACTION_MS, Table } from '../src/table.js';
 
 const content = defaultContent;
 
@@ -99,7 +99,8 @@ describe('партия', () => {
     let steps = 0;
     // ходы Бори, который на связи, доигрывает таймер
     while (t.game!.status === 'playing' && steps < 100000) {
-      if (!t.botStep()) t.timeout();
+      // окно ответа Бори закрывает таймер комнаты
+      if (!t.botStep() && !t.expireHold().length) t.timeout();
       steps++;
     }
     expect(t.game!.status).toBe('finished');
@@ -200,5 +201,60 @@ describe('«Тренировка»', () => {
     const level = t.view().level!;
     if (level.result?.passed) expect(level.result.turns).toBeLessThanOrEqual(40);
     else expect(level.result).toEqual({ passed: false });
+  });
+});
+
+describe('окно ответа', () => {
+  /** Аня ходит и открывает цену TECH по 40, у Бори есть эти акции. */
+  function stockOnTable(now = () => 1000) {
+    const t = new Table(content, seeded(), now);
+    t.join('s1', 'Аня');
+    t.join('s2', 'Боря');
+    t.start('s1');
+    const g = structuredClone(t.game!);
+    g.phase = 'deal';
+    g.pending = { deck: 'smallDeals', card: content.smallDeals.find((c) => c.kind === 'stock' && c.ticker === 'TECH' && c.price === 40)! as never };
+    g.players[1]!.stocks.push({ ticker: 'TECH', shares: 10, avgPrice: 5 });
+    t.game = g;
+    return t;
+  }
+
+  it('конец хода ждёт соперника, которому есть что продать', () => {
+    const t = stockOnTable();
+    expect(t.act('s1', { type: 'END_TURN' }).ok).toBe(true);
+    expect(t.game!.current).toBe(0);
+    expect(t.view().reaction).toEqual({ until: 1000 + REACTION_MS, waiting: ['s2'] });
+    // текущий игрок уже ничего не делает
+    expect(t.act('s1', { type: 'TAKE_LOAN', amount: 1000 }).ok).toBe(false);
+    const r = t.act('s2', { type: 'SELL_STOCK', shares: 10 });
+    expect(r.ok).toBe(true);
+    expect(t.game!.current).toBe(1);
+    expect(t.view().reaction).toBeNull();
+  });
+
+  it('«Пропустить» передаёт ход сразу, молчание — по времени', () => {
+    const t = stockOnTable();
+    t.act('s1', { type: 'END_TURN' });
+    expect(t.pass('s1').ok).toBe(false);
+    expect(t.pass('s2').ok).toBe(true);
+    expect(t.game!.current).toBe(1);
+
+    const u = stockOnTable();
+    u.act('s1', { type: 'END_TURN' });
+    expect(u.expireHold().some((e) => e.type === 'turn_started')).toBe(true);
+    expect(u.game!.current).toBe(1);
+  });
+
+  it('бот и отключившийся игрок ход не держат', () => {
+    const t = stockOnTable();
+    t.leave('s2');
+    expect(t.act('s1', { type: 'END_TURN' }).ok).toBe(true);
+    expect(t.game!.current).toBe(1);
+  });
+
+  it('соперник ушёл во время ожидания — ход переходит', () => {
+    const t = stockOnTable();
+    t.act('s1', { type: 'END_TURN' });
+    expect(t.leave('s2').some((e) => e.type === 'turn_started')).toBe(true);
   });
 });
