@@ -3,6 +3,7 @@ import { Client } from 'colyseus.js';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Auth, createServer, Db, ROOM_NAME, type Account, type SaveSummary } from '../src/index.js';
+import type { Rating } from '@kapital/protocol';
 import { Vault, checkPassword, hashPassword } from '../src/vault.js';
 
 const PORT = 3600 + Math.floor(Math.random() * 1000);
@@ -171,9 +172,15 @@ describe('профиль, партии и прогресс', () => {
     const r = await me('/api/auth/me', 'PATCH', { name: 'Геннадий', password: 'новый пароль 1' });
     expect((r.body as unknown as Account).user.name).toBe('Геннадий');
     expect((await browser()('/api/auth/email/password', 'POST', { email: 'gena@example.com', password: 'новый пароль 1' })).status).toBe(200);
-    expect((await me('/api/progress', 'PUT', { 'novice-1': 2, 'нет-такого': 3, 'novice-2': 9 })).body).toEqual({ 'novice-1': 2 });
-    expect((await me('/api/progress', 'PUT', { 'novice-1': 1 })).body).toEqual({ 'novice-1': 2 });
+    // звёзды ставит только сервер по итогу уровня: прислать их самому нельзя
+    expect((await me('/api/progress', 'PUT', { 'novice-1': 3 })).status).toBe(404);
+    const id = (r.body as unknown as Account).user.id;
+    db.recordGame('lv-1', { levelId: 'novice-1', stars: 2, players: [{ id, bot: false, won: true }] });
+    db.recordGame('lv-2', { levelId: 'novice-1', stars: 1, players: [{ id, bot: false, won: true }] });
     expect((await me('/api/progress')).body).toEqual({ 'novice-1': 2 });
+    const rating = (await me('/api/rating')).body as unknown as Rating;
+    expect(rating.me).toMatchObject({ name: 'Геннадий', stars: 2, points: 20 });
+    expect(rating.top.some((x) => x.userId === id)).toBe(true);
   });
 
   it('по билету игрок входит в комнату, а партия появляется в его списке', async () => {
@@ -197,5 +204,22 @@ describe('профиль, партии и прогресс', () => {
     // билет одноразовый
     client.auth.token = ticket;
     await expect(client.create(ROOM_NAME)).rejects.toThrow();
+  });
+});
+
+describe('рейтинг', () => {
+  it('победа над людьми весит больше победы над ботами, повтор итога не считается', () => {
+    const d = Db.memory();
+    d.createUser('a', 'Аня', null);
+    d.createUser('b', 'Боря', null);
+    d.createUser('c', 'Вика', null);
+    d.recordGame('g1', { levelId: null, stars: null, players: [{ id: 'a', bot: false, won: true }, { id: 'b', bot: false, won: false }] });
+    d.recordGame('g1', { levelId: null, stars: null, players: [{ id: 'a', bot: false, won: true }, { id: 'b', bot: false, won: false }] });
+    d.recordGame('g2', { levelId: null, stars: null, players: [{ id: 'b', bot: false, won: true }, { id: 'bot-1', bot: true, won: false }] });
+    const r = d.rating('c');
+    expect(r.top.map((x) => [x.name, x.points, x.place])).toEqual([['Аня', 55, 1], ['Боря', 25, 2]]);
+    expect(r.me).toMatchObject({ name: 'Вика', points: 0, place: null });
+    expect(r.players).toBe(2);
+    expect(d.rating('b').me).toMatchObject({ games: 2, wins: 1, winsVsPeople: 0 });
   });
 });

@@ -123,6 +123,34 @@ export interface SaveSummary {
   savedAt: number;
 }
 
+/** Итоги игрока: из них считаются очки рейтинга. */
+export interface PlayerStats {
+  userId: string;
+  name: string;
+  /** Очки рейтинга, формула — RATING_POINTS. */
+  points: number;
+  /** Место среди игроков с очками; null — очков пока нет. */
+  place: number | null;
+  /** Законченные партии за столом (не уровни «Тренировки»). */
+  games: number;
+  wins: number;
+  /** Победы за столом, где был хотя бы ещё один человек. */
+  winsVsPeople: number;
+  /** Лучшие звёзды «Тренировки», сумма по уровням. */
+  stars: number;
+}
+
+/** Сколько очков рейтинга даёт каждый итог. Победа над людьми ценится выше победы над ботами. */
+export const RATING_POINTS = { star: 10, winVsPeople: 50, winVsBots: 15, game: 5 } as const;
+
+/** Ответ /api/rating: лучшие игроки и своя строка, даже если она ниже списка. */
+export interface Rating {
+  top: PlayerStats[];
+  me: PlayerStats;
+  /** Сколько игроков с очками всего. */
+  players: number;
+}
+
 /** Параметры создания комнаты: restore — номер сохранённой партии, levelId — уровень «Тренировки». */
 export interface CreateOptions {
   restore?: string;

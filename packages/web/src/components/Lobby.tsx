@@ -29,7 +29,10 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
   return (
     <main className="lobby">
       <section className="card lobby-card">
-        <h1>Стол ждёт игроков</h1>
+        <div className="row lobby-head">
+          <h1>Стол ждёт игроков</h1>
+          <button className="ghost" onClick={api.leave}><Icon name="ui-exit" size={18} />Выйти</button>
+        </div>
         <p className="muted">Отправьте друзьям ссылку. За столом до 6 мест, пустые можно занять ботами, а можно сыграть и одному.</p>
         <div className="invite">
           <Icon name="ui-link" />

@@ -125,11 +125,18 @@ export class KapitalRoom extends Room {
     this.persist();
   }
 
-  /** Незаконченная партия пишется в базу зашифрованной и видна в списке каждому игроку за столом; законченная удаляется. */
+  /**
+   * Незаконченная партия пишется в базу зашифрованной и видна в списке каждому игроку за столом;
+   * у законченной остаётся только итог для рейтинга.
+   */
   private persist() {
     if (!this.table.started) return;
     try {
-      if (this.table.game!.status === 'finished') this.auth.db.removeTable(this.saveId);
+      const outcome = this.table.outcome();
+      if (outcome) {
+        this.auth.db.recordGame(this.saveId, outcome);
+        this.auth.db.removeTable(this.saveId);
+      }
       else this.auth.db.saveTable(this.saveId, this.table.snapshot(), this.table.seats.filter((s) => !s.bot).map((s) => s.id));
     } catch (e) {
       console.error('Не удалось сохранить партию', e);

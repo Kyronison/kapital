@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
-import type { AccountLogin, SaveSummary } from '@kapital/protocol';
+import { RATING_POINTS, type AccountLogin, type PlayerStats, type Rating, type SaveSummary } from '@kapital/protocol';
 import type { TableSnapshot } from './table.js';
 import { Vault } from './vault.js';
 
@@ -18,6 +18,13 @@ export interface User {
 }
 
 export type Login = AccountLogin;
+
+/** Чем закончилась партия: levelId и stars — у уровня «Тренировки». */
+export interface GameOutcome {
+  levelId: string | null;
+  stars: number | null;
+  players: { id: string; bot: boolean; won: boolean }[];
+}
 export type { SaveSummary };
 
 const SCHEMA = `
@@ -45,6 +52,10 @@ CREATE INDEX IF NOT EXISTS save_players_user ON save_players(user_id);
 CREATE TABLE IF NOT EXISTS progress (
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, level_id TEXT NOT NULL, stars INTEGER NOT NULL,
   PRIMARY KEY (user_id, level_id));
+CREATE TABLE IF NOT EXISTS results (
+  game_id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, level_id TEXT,
+  won INTEGER NOT NULL, humans INTEGER NOT NULL, finished_at INTEGER NOT NULL, PRIMARY KEY (game_id, user_id));
+CREATE INDEX IF NOT EXISTS results_user ON results(user_id);
 `;
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
@@ -237,6 +248,58 @@ export class Db {
   setStars(userId: string, levelId: string, stars: number) {
     this.sql.prepare(`INSERT INTO progress (user_id, level_id, stars) VALUES (?, ?, ?)
       ON CONFLICT(user_id, level_id) DO UPDATE SET stars = MAX(stars, excluded.stars)`).run(userId, levelId, stars);
+  }
+
+  // --- итоги партий и рейтинг ---
+
+  /**
+   * Итог законченной партии для каждого человека за столом. Повторная запись той же партии ничего не меняет.
+   * Звёзды уровня сервер ставит сам: в рейтинг идёт только то, что посчитано здесь.
+   */
+  recordGame(gameId: string, game: GameOutcome) {
+    const insert = this.sql.prepare(`INSERT OR IGNORE INTO results (game_id, user_id, level_id, won, humans, finished_at)
+      VALUES (?, ?, ?, ?, ?, ?)`);
+    const humans = game.players.filter((p) => !p.bot);
+    const finishedAt = this.now();
+    this.sql.exec('BEGIN');
+    try {
+      for (const p of humans) {
+        if (!this.user(p.id)) continue;
+        insert.run(gameId, p.id, game.levelId, p.won ? 1 : 0, humans.length, finishedAt);
+        if (game.levelId && game.stars && p.won) this.setStars(p.id, game.levelId, game.stars);
+      }
+      this.sql.exec('COMMIT');
+    } catch (e) {
+      this.sql.exec('ROLLBACK');
+      throw e;
+    }
+  }
+
+  /** Итоги всех игроков с местами; без очков места нет. */
+  private standings(): PlayerStats[] {
+    const p = RATING_POINTS;
+    const rows = this.sql.prepare(`
+      WITH lv AS (SELECT user_id, SUM(stars) stars FROM progress GROUP BY user_id),
+      tb AS (SELECT user_id, COUNT(*) games, SUM(won) wins, SUM(CASE WHEN won = 1 AND humans > 1 THEN 1 ELSE 0 END) wins_people
+        FROM results WHERE level_id IS NULL GROUP BY user_id),
+      s AS (SELECT u.id, u.name, u.created_at, COALESCE(lv.stars, 0) stars, COALESCE(tb.games, 0) games, COALESCE(tb.wins, 0) wins,
+        COALESCE(tb.wins_people, 0) wins_people FROM users u LEFT JOIN lv ON lv.user_id = u.id LEFT JOIN tb ON tb.user_id = u.id),
+      pts AS (SELECT *, stars * ${p.star} + wins_people * ${p.winVsPeople} + (wins - wins_people) * ${p.winVsBots} + games * ${p.game} points FROM s)
+      SELECT *, CASE WHEN points > 0 THEN RANK() OVER (ORDER BY points DESC) END place FROM pts
+      ORDER BY points DESC, wins DESC, created_at`).all() as {
+        id: string; name: string; stars: number; games: number; wins: number; wins_people: number; points: number; place: number | null;
+      }[];
+    return rows.map((r) => ({
+      userId: r.id, name: r.name, points: r.points, place: r.place, games: r.games, wins: r.wins, winsVsPeople: r.wins_people, stars: r.stars,
+    }));
+  }
+
+  /** Рейтинг: первые limit игроков с очками и строка самого игрока. */
+  rating(userId: string, limit = 50): Rating {
+    const all = this.standings();
+    const ranked = all.filter((r) => r.place !== null);
+    const me = all.find((r) => r.userId === userId) ?? { userId, name: '', points: 0, place: null, games: 0, wins: 0, winsVsPeople: 0, stars: 0 };
+    return { top: ranked.slice(0, limit), me, players: ranked.length };
   }
 
   /** Просроченные сессии и коды. */
