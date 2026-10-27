@@ -6,6 +6,7 @@ import { useProgress } from '../campaign-progress.js';
 import { MAP_DESKTOP, MAP_MOBILE } from '../campaign-map.js';
 import { professionTitle } from '../format.js';
 import type { TableApi } from '../net.js';
+import { LearningOptions } from './LearningOptions.js';
 
 export const Stars = ({ n, of = 3 }: { n: number; of?: number }) => (
   <span className="stars stars-pop" aria-label={`${n} из ${of} звёзд`}>
@@ -33,7 +34,7 @@ export function Campaign({ api }: { api: TableApi }) {
     <div className="campaign">
       <header className="campaign-head">
         <h1><Icon name="ui-level" size={28} />Тренировка</h1>
-        <span className="muted">Звёзд: {total} из {levels.length * 3}</span>
+        <span className="muted">Пройдено {Object.keys(progress).length} из {levels.length} · звёзд {total} из {levels.length * 3}</span>
       </header>
       <ul className="tier-badges">
         {TIERS.map((tier) => {
@@ -61,7 +62,8 @@ export function Campaign({ api }: { api: TableApi }) {
                 style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
                 disabled={!open}
                 onClick={() => setPicked(l)}
-                aria-label={`Уровень ${i + 1}: ${l.title}${open ? '' : ', закрыт'}`}
+                aria-label={`Уровень ${i + 1}: ${l.title}${open ? '' : `, откроется после уровня ${i}`}`}
+                title={open ? `${i + 1}. ${l.title}` : `Пройдите уровень ${i}`}
               >
                 {open ? <span className="num">{i + 1}</span> : <Icon name="ui-lock" size={16} />}
                 {stars > 0 && <Stars n={stars} />}
@@ -80,6 +82,7 @@ export function Campaign({ api }: { api: TableApi }) {
             <dt>Режим</dt><dd>{picked.mode === 'quick' ? 'Быстрый, со стартовым бизнесом' : 'Классика, с нуля'}</dd>
             <dt>Звёзды</dt><dd>3 — за {picked.stars[0]} ходов, 2 — за {picked.stars[1]}, 1 — за {picked.maxTurns}</dd>
           </dl>
+          <LearningOptions />
           <button className="primary big" onClick={() => api.startLevel(picked.id)}>
             {progress[picked.id] ? 'Пройти ещё раз' : 'Начать уровень'}
           </button>

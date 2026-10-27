@@ -77,3 +77,31 @@ export const ticket = () => api<{ ticket: string }>('/api/auth/ticket', 'POST').
 
 export const listSaves = () => api<SaveSummary[]>('/api/saves');
 export const hideSave = (saveId: string) => api(`/api/saves/${saveId}`, 'DELETE');
+
+const INVITE_KEY = 'kapital:invite';
+
+/** Вход через Яндекс или Google уводит со страницы и возвращает на «/»: приглашение переживает это в sessionStorage. */
+export function keepInvite() {
+  const room = new URLSearchParams(location.search).get('room');
+  try {
+    if (room) sessionStorage.setItem(INVITE_KEY, room);
+  } catch {
+    // без хранилища приглашение придётся открыть ещё раз
+  }
+}
+
+/** После входа возвращает отложенное приглашение в адрес страницы. */
+export function restoreInvite(): boolean {
+  let room: string | null = null;
+  try {
+    room = sessionStorage.getItem(INVITE_KEY);
+    sessionStorage.removeItem(INVITE_KEY);
+  } catch {
+    return false;
+  }
+  if (!room || new URLSearchParams(location.search).has('room')) return false;
+  const url = new URL(location.href);
+  url.searchParams.set('room', room);
+  history.replaceState(null, '', url);
+  return true;
+}

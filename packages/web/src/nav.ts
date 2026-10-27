@@ -3,11 +3,12 @@ import { useSyncExternalStore } from 'react';
 /** Разделы кабинета. Адрес раздела живёт в #, поэтому работают «Назад» и ссылки вида /#/rating. */
 export type Tab = 'play' | 'training' | 'rating' | 'help' | 'profile';
 
+/** Порядок как в нижней панели телефона. «Как играть» — ссылка в шапке, а не вкладка. */
 export const TABS: { id: Tab; title: string; icon: string }[] = [
   { id: 'play', title: 'Играть', icon: 'ui-dice' },
   { id: 'training', title: 'Тренировка', icon: 'ui-level' },
   { id: 'rating', title: 'Рейтинг', icon: 'ui-trophy' },
-  { id: 'help', title: 'Помощь', icon: 'ui-hint' },
+  { id: 'help', title: 'Как играть', icon: 'ui-hint' },
   { id: 'profile', title: 'Профиль', icon: 'ui-user' },
 ];
 

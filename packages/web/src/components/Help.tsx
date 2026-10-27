@@ -3,7 +3,8 @@ import { art, Icon } from '../art.js';
 import { percent } from '../format.js';
 import { content } from '../content.js';
 import type { TableApi } from '../net.js';
-import { updateSettings, useSettings } from '../settings.js';
+import { currentLevel } from '../campaign.js';
+import { useProgress } from '../campaign-progress.js';
 
 const STEPS = [
   {
@@ -28,9 +29,11 @@ const STEPS = [
   },
 ];
 
-/** «Помощь»: правила в пяти шагах и настройки обучения. */
+/** «Как играть»: правила в пяти шагах и кнопка в тренировку. */
 export function Help({ api }: { api: TableApi }) {
-  const settings = useSettings();
+  const progress = useProgress();
+  const level = currentLevel(progress);
+  const first = levels.indexOf(level) === 0 && !progress[level.id];
   return (
     <div className="help">
       <section className="card help-intro">
@@ -39,7 +42,11 @@ export function Help({ api }: { api: TableApi }) {
           <span className="eyebrow">Как играть</span>
           <h1>Пусть деньги работают на вас</h1>
           <p className="muted">Партия — это путь от зарплаты к пассивному доходу. Правила ниже, а лучше всего они запоминаются в игре: первый уровень «Тренировки» займёт пять минут.</p>
-          <button className="primary kap-button" onClick={() => api.startLevel(levels[0]!.id)}><Icon name="ui-level" />Сыграть уровень 1</button>
+          <button className="primary kap-button" onClick={() => api.startLevel(level.id)}>
+            <Icon name="ui-level" />
+            {first ? 'Начать первую тренировку' : `Продолжить: уровень ${levels.indexOf(level) + 1}`}
+          </button>
+          <p className="muted help-note">Подсказки наставника и режим финансового отчёта выбираются перед уровнем и в лобби игры.</p>
         </div>
       </section>
 
@@ -54,17 +61,6 @@ export function Help({ api }: { api: TableApi }) {
         ))}
       </ol>
 
-      <section className="card learning">
-        <h2><Icon name="ui-settings" size={18} />Обучение в партии</h2>
-        <label className="toggle">
-          <input type="checkbox" checked={settings.hints} onChange={(e) => updateSettings({ hints: e.target.checked, seenHints: e.target.checked ? [] : settings.seenHints })} />
-          <span><strong>Подсказки наставника</strong><small className="muted">Короткие объяснения в первый раз, когда что-то происходит. Включение показывает их заново.</small></span>
-        </label>
-        <label className="toggle">
-          <input type="checkbox" checked={settings.fillReport} onChange={(e) => updateSettings({ fillReport: e.target.checked })} />
-          <span><strong>Заполнять отчёт самому</strong><small className="muted">После сделок раскладывайте строки по доходам, расходам, активам и пассивам.</small></span>
-        </label>
-      </section>
     </div>
   );
 }

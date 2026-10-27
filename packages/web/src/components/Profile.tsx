@@ -21,7 +21,7 @@ export function Profile({ auth }: { auth: AccountApi }) {
 
   const stars = Object.values(progress).reduce((a, b) => a + b, 0);
   const passed = Object.keys(progress).length;
-  const me = rating?.me;
+  const stats = rating?.stats;
 
   const save = (e: FormEvent) => {
     e.preventDefault();
@@ -44,12 +44,13 @@ export function Profile({ auth }: { auth: AccountApi }) {
         <button className="ghost logout" onClick={() => void auth.logout()}><Icon name="ui-exit" size={18} />Выйти</button>
       </section>
 
+      <h2 className="section-title">Игра</h2>
       <ul className="stat-tiles">
-        <li><Icon name="ui-trophy" /><strong>{me?.place ?? '—'}</strong><span>место в рейтинге</span></li>
-        <li><Icon name="ui-rating" /><strong>{me?.points ?? 0}</strong><span>очков</span></li>
-        <li><Icon name="ui-star-filled" /><strong>{stars}<small>/{levels.length * 3}</small></strong><span>звёзд, уровней {passed} из {levels.length}</span></li>
-        <li><Icon name="ui-dice" /><strong>{me?.games ?? 0}</strong><span>доиграно партий</span></li>
-        <li><Icon name="ui-crown" /><strong>{me?.wins ?? 0}</strong><span>побед, над людьми {me?.winsVsPeople ?? 0}</span></li>
+        <li><Icon name="ui-star-filled" /><strong>{stars}<small>/{levels.length * 3}</small></strong><span>звёзд тренировки</span></li>
+        <li><Icon name="ui-level" /><strong>{passed}<small>/{levels.length}</small></strong><span>уровней пройдено</span></li>
+        <li><Icon name="ui-dice" /><strong>{stats?.games ?? 0}</strong><span>партий доиграно</span></li>
+        <li><Icon name="ui-crown" /><strong>{stats?.wins ?? 0}</strong><span>побед</span></li>
+        <li><Icon name="ui-trophy" /><strong>{rating?.games.me.place ?? rating?.training.me.place ?? '—'}</strong><span>{rating?.games.me.place ? 'место в партиях месяца' : 'место в тренировке'}</span></li>
       </ul>
 
       <div className="profile-grid">
@@ -59,10 +60,13 @@ export function Profile({ auth }: { auth: AccountApi }) {
             <span>Имя за столом и в рейтинге</span>
             <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
           </label>
-          <label className="field">
-            <span>{account.hasPassword ? 'Новый пароль' : 'Пароль для входа по почте без письма'}</span>
-            <input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="не короче 8 символов" />
-          </label>
+          {/* пароль нужен только тем, кто входит по почте: с Яндексом или Telegram он ни к чему */}
+          {(account.hasPassword || linked('email')) && (
+            <label className="field">
+              <span>{account.hasPassword ? 'Новый пароль' : 'Пароль, чтобы входить по почте без письма'}</span>
+              <input type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="не короче 8 символов" />
+            </label>
+          )}
           <div className="row wrap">
             <button className="primary" type="submit">Сохранить</button>
             {note && <span className="muted">{note}</span>}
