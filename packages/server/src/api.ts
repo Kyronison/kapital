@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { SESSION_TTL_MS, type Auth, type Me } from './auth.js';
-import type { Rating } from '@kapital/protocol';
+import { isAvatar, type Rating } from '@kapital/protocol';
 import type { SaveSummary, User } from './db.js';
 import { randomToken } from './vault.js';
 
@@ -78,6 +78,10 @@ async function route(auth: Auth, req: IncomingMessage, res: ServerResponse, url:
     if (typeof body.password === 'string') {
       const r = auth.setPassword(u.id, body.password);
       if (!r.ok) return fail(res, r);
+    }
+    if (body.avatar !== undefined) {
+      if (!isAvatar(body.avatar)) return json(res, 400, { error: 'Такого аватара нет' });
+      auth.db.setAvatar(u.id, body.avatar);
     }
     return json(res, 200, auth.me(auth.db.user(u.id)!));
   }

@@ -48,6 +48,7 @@ export function App() {
   }, [screen, tab]);
 
   const name = auth.state.status === 'in' ? auth.state.account.user.name : '';
+  const avatar = auth.state.status === 'in' ? auth.state.account.user.avatar : null;
   const toTraining = () => {
     api.leave();
     go('training');
@@ -71,7 +72,7 @@ export function App() {
         : screen === 'game' ? <Game api={api} view={view!} onTraining={toTraining} />
         : screen === 'lobby' ? <Lobby api={api} view={view!} />
         : (
-          <Shell tab={tab} name={name}>
+          <Shell tab={tab} name={name} avatar={avatar}>
             {tab === 'training' ? <Campaign api={api} />
               : tab === 'rating' ? <RatingPage />
               : tab === 'help' ? <Help api={api} />

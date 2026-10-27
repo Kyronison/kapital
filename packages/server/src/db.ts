@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { DatabaseSync as DatabaseSyncType } from 'node:sqlite';
-import { RATING_RULES, type AccountLogin, type Rating, type RatingBoard, type RatingRow, type SaveSummary } from '@kapital/protocol';
+import { defaultAvatar, isAvatar, RATING_RULES, type AccountLogin, type Rating, type RatingBoard, type RatingRow, type SaveSummary } from '@kapital/protocol';
 import type { TableSnapshot } from './table.js';
 import { Vault } from './vault.js';
 
@@ -14,6 +14,8 @@ export interface User {
   name: string;
   /** Почта в открытом виде только после расшифровки, и только своему владельцу. */
   email: string | null;
+  /** Выбранный аватар или постоянный по id, если игрок не выбирал. */
+  avatar: string;
   createdAt: number;
 }
 
@@ -76,6 +78,9 @@ export class Db {
     this.sql = new DatabaseSync(path);
     this.sql.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
     this.sql.exec(SCHEMA);
+    // базы до аватаров: колонка добавляется один раз
+    const cols = this.sql.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+    if (!cols.some((c) => c.name === 'avatar')) this.sql.exec('ALTER TABLE users ADD COLUMN avatar TEXT');
   }
 
   /** База в памяти для тестов. */
@@ -93,14 +98,21 @@ export class Db {
     const createdAt = this.now();
     this.sql.prepare('INSERT INTO users (id, name, email_enc, created_at) VALUES (?, ?, ?, ?)')
       .run(id, name, email ? this.vault.seal(email) : null, createdAt);
-    return { id, name, email, createdAt };
+    return { id, name, email, avatar: defaultAvatar(id), createdAt };
   }
 
   user(id: string): User | null {
-    const row = this.sql.prepare('SELECT id, name, email_enc, created_at FROM users WHERE id = ?').get(id) as
-      { id: string; name: string; email_enc: string | null; created_at: number } | undefined;
+    const row = this.sql.prepare('SELECT id, name, email_enc, avatar, created_at FROM users WHERE id = ?').get(id) as
+      { id: string; name: string; email_enc: string | null; avatar: string | null; created_at: number } | undefined;
     if (!row) return null;
-    return { id: row.id, name: row.name, email: row.email_enc ? this.vault.open(row.email_enc) : null, createdAt: row.created_at };
+    return {
+      id: row.id, name: row.name, email: row.email_enc ? this.vault.open(row.email_enc) : null,
+      avatar: avatarOf(row), createdAt: row.created_at,
+    };
+  }
+
+  setAvatar(id: string, avatar: string) {
+    this.sql.prepare('UPDATE users SET avatar = ? WHERE id = ?').run(avatar, id);
   }
 
   rename(id: string, name: string) {
@@ -278,7 +290,7 @@ export class Db {
   /** Рейтинг: лучшие limit в каждой таблице, свои строки и итоги для профиля. */
   rating(userId: string, limit = 50): Rating {
     const since = monthStartMsk(this.now());
-    const training = this.sql.prepare(`SELECT u.id, u.name, COALESCE(SUM(p.stars), 0) value
+    const training = this.sql.prepare(`SELECT u.id, u.name, u.avatar, COALESCE(SUM(p.stars), 0) value
       FROM users u LEFT JOIN progress p ON p.user_id = u.id GROUP BY u.id`).all() as Row[];
     const games = this.sql.prepare(`
       WITH q AS (SELECT DISTINCT game_id FROM results WHERE level_id IS NULL AND humans >= ?),
@@ -286,7 +298,7 @@ export class Db {
       beaten AS (SELECT w.user_id, COUNT(DISTINCT o.user_id) v FROM results w JOIN q USING (game_id)
         JOIN results o ON o.game_id = w.game_id AND o.user_id <> w.user_id
         WHERE w.won = 1 AND w.finished_at >= ? GROUP BY w.user_id)
-      SELECT u.id, u.name, COALESCE(b.v, 0) value, COALESCE(c.n, 0) counted
+      SELECT u.id, u.name, u.avatar, COALESCE(b.v, 0) value, COALESCE(c.n, 0) counted
       FROM users u LEFT JOIN beaten b ON b.user_id = u.id LEFT JOIN counted c ON c.user_id = u.id`)
       .all(RATING_RULES.minHumans, since) as (Row & { counted: number })[];
     const stats = this.sql.prepare(`SELECT
@@ -310,7 +322,9 @@ export class Db {
   }
 }
 
-type Row = { id: string; name: string; value: number };
+type Row = { id: string; name: string; avatar: string | null; value: number };
+
+const avatarOf = (r: { id: string; avatar: string | null }) => (isAvatar(r.avatar) ? r.avatar : defaultAvatar(r.id));
 
 /** Таблица по убыванию value; при равенстве место общее. Кто не прошёл допуск, остаётся без места. */
 function board<R extends Row>(rows: R[], userId: string, limit: number, admitted: (r: R) => boolean): RatingBoard {
@@ -318,13 +332,13 @@ function board<R extends Row>(rows: R[], userId: string, limit: number, admitted
   const out: RatingRow[] = [];
   ranked.forEach((r, i) => {
     const place = i > 0 && ranked[i - 1]!.value === r.value ? out[i - 1]!.place : i + 1;
-    out.push({ userId: r.id, name: r.name, value: r.value, place });
+    out.push({ userId: r.id, name: r.name, avatar: avatarOf(r), value: r.value, place });
   });
   const mine = out.find((r) => r.userId === userId);
   const row = rows.find((r) => r.id === userId);
   return {
     top: out.slice(0, limit),
-    me: mine ?? { userId, name: row?.name ?? '', value: row?.value ?? 0, place: null },
+    me: mine ?? { userId, name: row?.name ?? '', avatar: row ? avatarOf(row) : defaultAvatar(userId), value: row?.value ?? 0, place: null },
     players: out.length,
   };
 }

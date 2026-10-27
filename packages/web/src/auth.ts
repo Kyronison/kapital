@@ -62,7 +62,7 @@ export function useAccount() {
     },
     signInWithPassword: async (email: string, password: string) => signedIn(await api<Account>('/api/auth/email/password', 'POST', { email, password })),
     signInTelegram: async (data: Record<string, unknown>) => signedIn(await api<Account>('/api/auth/telegram', 'POST', data)),
-    update: async (patch: { name?: string; password?: string }) => signedIn(await api<Account>('/api/auth/me', 'PATCH', patch)),
+    update: async (patch: { name?: string; password?: string; avatar?: string }) => signedIn(await api<Account>('/api/auth/me', 'PATCH', patch)),
     logout: async () => {
       await api('/api/auth/logout', 'POST').catch(() => undefined);
       setState({ status: 'out', providers });

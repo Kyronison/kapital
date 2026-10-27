@@ -3,7 +3,7 @@ import { Client } from 'colyseus.js';
 import { createHash, createHmac } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Auth, createServer, Db, ROOM_NAME, type Account, type SaveSummary } from '../src/index.js';
-import type { Rating } from '@kapital/protocol';
+import { AVATARS, type Rating } from '@kapital/protocol';
 import { Vault, checkPassword, hashPassword } from '../src/vault.js';
 
 const PORT = 3600 + Math.floor(Math.random() * 1000);
@@ -180,6 +180,11 @@ describe('профиль, партии и прогресс', () => {
     expect((await me('/api/progress')).body).toEqual({ 'novice-1': 2 });
     const rating = (await me('/api/rating')).body as unknown as Rating;
     expect(rating.training.me).toMatchObject({ name: 'Геннадий', value: 2, place: 1 });
+    // аватар: сначала постоянный по id, потом выбранный; чужие значения не принимаются
+    expect(AVATARS).toContain((r.body as unknown as Account).user.avatar);
+    expect((await me('/api/auth/me', 'PATCH', { avatar: '../../etc/passwd' })).status).toBe(400);
+    expect(((await me('/api/auth/me', 'PATCH', { avatar: 'owl' })).body as unknown as Account).user.avatar).toBe('owl');
+    expect(((await me('/api/rating')).body as unknown as Rating).training.me.avatar).toBe('owl');
     expect(rating.stats).toEqual({ games: 0, wins: 0, stars: 2, levels: 1 });
   });
 

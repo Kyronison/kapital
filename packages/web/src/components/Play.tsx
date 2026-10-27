@@ -63,7 +63,7 @@ export function Play({ api, name }: { api: TableApi; name: string }) {
       {saves.status === 'loading' ? <section className="card play-hero placeholder" aria-busy="true" />
         : newbie ? (
           <section className="card play-hero">
-            <img className="play-hero-art" src={art('mentor/wave.webp')} alt="" />
+            <img className="play-hero-art" src={art('cabinet/play-first-level.webp')} alt="" />
             <div>
               <span className="eyebrow">Добро пожаловать</span>
               <h2 className="hero-title">Начните играть в «Капитал»</h2>
@@ -80,6 +80,7 @@ export function Play({ api, name }: { api: TableApi; name: string }) {
             <div className="play-main">
               {fresh && (
                 <section className="card play-game">
+                  <img className="play-card-art" src={art('cabinet/play-continue.webp')} alt="" />
                   <span className="eyebrow">Ваша незаконченная партия</span>
                   <ul className="play-players">
                     {fresh.players.map((p, i) => <li key={i}><Avatar name={p} size={32} /><span>{p}</span></li>)}
@@ -140,6 +141,7 @@ function NewGame({ api }: { api: TableApi }) {
   const [dreamId, setDreamId] = useState('');
   return (
     <section className="card play-card new-table">
+      <img className="play-card-art wide-art" src={art('cabinet/play-friends.webp')} alt="" />
       <h2><Icon name="ui-dice" size={18} />Новая игра с друзьями</h2>
       <p className="muted">2–6 игроков · приглашение по ссылке · пустые места можно занять ботами</p>
       <Pickers professionId={professionId} dreamId={dreamId} onProfession={setProfessionId} onDream={setDreamId} />
