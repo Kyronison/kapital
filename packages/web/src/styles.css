@@ -346,6 +346,14 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 
 /* ——— боковая панель ——— */
 .actions.my-turn { border: 2px solid var(--accent); }
+.actions h2 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.actions-meta { display: none; align-items: center; gap: 6px; font-size: 13px; text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 600; }
+.actions-clock { padding: 2px 8px; border-radius: 999px; background: var(--surface-2, var(--line)); color: var(--text); font-variant-numeric: tabular-nums; }
+.actions-clock.warn { background: var(--bad, #c44a35); color: #fff; }
+.board-switch { display: flex; gap: 6px; align-self: center; padding: 4px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); }
+.board-switch button { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 999px; background: transparent; box-shadow: none; font-size: 13px; font-weight: 700; }
+.board-switch button.active { background: var(--accent); color: #fff; }
+.board-switch .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
 .actions .row { gap: 8px; }
 .loan { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .actions p { margin: 0; font-size: 13.5px; }
@@ -408,7 +416,14 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .overlay-card.escape-burst { --burst-size: 260px; }
 
 @media (max-width: 1000px) {
-  .game { grid-template-columns: 1fr; }
+  .game { grid-template-columns: 1fr; padding-bottom: 40vh; }
+  /* панель хода всегда под рукой: кнопка, наличные и таймер, остальное выше по странице */
+  .actions {
+    position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 20; max-height: 40vh; overflow: auto;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18), var(--shadow-lift);
+  }
+  .actions-meta { display: inline-flex; }
+  .side { padding-bottom: 0; }
   .home { grid-template-columns: 1fr; gap: 8px; }
   .hero { padding: 12px 4px 0; }
 }

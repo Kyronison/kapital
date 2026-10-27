@@ -189,8 +189,11 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
   }, [api.log.length]);
 
   const center = <Center api={api} game={game} seconds={seconds} deadline={view.turnDeadline} turnSeconds={view.turnSeconds} />;
-  // карта и кубик — на поле того, кто сейчас ходит
+  // карта и кубик — на поле того, кто сейчас ходит; поле показываем одно, второе — по переключателю
   const turnCircle = game.players[game.current]!.circle;
+  const [pinned, setPinned] = useState<'inner' | 'outer' | null>(null);
+  const shownCircle = anyOuter ? pinned ?? turnCircle : 'inner';
+  const onCircle = (c: 'inner' | 'outer') => game.players.filter((p) => p.circle === c).length;
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) : null;
 
   return (
@@ -227,13 +230,25 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
         />
       )}
       <div className="boards">
-        <Board game={game} circle="inner" center={turnCircle === 'inner' ? center : <span className="board-label">Круг забот</span>} />
-        {anyOuter && <Board game={game} circle="outer" center={turnCircle === 'outer' ? center : <span className="board-label">Свободный путь</span>} />}
+        {anyOuter && (
+          <div className="board-switch" role="tablist" aria-label="Какое поле показать">
+            {(['inner', 'outer'] as const).map((c) => (
+              <button
+                key={c} role="tab" aria-selected={shownCircle === c} className={shownCircle === c ? 'active' : ''}
+                onClick={() => setPinned(c === turnCircle ? null : c)}
+              >
+                {c === 'inner' ? 'Круг забот' : 'Свободный путь'} · {onCircle(c)}
+                {turnCircle === c && <span className="dot" aria-label="сейчас ходят здесь" />}
+              </button>
+            ))}
+          </div>
+        )}
+        <Board key={shownCircle} game={game} circle={shownCircle} center={turnCircle === shownCircle ? center : <span className="board-label">{shownCircle === 'inner' ? 'Круг забот' : 'Свободный путь'}</span>} />
       </div>
       <aside className="side">
         {view.level && <LevelGoal view={view} />}
+        {me && game.status === 'playing' && <Actions api={api} game={game} me={me} reaction={view.reaction} seconds={seconds} />}
         {me && <Mentor game={game} me={me} />}
-        {me && game.status === 'playing' && <Actions api={api} game={game} me={me} reaction={view.reaction} />}
         <ReportQuiz log={api.log} logStart={api.logStart} me={api.me} />
         {me && <div className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'bankrupt-shake' : ''}><Statement p={me} flash={lastFlash(api.log, api.logStart, api.me)} /></div>}
         <Players game={game} view={view} me={api.me} />
