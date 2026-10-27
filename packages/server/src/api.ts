@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { levels } from '@kapital/content';
 import { SESSION_TTL_MS, type Auth, type Me } from './auth.js';
+import type { Rating } from '@kapital/protocol';
 import type { SaveSummary, User } from './db.js';
 import { randomToken } from './vault.js';
 
@@ -17,6 +17,7 @@ export interface ApiShapes {
   me: Me;
   saves: SaveSummary[];
   progress: Record<string, number>;
+  rating: Rating;
   ticket: { ticket: string };
 }
 
@@ -151,16 +152,10 @@ async function route(auth: Auth, req: IncomingMessage, res: ServerResponse, url:
     if (!u) return;
     return json(res, 200, auth.db.progress(u.id) satisfies ApiShapes['progress']);
   }
-  if (path === '/api/progress' && method === 'PUT') {
+  if (path === '/api/rating' && method === 'GET') {
     const u = need();
     if (!u) return;
-    const body = await readJson(req);
-    for (const [levelId, stars] of Object.entries(body)) {
-      if (!levels.some((l) => l.id === levelId)) continue;
-      if (typeof stars !== 'number' || !Number.isInteger(stars) || stars < 1 || stars > 3) continue;
-      auth.db.setStars(u.id, levelId, stars);
-    }
-    return json(res, 200, auth.db.progress(u.id));
+    return json(res, 200, auth.db.rating(u.id) satisfies ApiShapes['rating']);
   }
   if (path === '/api/health' && method === 'GET') return json(res, 200, { ok: true });
   json(res, 404, { error: 'Нет такого адреса' });

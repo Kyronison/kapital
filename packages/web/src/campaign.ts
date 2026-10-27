@@ -29,3 +29,8 @@ export function goalText(level: Level): string {
     : 'победа: купить мечту';
   return `${goal} за ${level.maxTurns} ходов`;
 }
+
+/** Уровень, с которого продолжать: последний открытый. */
+export function currentLevel(progress: Record<string, number>): Level {
+  return [...levels].reverse().find((l) => isOpen(l, progress)) ?? levels[0]!;
+}

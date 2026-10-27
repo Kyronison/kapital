@@ -418,6 +418,18 @@ export class Table {
     };
   }
 
+  /** Итог законченной партии для рейтинга; пока партия идёт — null. */
+  outcome(): { levelId: string | null; stars: number | null; players: { id: string; bot: boolean; won: boolean }[] } | null {
+    const game = this.game;
+    if (!game || game.status !== 'finished') return null;
+    const result = this.levelView()?.result;
+    return {
+      levelId: this.level?.id ?? null,
+      stars: result?.passed ? result.stars : null,
+      players: this.seats.map((s) => ({ id: s.id, bot: s.bot, won: game.winnerId === s.id })),
+    };
+  }
+
   private levelView(): LevelView | null {
     const level = this.level;
     if (!level) return null;

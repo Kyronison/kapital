@@ -1,7 +1,7 @@
 import { levels, type Level } from '@kapital/content';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { art, Icon } from '../art.js';
-import { goalText, isOpen, TIERS } from '../campaign.js';
+import { currentLevel, goalText, isOpen, TIERS } from '../campaign.js';
 import { useProgress } from '../campaign-progress.js';
 import { MAP_DESKTOP, MAP_MOBILE } from '../campaign-map.js';
 import { professionTitle } from '../format.js';
@@ -20,9 +20,9 @@ const useNarrow = () => useSyncExternalStore((cb) => {
 }, () => narrow.matches);
 
 /** «Тренировка»: путь из уровней с целью и сроком. Следующий открывается после прохождения предыдущего. */
-export function Campaign({ api, onBack }: { api: TableApi; onBack: () => void }) {
+export function Campaign({ api }: { api: TableApi }) {
   const progress = useProgress();
-  const firstOpen = [...levels].reverse().find((l) => isOpen(l, progress)) ?? levels[0]!;
+  const firstOpen = currentLevel(progress);
   const [picked, setPicked] = useState<Level>(firstOpen);
   // прогресс приходит из аккаунта чуть позже первого рендера: выбранный уровень подтягивается за ним
   useEffect(() => setPicked(firstOpen), [firstOpen]);
@@ -30,9 +30,8 @@ export function Campaign({ api, onBack }: { api: TableApi; onBack: () => void })
   const map = useNarrow() ? MAP_MOBILE : MAP_DESKTOP;
 
   return (
-    <main className="campaign">
+    <div className="campaign">
       <header className="campaign-head">
-        <button className="ghost" onClick={onBack}>← Назад</button>
         <h1><Icon name="ui-level" size={28} />Тренировка</h1>
         <span className="muted">Звёзд: {total} из {levels.length * 3}</span>
       </header>
@@ -86,6 +85,6 @@ export function Campaign({ api, onBack }: { api: TableApi; onBack: () => void })
           </button>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
