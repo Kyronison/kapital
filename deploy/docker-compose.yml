@@ -1,0 +1,43 @@
+# Запуск на своём сервере: игра + Caddy, который сам получает сертификат HTTPS.
+# Настройки — в файле .env рядом (см. .env.example). Команды — в deploy/README.md.
+name: kapital
+
+services:
+  kapital:
+    build:
+      context: ..
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: "8080"
+      KAPITAL_DATA_DIR: /data
+    volumes:
+      - kapital-data:/data
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      KAPITAL_DOMAIN: ${KAPITAL_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - kapital
+
+volumes:
+  kapital-data:
+  caddy-data:
+  caddy-config:
