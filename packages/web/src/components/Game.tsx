@@ -233,7 +233,7 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
       <aside className="side">
         {view.level && <LevelGoal view={view} />}
         {me && <Mentor game={game} me={me} />}
-        {me && game.status === 'playing' && <Actions api={api} game={game} me={me} />}
+        {me && game.status === 'playing' && <Actions api={api} game={game} me={me} reaction={view.reaction} />}
         <ReportQuiz log={api.log} logStart={api.logStart} me={api.me} />
         {me && <div className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'bankrupt-shake' : ''}><Statement p={me} flash={lastFlash(api.log, api.logStart, api.me)} /></div>}
         <Players game={game} view={view} me={api.me} />

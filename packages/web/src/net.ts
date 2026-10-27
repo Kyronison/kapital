@@ -28,8 +28,15 @@ export interface LevelView {
   result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
 }
 
+/** Ход ждёт, пока соперники решат, продавать ли по открытой цене. */
+export interface Reaction {
+  until: number;
+  waiting: string[];
+}
+
 export interface View {
   hostId: string | null;
+  reaction: Reaction | null;
   mode: GameMode;
   level: LevelView | null;
   seats: Seat[];
@@ -84,8 +91,10 @@ export interface JoinOptions {
   dreamId?: string;
 }
 
+const WS = location.protocol === 'https:' ? 'wss' : 'ws';
+// при разработке сайт отдаёт Vite, а игра на порту 2567; собранный сайт раздаёт сам игровой сервер
 const SERVER_URL =
-  import.meta.env.VITE_SERVER_URL ?? `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:2567`;
+  import.meta.env.VITE_SERVER_URL ?? (import.meta.env.DEV ? `${WS}://${location.hostname}:2567` : `${WS}://${location.host}`);
 const ROOM = 'kapital';
 const TOKEN_KEY = 'kapital:reconnect';
 
