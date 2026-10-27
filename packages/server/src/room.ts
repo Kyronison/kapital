@@ -1,12 +1,12 @@
 import { Room, type Client, type Delayed } from '@colyseus/core';
 import { defaultContent, type Content } from '@kapital/content';
 import type { GameEvent } from '@kapital/engine';
-import type { ChatMessage, CreateOptions, JoinOptions, ServerMessages } from '@kapital/protocol';
+import { DEFAULT_TURN_SECONDS, type ChatMessage, type CreateOptions, type JoinOptions, type ServerMessages } from '@kapital/protocol';
 import { SaveStore } from './saves.js';
 import { Table, type Result } from './table.js';
 
 export interface RoomOptions {
-  /** Сколько секунд даётся на ход, потом за игрока доигрывает бот. */
+  /** Сколько секунд даётся на ход по умолчанию, потом за игрока доигрывает бот; создатель стола может сменить в лобби. */
   turnSeconds?: number;
   /** Пауза перед ходом бота, чтобы люди успевали следить за партией. */
   botDelayMs?: number;
@@ -19,7 +19,7 @@ export interface RoomOptions {
 
 /**
  * Комната одной партии. Клиент только присылает намерения; правила проверяет движок.
- * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `chat`,
+ * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `set_turn_seconds`, `chat`,
  * `pass` (не продавать по открытой цене, пока ход ждёт ответа соперников).
  * Сообщения сервера: `view` (стол без скрытых данных), `events`, `chat`; `error` и `seat` — только своему
  * клиенту: id места, ключ возврата и номер сохранения. Формы — в @kapital/protocol.
@@ -48,6 +48,7 @@ export class KapitalRoom extends Room {
       this.saveId = options.restore;
     } else {
       this.table = new Table(content);
+      this.table.turnSeconds = options.turnSeconds ?? DEFAULT_TURN_SECONDS;
       this.saveId = this.roomId;
       if (options.levelId) {
         const r = this.table.setLevel(options.levelId);
@@ -55,7 +56,7 @@ export class KapitalRoom extends Room {
       }
     }
     this.opts = {
-      turnSeconds: options.turnSeconds ?? 30,
+      turnSeconds: options.turnSeconds ?? DEFAULT_TURN_SECONDS,
       botDelayMs: options.botDelayMs ?? 700,
       reconnectSeconds: options.reconnectSeconds ?? 60,
     };
@@ -67,6 +68,7 @@ export class KapitalRoom extends Room {
     });
     this.onMessage('add_bot', (client) => this.handle(client, this.table.addBot(client.sessionId)));
     this.onMessage('set_mode', (client, mode: unknown) => this.handle(client, this.table.setMode(client.sessionId, mode)));
+    this.onMessage('set_turn_seconds', (client, s: unknown) => this.handle(client, this.table.setTurnSeconds(client.sessionId, s)));
     // клиент подписался на сообщения и просит своё место и стол: в onJoin он мог их не успеть принять
     this.onMessage('hello', (client) => {
       const seatId = this.table.seatOf(client.sessionId);
@@ -192,12 +194,12 @@ export class KapitalRoom extends Room {
     const seat = this.table.seats.find((s) => s.id === current.id);
     // в одиночной партии никто не ждёт, поэтому таймера нет
     const solo = this.table.seats.length === 1;
-    if (!seat || seat.bot || !seat.connected || solo) {
+    if (!seat || seat.bot || !seat.connected || solo || this.table.turnSeconds === 0) {
       this.turnTimer = null;
       this.turnDeadline = null;
       return;
     }
-    const ms = this.opts.turnSeconds * 1000;
+    const ms = this.table.turnSeconds * 1000;
     this.turnDeadline = Date.now() + ms;
     this.turnTimer = this.clock.setTimeout(() => {
       this.turnTimer = null;

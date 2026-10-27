@@ -448,7 +448,8 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .modes:disabled .choice { cursor: default; }
 .modes:disabled .choice:hover { transform: none; box-shadow: none; }
 .turns { font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); padding: 4px 10px; border-radius: 999px; box-shadow: var(--shadow); }
-@media (max-width: 640px) { .modes { grid-template-columns: 1fr; } }
+.modes.timers { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 640px) { .modes { grid-template-columns: 1fr; } .modes.timers { grid-template-columns: 1fr 1fr; } }
 
 /* Сохранённые партии, чат, выход */
 .saves { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; }

@@ -5,7 +5,7 @@ import type { GameEvent, GameState } from '@kapital/engine';
  * Протокол между сервером и клиентом. Сервер и клиент импортируют эти типы, поэтому поле,
  * добавленное в `view`, нельзя забыть в клиенте, и наоборот.
  *
- * Сообщения клиента: `hello`, `action`, `start`, `add_bot`, `set_mode`, `pass`, `chat`.
+ * Сообщения клиента: `hello`, `action`, `start`, `add_bot`, `set_mode`, `set_turn_seconds`, `pass`, `chat`.
  * Сообщения сервера: `view` всем, `events` всем, `chat` всем, `seat` и `error` своему клиенту.
  */
 
@@ -52,6 +52,8 @@ export interface TableView {
   hostId: string | null;
   reaction: ReactionView | null;
   mode: GameMode;
+  /** Секунд на ход человека; 0 — без таймера. Выбирает создатель стола в лобби. */
+  turnSeconds: number;
   level: LevelView | null;
   seats: Seat[];
   game: PublicGame | null;
@@ -75,6 +77,10 @@ export interface ServerMessages {
   seat: SeatTicket;
   error: { error: string };
 }
+
+/** Сколько секунд даётся на ход; 0 — без таймера. */
+export const TURN_SECONDS_OPTIONS = [30, 60, 90, 0] as const;
+export const DEFAULT_TURN_SECONDS = 30;
 
 export interface JoinOptions {
   name?: string;

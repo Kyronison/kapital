@@ -6,7 +6,7 @@ import { describe, money, professionTitle } from '../format.js';
 import type { PublicGame, TableApi, View } from '../net.js';
 import { Actions } from './Actions.js';
 import { Board } from './Board.js';
-import { Center, TURN_SECONDS } from './Center.js';
+import { Center } from './Center.js';
 import { Stars } from './Campaign.js';
 import { goalText, nextLevel, saveStars } from '../campaign.js';
 import { levels } from '@kapital/content';
@@ -15,7 +15,7 @@ import { Mentor } from './Mentor.js';
 import { ReportQuiz } from './ReportQuiz.js';
 import { Statement, type Flash } from './Statement.js';
 
-function useCountdown(deadline: number | null) {
+function useCountdown(deadline: number | null, total: number) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!deadline) return;
@@ -23,7 +23,7 @@ function useCountdown(deadline: number | null) {
     return () => clearInterval(t);
   }, [deadline]);
   // часы клиента и сервера расходятся, поэтому показываем не больше лимита хода
-  return deadline ? Math.min(TURN_SECONDS, Math.max(0, Math.ceil((deadline - now) / 1000))) : null;
+  return deadline ? Math.min(total, Math.max(0, Math.ceil((deadline - now) / 1000))) : null;
 }
 
 /** Сумма последнего прихода или расхода игрока: для всплывающей цифры у наличных. */
@@ -178,7 +178,7 @@ function LevelGoal({ view }: { view: View }) {
 export function Game({ api, view, onTraining }: { api: TableApi; view: View; onTraining: () => void }) {
   const game = view.game!;
   const me = game.players.find((p) => p.id === api.me);
-  const seconds = useCountdown(view.turnDeadline);
+  const seconds = useCountdown(view.turnDeadline, view.turnSeconds);
   const name = (id: string) => game.players.find((p) => p.id === id)?.name ?? id;
   const anyOuter = game.players.some((p) => p.circle === 'outer');
   const logRef = useRef<HTMLOListElement>(null);
@@ -188,7 +188,7 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
   }, [api.log.length]);
 
-  const center = <Center api={api} game={game} seconds={seconds} deadline={view.turnDeadline} />;
+  const center = <Center api={api} game={game} seconds={seconds} deadline={view.turnDeadline} turnSeconds={view.turnSeconds} />;
   // карта и кубик — на поле того, кто сейчас ходит
   const turnCircle = game.players[game.current]!.circle;
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) : null;

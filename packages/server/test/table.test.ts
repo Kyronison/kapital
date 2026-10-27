@@ -54,6 +54,17 @@ describe('лобби', () => {
     expect(t.setMode('s1', 'classic').ok).toBe(false);
   });
 
+  it('время на ход выбирает создатель: 30, 60, 90 секунд или без таймера', () => {
+    const t = tableWith('Аня', 'Боря');
+    expect(t.view().turnSeconds).toBe(30);
+    expect(t.setTurnSeconds('s2', 60).ok).toBe(false);
+    expect(t.setTurnSeconds('s1', 45).ok).toBe(false);
+    expect(t.setTurnSeconds('s1', 0).ok).toBe(true);
+    expect(Table.restore(content, t.snapshot()).turnSeconds).toBe(0);
+    t.start('s1');
+    expect(t.setTurnSeconds('s1', 60).ok).toBe(false);
+  });
+
   it('после старта новые игроки не входят, а вернувшиеся — да', () => {
     const t = tableWith('Аня', 'Боря');
     t.start('s1');

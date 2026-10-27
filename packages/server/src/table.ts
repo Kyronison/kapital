@@ -4,7 +4,7 @@ import {
   applyAction, botAction, createGame, levelProgress, levelStars, MAX_PLAYERS, type Action, type GameEvent, type GameState,
 } from '@kapital/engine';
 import {
-  parseClientAction, type ChatMessage, type LevelView, type ReactionView, type Seat, type SeatTicket, type TableView,
+  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type LevelView, type ReactionView, type Seat, type SeatTicket, type TableView,
 } from '@kapital/protocol';
 
 /** Всё, что нужно, чтобы продолжить партию после перезапуска сервера. */
@@ -14,6 +14,7 @@ export interface TableSnapshot {
   hostId: string | null;
   mode: GameMode;
   levelId?: string | null;
+  turnSeconds?: number;
   game: GameState | null;
   chat: ChatMessage[];
   botCount: number;
@@ -43,6 +44,8 @@ export class Table {
   game: GameState | null = null;
   // по умолчанию короткая партия: полную выбирают осознанно
   mode: GameMode = 'quick';
+  /** Секунд на ход человека; 0 — без таймера. */
+  turnSeconds: number = DEFAULT_TURN_SECONDS;
   /** Уровень «Тренировки»: одиночная партия со своей целью и сроком. */
   level: Level | null = null;
   chat: ChatMessage[] = [];
@@ -68,6 +71,7 @@ export class Table {
     t.seats = snap.seats.map((s) => ({ ...s, connected: s.bot }));
     t.hostId = snap.hostId;
     t.mode = snap.mode;
+    t.turnSeconds = snap.turnSeconds ?? DEFAULT_TURN_SECONDS;
     t.level = levels.find((l) => l.id === snap.levelId) ?? null;
     t.game = snap.game;
     t.chat = snap.chat;
@@ -79,7 +83,8 @@ export class Table {
 
   snapshot(): TableSnapshot {
     return {
-      v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, game: this.game, chat: this.chat,
+      v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, turnSeconds: this.turnSeconds,
+      game: this.game, chat: this.chat,
       botCount: this.botCount, keys: [...this.keys],
     };
   }
@@ -114,6 +119,15 @@ export class Table {
     if (this.started) return err('Партия уже началась');
     if (mode !== 'classic' && mode !== 'quick') return err('Неизвестный режим');
     this.mode = mode;
+    return ok(undefined);
+  }
+
+  /** Время на ход выбирает создатель стола до начала партии. */
+  setTurnSeconds(session: string, seconds: unknown): Result {
+    if (this.seatOf(session) !== this.hostId) return err('Время на ход выбирает создатель стола');
+    if (this.started) return err('Партия уже началась');
+    if (!TURN_SECONDS_OPTIONS.includes(seconds as never)) return err('Такого варианта нет');
+    this.turnSeconds = seconds as number;
     return ok(undefined);
   }
 
@@ -390,7 +404,9 @@ export class Table {
       const { decks: _decks, rng: _rng, seed: _seed, ...rest } = this.game;
       game = rest;
     }
-    return { hostId: this.hostId, reaction: this.reaction, mode: this.mode, level: this.levelView(), seats: this.seats, game };
+    return {
+      hostId: this.hostId, reaction: this.reaction, mode: this.mode, turnSeconds: this.turnSeconds, level: this.levelView(), seats: this.seats, game,
+    };
   }
 
   private levelView(): LevelView | null {

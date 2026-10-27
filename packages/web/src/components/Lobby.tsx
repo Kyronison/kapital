@@ -3,6 +3,7 @@ import { art, Icon, playerColor } from '../art.js';
 import { dreamTitle, professionTitle } from '../format.js';
 import { Chat } from './Chat.js';
 import type { TableApi, View } from '../net.js';
+import { TURN_SECONDS_OPTIONS } from '@kapital/protocol';
 
 const MAX_SEATS = 6;
 
@@ -72,6 +73,16 @@ export function Lobby({ api, view }: { api: TableApi; view: View }) {
               <Icon name={m.icon} size={24} />
               <strong>{m.title}</strong>
               <small>{m.text}</small>
+            </label>
+          ))}
+        </fieldset>
+        <fieldset className="modes timers" disabled={!isHost}>
+          <legend>Время на ход</legend>
+          {TURN_SECONDS_OPTIONS.map((s) => (
+            <label key={s} className={`choice mode${view.turnSeconds === s ? ' checked' : ''}`}>
+              <input type="radio" name="turn" checked={view.turnSeconds === s} onChange={() => api.send('set_turn_seconds', s)} aria-label={s ? `${s} секунд` : 'Без таймера'} />
+              <strong>{s ? `${s} с` : 'Без таймера'}</strong>
+              <small>{s === 0 ? 'Для игры с друзьями, которые не торопятся' : s === 30 ? 'Быстро: потом ход доиграет бот' : s === 60 ? 'Есть время прочитать карту' : 'Спокойно посчитать окупаемость'}</small>
             </label>
           ))}
         </fieldset>
