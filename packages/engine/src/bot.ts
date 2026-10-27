@@ -14,7 +14,7 @@ const CASH_RESERVE = 2000;
 
 function reactiveSale(content: Content, s: GameState, p: PlayerState): Action | null {
   const pending = s.pending;
-  if (!pending) return null;
+  if (!pending || p.circle === 'outer') return null;
   if (s.phase === 'market' && pending.deck === 'market' && pending.card.kind === 'offer') {
     const offer = pending.card;
     const asset = p.assets.find((a) =>

@@ -382,6 +382,8 @@ export function applyAction(content: Content, state: GameState, action: Action):
     case 'ROLL': {
       if (!isCurrent || s.phase !== 'roll') return fail('Сейчас нельзя бросать кубик');
       const dice = action.dice ?? (p.charityTurns > 0 ? 2 : 1);
+      // действие приходит от клиента: без проверки dice: 0 оставлял фишку на месте, а dice: 50 давал полсотни кубиков
+      if (dice !== 1 && dice !== 2) return fail('Бросают один или два кубика');
       if (dice === 2 && p.charityTurns === 0) return fail('Два кубика доступны только после «Помощи»');
       if (p.charityTurns > 0) p.charityTurns--;
       const roll = Array.from({ length: dice }, () => t.rng.int(1, 6));
@@ -494,6 +496,7 @@ export function applyAction(content: Content, state: GameState, action: Action):
       if (s.phase !== 'deal' || s.pending?.deck !== 'smallDeals' || s.pending.card.kind !== 'stock') {
         return fail('Сейчас нельзя продать акции');
       }
+      if (p.circle === 'outer') return fail('На «Свободном пути» активы «Круга забот» не продаются');
       const card = s.pending.card;
       const h = p.stocks.find((x) => x.ticker === card.ticker);
       if (!Number.isInteger(action.shares) || action.shares <= 0 || !h || h.shares < action.shares) {
@@ -511,6 +514,8 @@ export function applyAction(content: Content, state: GameState, action: Action):
       if (s.phase !== 'market' || s.pending?.deck !== 'market' || s.pending.card.kind !== 'offer') {
         return fail('Сейчас нет покупателя');
       }
+      // иначе вышедший игрок продал бы старые активы и купил мечту на эти деньги
+      if (p.circle === 'outer') return fail('На «Свободном пути» активы «Круга забот» не продаются');
       const offer = s.pending.card;
       const asset = p.assets.find((a) => a.id === action.assetId);
       if (!asset || asset.assetType !== offer.assetType) return fail('Этот актив покупателю не нужен');
