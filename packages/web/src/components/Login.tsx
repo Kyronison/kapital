@@ -118,8 +118,13 @@ export function Login({ auth, invited }: { auth: AccountApi; invited: boolean })
         {providers && (providers.google || providers.yandex || providers.telegram) && (
           <div className="providers">
             {providers.email && <span className="muted">или</span>}
-            {providers.google && <a className="kap-button provider" href="/api/auth/oauth/google/start"><Icon name="ui-user" size={16} />Google</a>}
-            {providers.yandex && <a className="kap-button provider" href="/api/auth/oauth/yandex/start"><Icon name="ui-user" size={16} />Яндекс</a>}
+            {providers.google && <a className="kap-button provider" href="/api/auth/oauth/google/start"><Icon name="ui-user" size={16} />Войти через Google</a>}
+            {providers.yandex && (
+              <a className="kap-button provider provider-yandex" href="/api/auth/oauth/yandex/start">
+                <span className="provider-mark" aria-hidden="true">Я</span>
+                Войти с Яндекс ID
+              </a>
+            )}
             {providers.telegram && <TelegramButton bot={providers.telegram} onAuth={(d) => run(() => auth.signInTelegram(d))} />}
           </div>
         )}
