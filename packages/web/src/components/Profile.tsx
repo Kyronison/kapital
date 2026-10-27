@@ -1,6 +1,7 @@
 import { levels } from '@kapital/content';
+import { AVATARS } from '@kapital/protocol';
 import { useState, type FormEvent } from 'react';
-import { Icon } from '../art.js';
+import { art, Icon } from '../art.js';
 import type { AccountApi } from '../auth.js';
 import { useProgress } from '../campaign-progress.js';
 import { useRating } from '../rating.js';
@@ -17,6 +18,7 @@ export function Profile({ auth }: { auth: AccountApi }) {
   const [name, setName] = useState(account?.user.name ?? '');
   const [password, setPassword] = useState('');
   const [note, setNote] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   if (!account || !providers) return null;
 
   const stars = Object.values(progress).reduce((a, b) => a + b, 0);
@@ -36,13 +38,35 @@ export function Profile({ auth }: { auth: AccountApi }) {
   return (
     <div className="profile-page">
       <section className="card profile-head">
-        <Avatar name={account.user.name} size={72} />
+        <button className="avatar-edit" onClick={() => setPicking(!picking)} aria-expanded={picking} aria-label="Сменить аватар" title="Сменить аватар">
+          <Avatar name={account.user.name} avatar={account.user.avatar} size={88} />
+          <span className="avatar-edit-badge"><Icon name="ui-camera" size={16} /></span>
+        </button>
         <div>
           <h1>{account.user.name}</h1>
           <p className="muted">{account.user.email ?? account.logins.map((l) => PROVIDER_TITLES[l.provider]).join(', ')}</p>
         </div>
-        <button className="ghost logout" onClick={() => void auth.logout()}><Icon name="ui-exit" size={18} />Выйти</button>
+        <button className="ghost logout" onClick={() => void auth.logout()}><Icon name="ui-logout" size={18} />Выйти</button>
       </section>
+      {picking && (
+        <section className="card avatar-picker" aria-label="Выбор аватара">
+          <h2><Icon name="ui-user-circle" size={18} />Выберите аватар</h2>
+          <div className="avatar-grid" role="radiogroup">
+            {AVATARS.map((id) => (
+              <button
+                key={id}
+                role="radio"
+                aria-checked={account.user.avatar === id}
+                aria-label={`Аватар ${id}`}
+                className={account.user.avatar === id ? 'checked' : undefined}
+                onClick={() => auth.update({ avatar: id }).then(() => setPicking(false)).catch((err: Error) => setNote(err.message))}
+              >
+                <img src={art(`avatars/${id}.webp`)} alt="" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <h2 className="section-title">Игра</h2>
       <ul className="stat-tiles">
@@ -55,7 +79,8 @@ export function Profile({ auth }: { auth: AccountApi }) {
 
       <div className="profile-grid">
         <form className="card join" onSubmit={save}>
-          <h2><Icon name="ui-user" size={18} />Аккаунт</h2>
+          <img className="card-corner-art" src={art('account/password.webp')} alt="" />
+          <h2><Icon name="ui-pencil" size={18} />Аккаунт</h2>
           <label className="field">
             <span>Имя за столом и в рейтинге</span>
             <input value={name} maxLength={24} onChange={(e) => setName(e.target.value)} />
@@ -74,6 +99,7 @@ export function Profile({ auth }: { auth: AccountApi }) {
         </form>
 
         <section className="card logins">
+          <img className="card-corner-art" src={art('account/linked.webp')} alt="" />
           <h2><Icon name="ui-link" size={18} />Способы входа</h2>
           <ul>
             {(Object.keys(PROVIDER_TITLES) as (keyof typeof PROVIDER_TITLES)[]).map((p) => {

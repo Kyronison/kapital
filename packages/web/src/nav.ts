@@ -5,11 +5,11 @@ export type Tab = 'play' | 'training' | 'rating' | 'help' | 'profile';
 
 /** Порядок как в нижней панели телефона. «Как играть» — ссылка в шапке, а не вкладка. */
 export const TABS: { id: Tab; title: string; icon: string }[] = [
-  { id: 'play', title: 'Играть', icon: 'ui-dice' },
-  { id: 'training', title: 'Тренировка', icon: 'ui-level' },
-  { id: 'rating', title: 'Рейтинг', icon: 'ui-trophy' },
-  { id: 'help', title: 'Как играть', icon: 'ui-hint' },
-  { id: 'profile', title: 'Профиль', icon: 'ui-user' },
+  { id: 'play', title: 'Играть', icon: 'tab-play' },
+  { id: 'training', title: 'Тренировка', icon: 'tab-training' },
+  { id: 'rating', title: 'Рейтинг', icon: 'tab-rating' },
+  { id: 'help', title: 'Как играть', icon: 'tab-help' },
+  { id: 'profile', title: 'Профиль', icon: 'tab-profile' },
 ];
 
 const parse = (): Tab => {

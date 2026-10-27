@@ -8,23 +8,23 @@ import { useProgress } from '../campaign-progress.js';
 
 const STEPS = [
   {
-    icon: 'ui-wallet', title: 'Профессия и отчёт',
+    title: 'Профессия и отчёт',
     text: 'Вы получаете профессию: зарплату, расходы и долги. Всё это видно в финансовом отчёте. Разница между доходами и расходами — ваш денежный поток.',
   },
   {
-    icon: 'cell-payday', title: '«Круг забот»',
+    title: '«Круг забот»',
     text: 'Бросаете кубик и идёте по внутреннему кругу. На клетке зарплаты получаете поток, на остальных — сделки, рынок, траты и события.',
   },
   {
-    icon: 'cell-opportunity', title: 'Сделки',
+    title: 'Сделки',
     text: `«Шанс» — недорогие активы, «Проект» — крупные. Покупайте то, что приносит поток. Кредит берётся под ${percent(content.rules.loanRate)} за период.`,
   },
   {
-    icon: 'ui-cashflow', title: 'Выход на «Свободный путь»',
+    title: 'Выход на «Свободный путь»',
     text: 'Когда пассивный доход от активов становится больше всех расходов, вы выходите из «Круга забот» на внешний круг с крупными инвестициями.',
   },
   {
-    icon: 'cell-dream', title: 'Мечта',
+    title: 'Мечта',
     text: 'Побеждает тот, кто первым купит свою мечту на «Свободном пути». В «Тренировке» у каждого уровня своя цель и срок.',
   },
 ];
@@ -54,7 +54,7 @@ export function Help({ api }: { api: TableApi }) {
         {STEPS.map((s, i) => (
           <li key={s.title} className="card">
             <span className="step-num">{i + 1}</span>
-            <Icon name={s.icon} size={32} />
+            <img className="help-step-art" src={art(`cabinet/help-steps-${i + 1}.webp`)} alt="" loading="lazy" />
             <h3>{s.title}</h3>
             <p>{s.text}</p>
           </li>

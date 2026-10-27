@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomInt, randomUUID } from 'node:crypto';
 import type { Account, AuthProviders } from '@kapital/protocol';
 import { type Db, type Provider, type User } from './db.js';
-import type { Mailer } from './mail.js';
+import { codeEmailHtml, type Mailer } from './mail.js';
 import { checkPassword, hashPassword, randomToken, sameString } from './vault.js';
 
 export interface OAuthApp {
@@ -81,7 +81,7 @@ export class Auth {
 
   me(user: User): Me {
     return {
-      user: { id: user.id, name: user.name, email: user.email },
+      user: { id: user.id, name: user.name, email: user.email, avatar: user.avatar },
       logins: this.db.logins(user.id),
       hasPassword: this.db.passwordHash(user.id) !== null,
     };
@@ -130,7 +130,8 @@ export class Auth {
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     this.db.putCode(this.db.emailSubject(clean), code, CODE_TTL_MS);
     await mailer.send(clean, `${code} — код для входа в «Капитал»`,
-      `Ваш код для входа: ${code}\n\nОн действует 10 минут. Если вы не запрашивали код, просто не обращайте внимания на это письмо.`);
+      `Ваш код для входа: ${code}\n\nОн действует 10 минут. Если вы не запрашивали код, просто не обращайте внимания на это письмо.`,
+      this.opts.publicUrl ? codeEmailHtml(this.opts.publicUrl, code) : undefined);
     return ok(undefined);
   }
 

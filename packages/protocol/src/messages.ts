@@ -107,9 +107,23 @@ export interface AccountLogin {
   label: string | null;
 }
 
+/** Аватары из набора: портреты 01–24 и предметы. Картинка — /art/avatars/<id>.webp. */
+export const AVATARS = [
+  ...Array.from({ length: 24 }, (_, i) => String(i + 1).padStart(2, '0')),
+  'coin', 'house', 'sprout', 'key', 'rocket', 'owl', 'fox', 'cat',
+] as const;
+
+export const isAvatar = (id: unknown): id is string => typeof id === 'string' && (AVATARS as readonly string[]).includes(id);
+
+/** Пока игрок не выбрал аватар, у него постоянный портрет по id аккаунта. */
+export function defaultAvatar(userId: string): string {
+  const hash = [...userId].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  return AVATARS[hash % 24]!;
+}
+
 /** Ответ /api/auth/me: аккаунт вошедшего игрока. */
 export interface Account {
-  user: { id: string; name: string; email: string | null };
+  user: { id: string; name: string; email: string | null; avatar: string };
   logins: AccountLogin[];
   hasPassword: boolean;
 }
@@ -127,6 +141,7 @@ export interface SaveSummary {
 export interface RatingRow {
   userId: string;
   name: string;
+  avatar: string;
   value: number;
   place: number | null;
 }

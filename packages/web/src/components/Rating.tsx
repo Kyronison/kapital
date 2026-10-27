@@ -95,7 +95,7 @@ function Table({ board, unit, empty }: { board: RatingBoard; unit: string; empty
   if (top.length === 0) {
     return (
       <section className="card empty">
-        <img src={art('screens/archive-empty.webp')} alt="" />
+        <img src={art('cabinet/rating-empty.webp')} alt="" />
         <p>{empty}</p>
       </section>
     );
@@ -113,8 +113,10 @@ function Table({ board, unit, empty }: { board: RatingBoard; unit: string; empty
 function Row({ r, unit, mine }: { r: RatingRow; unit: string; mine: boolean }) {
   return (
     <li className={`rating-row${mine ? ' mine' : ''}${r.place === 1 ? ' p1' : ''}`}>
-      <span className="place">{r.place}</span>
-      <span className="who"><Avatar name={r.name} size={28} /><strong>{r.name}</strong>{mine && <span className="badge">вы</span>}</span>
+      <span className="place">
+        {r.place && r.place <= 3 ? <img className="medal" src={art(`cabinet/medal-${r.place}.webp`)} alt={`${r.place} место`} /> : r.place}
+      </span>
+      <span className="who"><Avatar name={r.name} avatar={r.avatar} size={28} /><strong>{r.name}</strong>{mine && <span className="badge">вы</span>}</span>
       <span className="points">{r.value} <small className="muted">{unit}</small></span>
     </li>
   );
