@@ -304,9 +304,10 @@ export class Table {
       const action = botAction(this.content, game, id);
       if (!action) continue;
       const r = this.apply(action);
-      // бот не должен ошибаться; если ошибся, завершаем за него ход, чтобы партия не встала
-      if (!r.ok) return id === currentId ? this.forceEndTurn() : null;
-      return r.value;
+      if (r.ok) return r.value;
+      // бот не должен ошибаться; если ошибся, завершаем за него ход, чтобы партия не встала,
+      // а ошибку в ответной продаже пропускаем: остальные боты всё равно должны сходить
+      if (id === currentId) return this.forceEndTurn();
     }
     return null;
   }

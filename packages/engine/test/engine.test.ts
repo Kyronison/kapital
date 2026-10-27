@@ -159,6 +159,22 @@ describe('рынок и банкротство', () => {
     expect(s.players[1]!.assets).toHaveLength(0);
   });
 
+  it('вышедший на «Свободный путь» не продаёт активы и акции «Круга забот»', () => {
+    let s = structuredClone(newGame(['courier', 'nurse']));
+    const p2 = s.players[1]!;
+    p2.circle = 'outer';
+    p2.assets.push({
+      id: 'a99', cardId: 'studio-1', assetType: 'studio', title: 'Студия', cost: 40000, down: 4000, mortgage: 36000, flow: 300,
+    });
+    p2.stocks.push({ ticker: 'TECH', shares: 100, avgPrice: 5 });
+    s.phase = 'market';
+    s.pending = { deck: 'market', card: { id: 'x', kind: 'offer', assetType: 'studio', title: '', multiplier: 1.6 } };
+    expect(applyAction(content, s, { type: 'SELL_ASSET', playerId: 'p2', assetId: 'a99' }).ok).toBe(false);
+    s.phase = 'deal';
+    s.pending = { deck: 'smallDeals', card: content.smallDeals.find((c) => c.kind === 'stock' && c.ticker === 'TECH' && c.price === 40)! as never };
+    expect(applyAction(content, s, { type: 'SELL_STOCK', playerId: 'p2', shares: 100 }).ok).toBe(false);
+  });
+
   it('банкрот начинает заново с той же профессией', () => {
     let s = structuredClone(newGame());
     s.players[0]!.cash = -100000;
@@ -281,5 +297,15 @@ describe('бот', () => {
       s = act(s, a);
     }
     expect(s.status).toBe('finished');
+  });
+});
+
+describe('проверка действий от клиента', () => {
+  it('бросают только один или два кубика', () => {
+    const s = newGame();
+    for (const dice of [0, 3, 50, -1, 1.5, 'x']) {
+      const r = applyAction(content, s, { type: 'ROLL', playerId: 'p1', dice } as never);
+      expect(r.ok).toBe(false);
+    }
   });
 });
