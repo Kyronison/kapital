@@ -1,0 +1,5 @@
+# Домен берётся из .env (KAPITAL_DOMAIN). Caddy сам выпускает и продлевает сертификат Let's Encrypt.
+{$KAPITAL_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy kapital:8080
+}

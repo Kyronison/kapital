@@ -4,3 +4,5 @@ dist
 saves/
 data/
 *.sqlite*
+deploy/.env
+deploy/backups/
