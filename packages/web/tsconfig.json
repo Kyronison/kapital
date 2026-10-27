@@ -2,5 +2,5 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "outDir": "dist", "jsx": "react-jsx", "lib": ["ES2023", "DOM", "DOM.Iterable"], "types": ["vite/client"] },
   "include": ["src"],
-  "references": [{ "path": "../content" }, { "path": "../engine" }]
+  "references": [{ "path": "../content" }, { "path": "../engine" }, { "path": "../protocol" }]
 }

@@ -1,6 +1,6 @@
 import { defaultContent } from '@kapital/content';
 import { describe, expect, it } from 'vitest';
-import { REACTION_MS, Table } from '../src/table.js';
+import { LOG_LIMIT, REACTION_MS, Table } from '../src/table.js';
 
 const content = defaultContent;
 
@@ -54,6 +54,17 @@ describe('лобби', () => {
     expect(t.setMode('s1', 'classic').ok).toBe(false);
   });
 
+  it('время на ход выбирает создатель: 30, 60, 90 секунд или без таймера', () => {
+    const t = tableWith('Аня', 'Боря');
+    expect(t.view().turnSeconds).toBe(30);
+    expect(t.setTurnSeconds('s2', 60).ok).toBe(false);
+    expect(t.setTurnSeconds('s1', 45).ok).toBe(false);
+    expect(t.setTurnSeconds('s1', 0).ok).toBe(true);
+    expect(Table.restore(content, t.snapshot()).turnSeconds).toBe(0);
+    t.start('s1');
+    expect(t.setTurnSeconds('s1', 60).ok).toBe(false);
+  });
+
   it('после старта новые игроки не входят, а вернувшиеся — да', () => {
     const t = tableWith('Аня', 'Боря');
     t.start('s1');
@@ -70,7 +81,10 @@ describe('партия', () => {
     const t = tableWith('Аня', 'Боря');
     t.start('s1');
     expect(t.act('s2', { type: 'ROLL', playerId: 's1' }).ok).toBe(false);
-    expect(t.act('s1', { type: 'ROLL', playerId: 's2' }).ok).toBe(true);
+    // игрока определяет сервер: сообщение с playerId отбрасывается целиком
+    expect(t.act('s1', { type: 'ROLL', playerId: 's2' }).ok).toBe(false);
+    expect(t.act('s2', { type: 'ROLL' }).ok).toBe(false);
+    expect(t.act('s1', { type: 'ROLL' }).ok).toBe(true);
   });
 
   it('клиенты не видят колоды и состояние ГПСЧ', () => {
@@ -136,9 +150,24 @@ describe('места и сохранение', () => {
     t.act('s1', { type: 'ROLL' });
     const copy = Table.restore(content, JSON.parse(JSON.stringify(t.snapshot())));
     expect(copy.game).toEqual(t.game);
+    // журнал партии переживает перезапуск
+    expect(copy.log.events.some((e) => e.type === 'rolled')).toBe(true);
     expect(copy.seats.map((s) => s.connected)).toEqual([false, true]);
     expect(copy.join('x', '', undefined, undefined, t.keyOf('s1')).ok).toBe(true);
     expect(copy.act('x', { type: 'END_TURN' }).ok).toBe(true);
+  });
+
+  it('журнал хранит последние события со сквозным номером', () => {
+    const t = tableWith('Аня');
+    t.addBot('s1');
+    t.start('s1');
+    let total = 0;
+    while (t.game!.status === 'playing' && total < 3 * LOG_LIMIT) {
+      const events = t.botStep() ?? t.timeout();
+      total += events.length;
+    }
+    expect(t.log.events.length).toBeLessThanOrEqual(LOG_LIMIT);
+    expect(t.log.start + t.log.events.length).toBe(total);
   });
 
   it('ключей мест нет в том, что видят клиенты', () => {

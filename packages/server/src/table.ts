@@ -3,60 +3,9 @@ import { contentFor, contentForLevel, levels, type Content, type GameMode, type 
 import {
   applyAction, botAction, createGame, levelProgress, levelStars, MAX_PLAYERS, type Action, type GameEvent, type GameState,
 } from '@kapital/engine';
-
-export interface Seat {
-  id: string;
-  name: string;
-  professionId: string | null;
-  dreamId: string | null;
-  bot: boolean;
-  connected: boolean;
-}
-
-/** Что видят клиенты: без порядка колод и состояния ГПСЧ, иначе можно предсказать карты и кубики. */
-export type PublicGame = Omit<GameState, 'decks' | 'rng' | 'seed'>;
-
-export interface ChatMessage {
-  n: number;
-  seatId: string;
-  name: string;
-  text: string;
-  at: number;
-}
-
-/** Итог уровня «Тренировки»: null, пока партия идёт. */
-export interface LevelView {
-  id: string;
-  /** Насколько цель выполнена, от 0 до 1. */
-  share: number;
-  result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
-}
-
-/**
- * Окно ответа: текущий игрок закончил ход, а на столе цена, по которой соперники-люди
- * могут продать свои акции или активы. Ход перейдёт, когда все ответят или выйдет время.
- */
-export interface ReactionView {
-  until: number;
-  /** Места, от которых ждём продажи или «Пропустить». */
-  waiting: string[];
-}
-
-export interface TableView {
-  hostId: string | null;
-  reaction: ReactionView | null;
-  mode: GameMode;
-  level: LevelView | null;
-  seats: Seat[];
-  game: PublicGame | null;
-  chat: ChatMessage[];
-}
-
-/** Место за столом, которое получил клиент: по ключу он вернётся на него после перерыва. */
-export interface SeatTicket {
-  seatId: string;
-  key: string;
-}
+import {
+  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type EventBatch, type LevelView, type ReactionView, type Seat, type SeatTicket, type TableView,
+} from '@kapital/protocol';
 
 /** Всё, что нужно, чтобы продолжить партию после перезапуска сервера. */
 export interface TableSnapshot {
@@ -65,6 +14,8 @@ export interface TableSnapshot {
   hostId: string | null;
   mode: GameMode;
   levelId?: string | null;
+  turnSeconds?: number;
+  log?: EventBatch;
   game: GameState | null;
   chat: ChatMessage[];
   botCount: number;
@@ -72,6 +23,8 @@ export interface TableSnapshot {
 }
 
 export const CHAT_LIMIT = 50;
+/** Сколько последних событий партии хранится для вернувшихся игроков. */
+export const LOG_LIMIT = 200;
 const CHAT_TEXT_MAX = 200;
 /** Не больше стольких сообщений за окно, чтобы чат нельзя было залить. */
 const CHAT_BURST = 5;
@@ -94,9 +47,13 @@ export class Table {
   game: GameState | null = null;
   // по умолчанию короткая партия: полную выбирают осознанно
   mode: GameMode = 'quick';
+  /** Секунд на ход человека; 0 — без таймера. */
+  turnSeconds: number = DEFAULT_TURN_SECONDS;
   /** Уровень «Тренировки»: одиночная партия со своей целью и сроком. */
   level: Level | null = null;
   chat: ChatMessage[] = [];
+  /** Последние события партии: журнал для тех, кто перезагрузил страницу или вернулся позже. */
+  log: EventBatch = { start: 0, events: [] };
   private botCount = 0;
   private chatCount = 0;
   /** Соединение → место. Место получает id первого соединения и сохраняет его навсегда. */
@@ -119,6 +76,8 @@ export class Table {
     t.seats = snap.seats.map((s) => ({ ...s, connected: s.bot }));
     t.hostId = snap.hostId;
     t.mode = snap.mode;
+    t.turnSeconds = snap.turnSeconds ?? DEFAULT_TURN_SECONDS;
+    t.log = snap.log ?? { start: 0, events: [] };
     t.level = levels.find((l) => l.id === snap.levelId) ?? null;
     t.game = snap.game;
     t.chat = snap.chat;
@@ -130,7 +89,8 @@ export class Table {
 
   snapshot(): TableSnapshot {
     return {
-      v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, game: this.game, chat: this.chat,
+      v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, turnSeconds: this.turnSeconds,
+      log: this.log, game: this.game, chat: this.chat,
       botCount: this.botCount, keys: [...this.keys],
     };
   }
@@ -168,11 +128,20 @@ export class Table {
     return ok(undefined);
   }
 
+  /** Время на ход выбирает создатель стола до начала партии. */
+  setTurnSeconds(session: string, seconds: unknown): Result {
+    if (this.seatOf(session) !== this.hostId) return err('Время на ход выбирает создатель стола');
+    if (this.started) return err('Партия уже началась');
+    if (!TURN_SECONDS_OPTIONS.includes(seconds as never)) return err('Такого варианта нет');
+    this.turnSeconds = seconds as number;
+    return ok(undefined);
+  }
+
   get started(): boolean {
     return this.game !== null;
   }
 
-  join(session: string, name: string, professionId?: string, dreamId?: string, key?: string): Result<SeatTicket> {
+  join(session: string, name: string, professionId?: string, dreamId?: string, key?: string): Result<Omit<SeatTicket, 'saveId'>> {
     if (key) {
       const seatId = [...this.keys].find(([, k]) => k === key)?.[0];
       const seat = this.seats.find((s) => s.id === seatId);
@@ -230,14 +199,14 @@ export class Table {
     const seat = this.seats.find((s) => s.id === id);
     if (seat) seat.connected = false;
     // ушедший соперник больше не задерживает ход
-    const events = this.settleHold();
+    const events = this.record(this.settleHold());
     // создатель ушёл посреди партии: старшим становится следующий, кто на связи
     if (this.hostId === id) this.hostId = this.seats.find((s) => !s.bot && s.connected)?.id ?? this.hostId;
     return events;
   }
 
   /** Сообщение в чат стола. Видят все за столом. */
-  say(session: string, text: unknown): Result {
+  say(session: string, text: unknown): Result<ChatMessage> {
     const seat = this.seats.find((s) => s.id === this.seatOf(session));
     if (!seat) return err('Вы не за этим столом');
     if (typeof text !== 'string') return err('Пустое сообщение');
@@ -247,8 +216,9 @@ export class Table {
     const recent = (this.recentChat.get(seat.id) ?? []).filter((t) => now - t < CHAT_WINDOW_MS);
     if (recent.length >= CHAT_BURST) return err('Слишком часто: подождите несколько секунд');
     this.recentChat.set(seat.id, [...recent, now]);
-    this.chat = [...this.chat, { n: ++this.chatCount, seatId: seat.id, name: seat.name, text: clean, at: now }].slice(-CHAT_LIMIT);
-    return ok(undefined);
+    const message: ChatMessage = { n: ++this.chatCount, seatId: seat.id, name: seat.name, text: clean, at: now };
+    this.chat = [...this.chat, message].slice(-CHAT_LIMIT);
+    return ok(message);
   }
 
   /** Все люди отключились: боты ждут, партия не уходит вперёд без игроков. */
@@ -278,10 +248,11 @@ export class Table {
   }
 
   /** Действие игрока. playerId всегда берётся из соединения, а не из сообщения клиента. */
-  act(session: string, action: Record<string, unknown>): Result<GameEvent[]> {
+  act(session: string, message: unknown): Result<GameEvent[]> {
     if (!this.game) return err('Партия ещё не началась');
-    if (typeof action.type !== 'string') return err('Неверное действие');
-    return this.apply({ ...action, playerId: this.seatOf(session) } as Action);
+    const parsed = parseClientAction(message);
+    if (!parsed.ok) return err(parsed.error);
+    return this.apply({ ...parsed.value, playerId: this.seatOf(session) } as Action);
   }
 
   /** Соперник не будет продавать по открытой цене: ход можно передавать. */
@@ -289,7 +260,7 @@ export class Table {
     const id = this.seatOf(session);
     if (!this.hold || !this.waiting().includes(id)) return err('Сейчас ничего не ждём');
     this.hold.passed.add(id);
-    return ok(this.settleHold());
+    return ok(this.record(this.settleHold()));
   }
 
   get reaction(): ReactionView | null {
@@ -300,7 +271,16 @@ export class Table {
   expireHold(): GameEvent[] {
     if (!this.hold) return [];
     this.hold = null;
-    return this.endTurnNow();
+    return this.record(this.endTurnNow());
+  }
+
+  /** Запоминает события в журнале и возвращает их же: удобно оборачивать результат. */
+  private record(events: GameEvent[]): GameEvent[] {
+    if (!events.length) return events;
+    const all = [...this.log.events, ...events];
+    const drop = Math.max(0, all.length - LOG_LIMIT);
+    this.log = { start: this.log.start + drop, events: all.slice(drop) };
+    return events;
   }
 
   private apply(action: Action): Result<GameEvent[]> {
@@ -314,7 +294,7 @@ export class Table {
     const r = applyAction(this.content, game, action);
     if (!r.ok) return err(r.error);
     this.game = r.state;
-    return ok([...r.events, ...this.checkLevel(), ...this.settleHold()]);
+    return ok(this.record([...r.events, ...this.checkLevel(), ...this.settleHold()]));
   }
 
   /** Люди на связи (кроме текущего), которым есть что продать по открытой карте. */
@@ -432,13 +412,16 @@ export class Table {
     return r.ok ? r.value : null;
   }
 
-  view(): TableView {
-    let game: PublicGame | null = null;
+  /** Стол без скрытых данных; срок хода знает комната, она его и подставляет. */
+  view(): Omit<TableView, 'turnDeadline'> {
+    let game: TableView['game'] = null;
     if (this.game) {
       const { decks: _decks, rng: _rng, seed: _seed, ...rest } = this.game;
       game = rest;
     }
-    return { hostId: this.hostId, reaction: this.reaction, mode: this.mode, level: this.levelView(), seats: this.seats, game, chat: this.chat };
+    return {
+      hostId: this.hostId, reaction: this.reaction, mode: this.mode, turnSeconds: this.turnSeconds, level: this.levelView(), seats: this.seats, game,
+    };
   }
 
   private levelView(): LevelView | null {

@@ -6,9 +6,6 @@ import {
 } from '../format.js';
 import type { PublicGame, TableApi } from '../net.js';
 
-/** Совпадает с turnSeconds сервера по умолчанию. */
-export const TURN_SECONDS = 30;
-
 export function Dice({ roll, rollKey }: { roll: number[]; rollKey: number }) {
   return (
     <div className="dice" aria-label={`Выпало ${roll.join(' и ')}`} role="img">
@@ -22,14 +19,17 @@ export function Dice({ roll, rollKey }: { roll: number[]; rollKey: number }) {
   );
 }
 
-/** Круговой таймер хода: анимация CSS сдвигается на уже прошедшее время. */
-export function TurnTimer({ deadline, seconds }: { deadline: number; seconds: number }) {
-  const elapsed = TURN_SECONDS - seconds;
+/** Круговой таймер хода: анимация CSS длится весь ход и сдвигается на уже прошедшее время. */
+export function TurnTimer({ deadline, seconds, total }: { deadline: number; seconds: number; total: number }) {
+  const elapsed = total - seconds;
   return (
     <div className={`timer${seconds <= 5 ? ' warn' : ''}`}>
-      <svg key={deadline} className="turn-timer" viewBox="0 0 64 64" aria-hidden="true" style={{ animationDelay: `${25 - elapsed}s` }}>
+      <svg key={deadline} className="turn-timer" viewBox="0 0 64 64" aria-hidden="true" style={{ animationDelay: `${total - 5 - elapsed}s` }}>
         <circle className="turn-timer__track" cx="32" cy="32" r="28" pathLength={100} />
-        <circle className="turn-timer__progress" cx="32" cy="32" r="28" pathLength={100} style={{ animationDelay: `-${elapsed}s` }} />
+        <circle
+          className="turn-timer__progress" cx="32" cy="32" r="28" pathLength={100}
+          style={{ animationDuration: `${total}s, ${total}s`, animationDelay: `-${elapsed}s, -${elapsed}s` }}
+        />
       </svg>
       <span className="timer-text">{seconds}</span>
     </div>
@@ -210,7 +210,9 @@ function landedCell(log: GameEvent[], playerId: string): string | null {
   return null;
 }
 
-export function Center({ api, game, seconds, deadline }: { api: TableApi; game: PublicGame; seconds: number | null; deadline: number | null }) {
+export function Center({ api, game, seconds, deadline, turnSeconds }: {
+  api: TableApi; game: PublicGame; seconds: number | null; deadline: number | null; turnSeconds: number;
+}) {
   const current = game.players[game.current]!;
   const mine = current.id === api.me;
   // сквозной номер последнего броска: по нему кубик перезапускает анимацию
@@ -227,7 +229,7 @@ export function Center({ api, game, seconds, deadline }: { api: TableApi; game: 
         <span className="turns" title="Ход текущего игрока и лимит партии">
           ход {Math.max(1, current.turnsTaken)} из {content.rules.maxTurns}
         </span>
-        {deadline && seconds !== null && game.status === 'playing' && <TurnTimer deadline={deadline} seconds={seconds} />}
+        {deadline && seconds !== null && game.status === 'playing' && <TurnTimer deadline={deadline} seconds={seconds} total={turnSeconds} />}
       </div>
       {game.lastRoll && <Dice roll={game.lastRoll} rollKey={rollKey} />}
       {game.phase === 'choose_deal' ? (

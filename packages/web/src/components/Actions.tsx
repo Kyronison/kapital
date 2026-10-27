@@ -17,7 +17,9 @@ function useSecondsLeft(until: number | null) {
   return until ? Math.max(0, Math.ceil((until - now) / 1000)) : null;
 }
 
-export function Actions({ api, game, me, reaction }: { api: TableApi; game: PublicGame; me: PlayerState; reaction: Reaction | null }) {
+export function Actions({ api, game, me, reaction, seconds }: {
+  api: TableApi; game: PublicGame; me: PlayerState; reaction: Reaction | null; seconds: number | null;
+}) {
   const myTurn = game.players[game.current]!.id === me.id;
   const secondsLeft = useSecondsLeft(reaction?.until ?? null);
   const awaitingMe = reaction?.waiting.includes(me.id) ?? false;
@@ -238,7 +240,13 @@ export function Actions({ api, game, me, reaction }: { api: TableApi; game: Publ
 
   return (
     <section className={`actions card${myTurn ? ' my-turn' : ''}`}>
-      <h2>{myTurn ? 'Ваш ход' : `Ходит ${game.players[game.current]!.name}`}</h2>
+      <h2>
+        {myTurn ? 'Ваш ход' : `Ходит ${game.players[game.current]!.name}`}
+        <span className="actions-meta">
+          <Icon name="ui-wallet" size={14} />{money(me.cash)}
+          {myTurn && seconds !== null && <span className={`actions-clock${seconds <= 5 ? ' warn' : ''}`}>{seconds} с</span>}
+        </span>
+      </h2>
       {awaitingMe && <p className="muted">Ход ждёт вашего решения: продайте по этой цене или пропустите.</p>}
       {(main || sales.length > 0) && <div className="row wrap">{main}{sales}</div>}
       {!myTurn && sales.length === 0 && <p className="muted">Ждём хода соперника. Если на столе окажется выгодная цена, здесь появится кнопка продажи.</p>}

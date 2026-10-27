@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SaveStore } from '../src/saves.js';
-import { createServer, ROOM_NAME, type TableView } from '../src/index.js';
+import { createServer, ROOM_NAME, type ChatMessage, type TableView } from '../src/index.js';
 
 const SAVE_DIR = mkdtempSync(join(tmpdir(), 'kapital-saves-'));
 
@@ -81,9 +81,9 @@ describe('комната', () => {
     host.onMessage('*', () => {});
     const guest = await client.joinById(host.roomId, { name: 'Боря' });
     guest.onMessage('*', () => {});
-    const heard = nextMessage<TableView>(guest, 'view', (v) => v.chat.length > 0);
+    const heard = nextMessage<ChatMessage[]>(guest, 'chat', (m) => m.length > 0);
     host.send('chat', '  Привет,   стол! ');
-    expect((await heard).chat.map((m) => [m.name, m.text])).toEqual([['Аня', 'Привет, стол!']]);
+    expect((await heard).map((m) => [m.name, m.text])).toEqual([['Аня', 'Привет, стол!']]);
     await guest.leave();
     await host.leave();
   });

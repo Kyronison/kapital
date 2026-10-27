@@ -45,7 +45,7 @@ export function Chat({ api, view }: { api: TableApi; view: View }) {
     }
   });
   const listRef = useRef<HTMLOListElement>(null);
-  const last = view.chat.at(-1);
+  const last = api.chat.at(-1);
   const seen = useRef(last?.n ?? 0);
 
   useEffect(() => {
@@ -81,14 +81,14 @@ export function Chat({ api, view }: { api: TableApi; view: View }) {
           <Icon name={muted ? 'ui-mute' : 'ui-sound-on'} size={16} />
         </button>
       </h2>
-      {view.chat.length === 0 ? (
+      {api.chat.length === 0 ? (
         <div className="chat-empty">
           <img src={art('screens/chat-empty.webp')} alt="" />
           <p className="muted">Пока тихо. Поздоровайтесь со столом.</p>
         </div>
       ) : (
         <ol ref={listRef}>
-          {view.chat.map((m) => {
+          {api.chat.map((m) => {
             const sticker = stickerOf(m.text);
             return (
               <li key={m.n} className="chat-in">

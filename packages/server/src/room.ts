@@ -1,11 +1,12 @@
 import { Room, type Client, type Delayed } from '@colyseus/core';
 import { defaultContent, type Content } from '@kapital/content';
 import type { GameEvent } from '@kapital/engine';
+import { DEFAULT_TURN_SECONDS, type ChatMessage, type CreateOptions, type JoinOptions, type ServerMessages } from '@kapital/protocol';
 import { SaveStore } from './saves.js';
 import { Table, type Result } from './table.js';
 
 export interface RoomOptions {
-  /** Сколько секунд даётся на ход, потом за игрока доигрывает бот. */
+  /** Сколько секунд даётся на ход по умолчанию, потом за игрока доигрывает бот; создатель стола может сменить в лобби. */
   turnSeconds?: number;
   /** Пауза перед ходом бота, чтобы люди успевали следить за партией. */
   botDelayMs?: number;
@@ -16,27 +17,12 @@ export interface RoomOptions {
   saves?: SaveStore | null;
 }
 
-/** Параметры создания комнаты от клиента: restore — номер сохранённой партии. */
-export interface CreateOptions {
-  restore?: string;
-  /** Уровень «Тренировки»: стол на одного, партия начинается сразу. */
-  levelId?: string;
-}
-
-export interface JoinOptions {
-  name?: string;
-  professionId?: string;
-  dreamId?: string;
-  /** Ключ места: с ним клиент возвращается в сохранённую партию. */
-  key?: string;
-}
-
 /**
  * Комната одной партии. Клиент только присылает намерения; правила проверяет движок.
- * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `chat`,
+ * Сообщения клиента: `hello`, `action` (действие движка), `start`, `add_bot`, `set_mode`, `set_turn_seconds`, `chat`,
  * `pass` (не продавать по открытой цене, пока ход ждёт ответа соперников).
- * Сообщения сервера: `view` (стол без скрытых данных), `events`, `error` и `seat` — только своему
- * клиенту: id места, ключ возврата и номер сохранения.
+ * Сообщения сервера: `view` (стол без скрытых данных), `events`, `chat`; `error` и `seat` — только своему
+ * клиенту: id места, ключ возврата и номер сохранения. Формы — в @kapital/protocol.
  */
 export class KapitalRoom extends Room {
   maxClients = 6;
@@ -62,6 +48,7 @@ export class KapitalRoom extends Room {
       this.saveId = options.restore;
     } else {
       this.table = new Table(content);
+      this.table.turnSeconds = options.turnSeconds ?? DEFAULT_TURN_SECONDS;
       this.saveId = this.roomId;
       if (options.levelId) {
         const r = this.table.setLevel(options.levelId);
@@ -69,37 +56,44 @@ export class KapitalRoom extends Room {
       }
     }
     this.opts = {
-      turnSeconds: options.turnSeconds ?? 30,
+      turnSeconds: options.turnSeconds ?? DEFAULT_TURN_SECONDS,
       botDelayMs: options.botDelayMs ?? 700,
       reconnectSeconds: options.reconnectSeconds ?? 60,
     };
 
-    this.onMessage('action', (client, message: unknown) => {
-      if (typeof message !== 'object' || message === null) return this.reply(client, { ok: false, error: 'Неверное действие' });
-      this.handle(client, this.table.act(client.sessionId, message as Record<string, unknown>));
-    });
+    this.onMessage('action', (client, message: unknown) => this.handle(client, this.table.act(client.sessionId, message)));
     this.onMessage('start', (client) => {
       // комнату не запираем: вернуться по ключу места можно и после старта, новых игроков не пустит стол
       this.handle(client, this.table.start(client.sessionId));
     });
     this.onMessage('add_bot', (client) => this.handle(client, this.table.addBot(client.sessionId)));
     this.onMessage('set_mode', (client, mode: unknown) => this.handle(client, this.table.setMode(client.sessionId, mode)));
+    this.onMessage('set_turn_seconds', (client, s: unknown) => this.handle(client, this.table.setTurnSeconds(client.sessionId, s)));
     // клиент подписался на сообщения и просит своё место и стол: в onJoin он мог их не успеть принять
     this.onMessage('hello', (client) => {
       const seatId = this.table.seatOf(client.sessionId);
       const key = this.table.keyOf(seatId);
-      if (key) client.send('seat', { seatId, key, saveId: this.saveId });
-      client.send('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+      if (key) this.tell(client, 'seat', { seatId, key, saveId: this.saveId });
+      this.tell(client, 'view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+      this.tell(client, 'chat', this.table.chat);
+      if (this.table.log.events.length) this.tell(client, 'events', this.table.log);
     });
     this.onMessage('pass', (client) => this.handle(client, this.table.pass(client.sessionId)));
-    this.onMessage('chat', (client, text: unknown) => this.handle(client, this.table.say(client.sessionId, text)));
+    this.onMessage('chat', (client, text: unknown) => {
+      const r = this.table.say(client.sessionId, text);
+      this.reply(client, r);
+      if (r.ok) {
+        this.broadcast('chat', [r.value] satisfies ChatMessage[]);
+        this.persist();
+      }
+    });
   }
 
   onJoin(client: Client, options: JoinOptions = {}) {
     const key = typeof options.key === 'string' ? options.key : undefined;
     const r = this.table.join(client.sessionId, String(options.name ?? ''), options.professionId, options.dreamId, key);
     if (!r.ok) throw new Error(r.error);
-    client.send('seat', { ...r.value, saveId: this.saveId });
+    this.tell(client, 'seat', { ...r.value, saveId: this.saveId });
     if (this.table.level && !this.table.started) this.table.start(client.sessionId);
     this.publish([]);
   }
@@ -110,7 +104,7 @@ export class KapitalRoom extends Room {
     try {
       await this.allowReconnection(client, this.opts.reconnectSeconds);
       const r = this.table.join(client.sessionId, '');
-      if (r.ok) client.send('seat', { ...r.value, saveId: this.saveId });
+      if (r.ok) this.tell(client, 'seat', { ...r.value, saveId: this.saveId });
       this.publish([]);
     } catch {
       // не вернулся: место остаётся за ботом
@@ -136,8 +130,13 @@ export class KapitalRoom extends Room {
       .catch((e: unknown) => console.error('Не удалось сохранить партию', e));
   }
 
+  /** Типизированная отправка: имя и форма сообщения берутся из протокола. */
+  private tell<K extends keyof ServerMessages>(client: Client, type: K, payload: ServerMessages[K]) {
+    client.send(type, payload);
+  }
+
   private reply(client: Client, r: Result<unknown>) {
-    if (!r.ok) client.send('error', { error: r.error });
+    if (!r.ok) this.tell(client, 'error', { error: r.error });
   }
 
   private handle(client: Client, r: Result<GameEvent[] | void>) {
@@ -148,8 +147,12 @@ export class KapitalRoom extends Room {
   private publish(events: GameEvent[]) {
     this.resetTurnTimer();
     this.resetHoldTimer();
-    if (events.length) this.broadcast('events', events);
-    this.broadcast('view', { ...this.table.view(), turnDeadline: this.turnDeadline });
+    if (events.length) {
+      // номер первого из новых событий: они уже записаны в журнал стола последними
+      const start = this.table.log.start + this.table.log.events.length - events.length;
+      this.broadcast('events', { start, events } satisfies ServerMessages['events']);
+    }
+    this.broadcast('view', { ...this.table.view(), turnDeadline: this.turnDeadline } satisfies ServerMessages['view']);
     this.persist();
     this.scheduleBots();
   }
@@ -196,12 +199,12 @@ export class KapitalRoom extends Room {
     const seat = this.table.seats.find((s) => s.id === current.id);
     // в одиночной партии никто не ждёт, поэтому таймера нет
     const solo = this.table.seats.length === 1;
-    if (!seat || seat.bot || !seat.connected || solo) {
+    if (!seat || seat.bot || !seat.connected || solo || this.table.turnSeconds === 0) {
       this.turnTimer = null;
       this.turnDeadline = null;
       return;
     }
-    const ms = this.opts.turnSeconds * 1000;
+    const ms = this.table.turnSeconds * 1000;
     this.turnDeadline = Date.now() + ms;
     this.turnTimer = this.clock.setTimeout(() => {
       this.turnTimer = null;
