@@ -45,6 +45,14 @@ pnpm build:web     # статическая сборка клиента в packa
 положить на постоянный диск). Если сайт лежит на другом хостинге, при сборке укажите адрес игры:
 `VITE_SERVER_URL=wss://game.example.com pnpm build:web`.
 
+### В контейнере и на Fly.io
+
+`Dockerfile` собирает сайт и запускает сервер одним процессом на порту 8080, сохранения кладёт в
+`/data/saves`. Локально: `docker build -t kapital . && docker run -p 8080:8080 -v kapital-data:/data kapital`.
+Для Fly.io есть `fly.toml`: `flyctl launch --copy-config --no-deploy`, затем
+`flyctl volumes create kapital_data --size 1` и `flyctl deploy`. Стол живёт в памяти одного процесса,
+поэтому машина одна и не останавливается без трафика (`auto_stop_machines = "off"`).
+
 ## Протокол сервера
 
 Клиент создаёт стол `client.create('kapital', { name })` и делится ссылкой с `roomId`;
