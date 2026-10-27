@@ -49,7 +49,7 @@ export function Campaign({ api }: { api: TableApi }) {
           );
         })}
       </ul>
-      <div className="campaign-body" style={{ ['--panel' as string]: `${map.panel * 100}%` }}>
+      <div className="campaign-body" style={{ ['--panel' as string]: `${map.panel * 100}%`, ['--map-ratio' as string]: map.ratioValue }}>
         <div className="campaign-map" style={{ aspectRatio: map.ratio, backgroundImage: `url(${art(map.file)})` }}>
           {levels.map((l, i) => {
             const [x, y] = map.nodes[i]!;
