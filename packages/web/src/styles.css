@@ -570,3 +570,23 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
   .boards { gap: 64px; padding: 4.5% 0; }
   .board { width: 89%; max-width: min(89%, calc(100vh - 160px)); }
 }
+
+/* вход и профиль */
+.login { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 32px; align-items: start; }
+.login-card { position: relative; overflow: hidden; }
+.login-card h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; }
+.login-card .field small { font-weight: 500; }
+.login-art { width: 160px; align-self: flex-end; opacity: 0.9; margin-top: -8px; }
+.providers { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.provider { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: inherit; font-weight: 700; }
+.provider:hover { box-shadow: var(--shadow); }
+.form-error { color: var(--bad, #c44a35); margin: 0; font-weight: 600; }
+.profile h2 .link { margin-left: auto; font-size: 14px; }
+.profile h2 .link + .link { margin-left: 12px; }
+.profile .join { gap: 12px; margin-top: 8px; }
+.logins ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.logins li { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.logins li strong { min-width: 80px; }
+@media (max-width: 1000px) {
+  .login { grid-template-columns: 1fr; }
+}

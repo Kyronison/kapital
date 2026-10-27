@@ -1,15 +1,14 @@
-import { randomUUID } from 'node:crypto';
 import { contentFor, contentForLevel, levels, type Content, type GameMode, type Level } from '@kapital/content';
 import {
   applyAction, botAction, createGame, levelProgress, levelStars, MAX_PLAYERS, type Action, type GameEvent, type GameState,
 } from '@kapital/engine';
 import {
-  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type EventBatch, type LevelView, type ReactionView, type Seat, type SeatTicket, type TableView,
+  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type EventBatch, type LevelView, type ReactionView, type Seat, type TableView,
 } from '@kapital/protocol';
 
 /** Всё, что нужно, чтобы продолжить партию после перезапуска сервера. */
 export interface TableSnapshot {
-  v: 1;
+  v: 2;
   seats: Seat[];
   hostId: string | null;
   mode: GameMode;
@@ -19,7 +18,12 @@ export interface TableSnapshot {
   game: GameState | null;
   chat: ChatMessage[];
   botCount: number;
-  keys: [string, string][];
+}
+
+/** Игрок за столом: место получает id аккаунта, поэтому вернуться на него можно с любого устройства. */
+export interface Player {
+  id: string;
+  name: string;
 }
 
 export const CHAT_LIMIT = 50;
@@ -56,10 +60,8 @@ export class Table {
   log: EventBatch = { start: 0, events: [] };
   private botCount = 0;
   private chatCount = 0;
-  /** Соединение → место. Место получает id первого соединения и сохраняет его навсегда. */
+  /** Соединение → место (id аккаунта). */
   private sessions = new Map<string, string>();
-  /** Место → секретный ключ возврата. В view не попадает. */
-  private keys = new Map<string, string>();
   private recentChat = new Map<string, number[]>();
   /** Отложенный конец хода, пока соперники решают, продавать ли. */
   private hold: { until: number; passed: Set<string> } | null = null;
@@ -71,7 +73,7 @@ export class Table {
   ) {}
 
   static restore(base: Content, snap: TableSnapshot, random?: () => number, now?: () => number): Table {
-    if (snap.v !== 1) throw new Error('Неизвестная версия сохранения');
+    if (snap.v !== 2) throw new Error('Неизвестная версия сохранения');
     const t = new Table(base, random, now);
     t.seats = snap.seats.map((s) => ({ ...s, connected: s.bot }));
     t.hostId = snap.hostId;
@@ -83,20 +85,15 @@ export class Table {
     t.chat = snap.chat;
     t.chatCount = snap.chat.at(-1)?.n ?? 0;
     t.botCount = snap.botCount;
-    t.keys = new Map(snap.keys);
     return t;
   }
 
   snapshot(): TableSnapshot {
     return {
-      v: 1, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, turnSeconds: this.turnSeconds,
+      v: 2, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, turnSeconds: this.turnSeconds,
       log: this.log, game: this.game, chat: this.chat,
-      botCount: this.botCount, keys: [...this.keys],
+      botCount: this.botCount,
     };
-  }
-
-  keyOf(seatId: string): string | undefined {
-    return this.keys.get(seatId);
   }
 
   /** Место, за которым сидит соединение. */
@@ -141,23 +138,20 @@ export class Table {
     return this.game !== null;
   }
 
-  join(session: string, name: string, professionId?: string, dreamId?: string, key?: string): Result<Omit<SeatTicket, 'saveId'>> {
-    if (key) {
-      const seatId = [...this.keys].find(([, k]) => k === key)?.[0];
-      const seat = this.seats.find((s) => s.id === seatId);
-      if (!seat) return err('Место в этой партии не найдено');
-      this.sessions.set(session, seat.id);
+  /**
+   * Вход за стол. Место за аккаунтом: если игрок уже сидит здесь, новое соединение возвращает его на место,
+   * в том числе после перезапуска сервера и в уже идущей партии.
+   */
+  join(session: string, player: Player, professionId?: string, dreamId?: string): Result<{ seatId: string }> {
+    const id = player.id;
+    const seat = this.seats.find((s) => s.id === id);
+    if (seat) {
+      this.sessions.set(session, id);
       seat.connected = true;
-      this.hostId ??= seat.id;
-      return ok({ seatId: seat.id, key });
+      this.hostId ??= id;
+      return ok({ seatId: id });
     }
-    const id = this.seatOf(session);
-    if (this.started) {
-      const seat = this.seats.find((s) => s.id === id);
-      if (!seat) return err('Партия уже началась');
-      seat.connected = true;
-      return ok({ seatId: id, key: this.keys.get(id)! });
-    }
+    if (this.started) return err('Партия уже началась');
     if (this.seats.length >= MAX_PLAYERS) return err('Все места заняты');
     if (this.level && this.seats.length > 0) return err('Уровень проходят в одиночку');
     if (this.level) {
@@ -168,12 +162,11 @@ export class Table {
       return err('Неизвестная профессия');
     }
     if (dreamId && !this.content.dreams.some((d) => d.id === dreamId)) return err('Неизвестная мечта');
-    const cleanName = name.trim().slice(0, 24) || `Игрок ${this.seats.length + 1}`;
+    const cleanName = player.name.trim().slice(0, 24) || `Игрок ${this.seats.length + 1}`;
+    this.sessions.set(session, id);
     this.seats.push({ id, name: cleanName, professionId: professionId ?? null, dreamId: dreamId ?? null, bot: false, connected: true });
     this.hostId ??= id;
-    const ticket = { seatId: id, key: randomUUID() };
-    this.keys.set(id, ticket.key);
-    return ok(ticket);
+    return ok({ seatId: id });
   }
 
   addBot(session: string): Result {
@@ -190,9 +183,10 @@ export class Table {
   leave(session: string): GameEvent[] {
     const id = this.seatOf(session);
     this.sessions.delete(session);
+    // та же учётная запись открыта во второй вкладке: место остаётся занятым
+    if ([...this.sessions.values()].includes(id)) return [];
     if (!this.started) {
       this.seats = this.seats.filter((s) => s.id !== id);
-      this.keys.delete(id);
       if (this.hostId === id) this.hostId = this.seats.find((s) => !s.bot)?.id ?? null;
       return [];
     }

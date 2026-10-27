@@ -9,9 +9,12 @@ function seeded(seed = 1) {
   return () => ((x = (x * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
 }
 
+/** Игрок sN: соединение и аккаунт с одним и тем же id. */
+const player = (id: string, name = '') => ({ id, name });
+
 function tableWith(...names: string[]) {
   const t = new Table(content, seeded());
-  names.forEach((n, i) => t.join(`s${i + 1}`, n));
+  names.forEach((n, i) => t.join(`s${i + 1}`, player(`s${i + 1}`, n)));
   return t;
 }
 
@@ -33,7 +36,7 @@ describe('лобби', () => {
 
   it('не больше шести мест', () => {
     const t = tableWith('1', '2', '3', '4', '5', '6');
-    expect(t.join('s7', '7').ok).toBe(false);
+    expect(t.join('s7', player('s7', '7')).ok).toBe(false);
   });
 
   it('можно играть одному против рынка', () => {
@@ -68,10 +71,10 @@ describe('лобби', () => {
   it('после старта новые игроки не входят, а вернувшиеся — да', () => {
     const t = tableWith('Аня', 'Боря');
     t.start('s1');
-    expect(t.join('s9', 'Вася').ok).toBe(false);
+    expect(t.join('s9', player('s9', 'Вася')).ok).toBe(false);
     t.leave('s2');
     expect(t.seats[1]!.connected).toBe(false);
-    expect(t.join('s2', '').ok).toBe(true);
+    expect(t.join('s2', player('s2')).ok).toBe(true);
     expect(t.seats[1]!.connected).toBe(true);
   });
 });
@@ -132,18 +135,25 @@ describe('партия', () => {
 });
 
 describe('места и сохранение', () => {
-  it('по ключу игрок возвращается на своё место с новым соединением', () => {
+  it('игрок возвращается на своё место с новым соединением по аккаунту', () => {
     const t = tableWith('Аня', 'Боря');
-    const key = t.keyOf('s1')!;
     t.start('s1');
     t.leave('s1');
-    expect(t.join('new', '', undefined, undefined, 'не тот').ok).toBe(false);
-    const r = t.join('new', '', undefined, undefined, key);
+    expect(t.join('new', player('s9', 'Чужой')).ok).toBe(false);
+    const r = t.join('new', player('s1', 'Аня'));
     expect(r.ok && r.value.seatId).toBe('s1');
     expect(t.act('new', { type: 'ROLL' }).ok).toBe(true);
   });
 
-  it('снимок стола восстанавливается: люди не на связи, ключи работают', () => {
+  it('вторая вкладка того же игрока не освобождает место', () => {
+    const t = tableWith('Аня', 'Боря');
+    t.join('tab2', player('s1', 'Аня'));
+    t.leave('tab2');
+    expect(t.seats).toHaveLength(2);
+    expect(t.seats[0]!.connected).toBe(true);
+  });
+
+  it('снимок стола восстанавливается: люди не на связи, аккаунт возвращает место', () => {
     const t = tableWith('Аня');
     t.addBot('s1');
     t.start('s1');
@@ -153,7 +163,7 @@ describe('места и сохранение', () => {
     // журнал партии переживает перезапуск
     expect(copy.log.events.some((e) => e.type === 'rolled')).toBe(true);
     expect(copy.seats.map((s) => s.connected)).toEqual([false, true]);
-    expect(copy.join('x', '', undefined, undefined, t.keyOf('s1')).ok).toBe(true);
+    expect(copy.join('x', player('s1', 'Аня')).ok).toBe(true);
     expect(copy.act('x', { type: 'END_TURN' }).ok).toBe(true);
   });
 
@@ -169,18 +179,13 @@ describe('места и сохранение', () => {
     expect(t.log.events.length).toBeLessThanOrEqual(LOG_LIMIT);
     expect(t.log.start + t.log.events.length).toBe(total);
   });
-
-  it('ключей мест нет в том, что видят клиенты', () => {
-    const t = tableWith('Аня');
-    expect(JSON.stringify(t.view())).not.toContain(t.keyOf('s1')!);
-  });
 });
 
 describe('чат', () => {
   it('чистит пробелы, режет длину и не даёт заспамить', () => {
     let now = 0;
     const t = new Table(content, seeded(), () => now);
-    t.join('s1', 'Аня');
+    t.join('s1', player('s1', 'Аня'));
     expect(t.say('s1', '   ').ok).toBe(false);
     expect(t.say('s1', 'при\n  вет').ok).toBe(true);
     expect(t.chat[0]!.text).toBe('при вет');
@@ -199,8 +204,8 @@ describe('«Тренировка»', () => {
     const t = new Table(content, seeded());
     expect(t.setLevel('нет такого').ok).toBe(false);
     expect(t.setLevel('pro-1').ok).toBe(true);
-    t.join('s1', 'Аня', 'surgeon');
-    expect(t.join('s2', 'Боря').ok).toBe(false);
+    t.join('s1', player('s1', 'Аня'), 'surgeon');
+    expect(t.join('s2', player('s2', 'Боря')).ok).toBe(false);
     expect(t.addBot('s1').ok).toBe(false);
     t.start('s1');
     expect(t.game!.players[0]!.professionId).toBe('teacher');
@@ -211,7 +216,7 @@ describe('«Тренировка»', () => {
   it('цель выполнена — партия закончена, за скорость звёзды', () => {
     const t = new Table(content, seeded());
     t.setLevel('novice-2');
-    t.join('s1', 'Аня');
+    t.join('s1', player('s1', 'Аня'));
     t.start('s1');
     t.game!.players[0]!.cash = 10_000;
     t.act('s1', { type: 'ROLL' });
@@ -222,10 +227,10 @@ describe('«Тренировка»', () => {
   it('ходы кончились — уровень не пройден', () => {
     const t = new Table(content, seeded());
     t.setLevel('pro-1');
-    t.join('s1', 'Аня');
+    t.join('s1', player('s1', 'Аня'));
     t.start('s1');
     t.leave('s1');
-    t.join('s1', '');
+    t.join('s1', player('s1', ''));
     while (t.game!.status === 'playing') t.timeout();
     const level = t.view().level!;
     if (level.result?.passed) expect(level.result.turns).toBeLessThanOrEqual(40);
@@ -237,8 +242,8 @@ describe('окно ответа', () => {
   /** Аня ходит и открывает цену TECH по 40, у Бори есть эти акции. */
   function stockOnTable(now = () => 1000) {
     const t = new Table(content, seeded(), now);
-    t.join('s1', 'Аня');
-    t.join('s2', 'Боря');
+    t.join('s1', player('s1', 'Аня'));
+    t.join('s2', player('s2', 'Боря'));
     t.start('s1');
     const g = structuredClone(t.game!);
     g.phase = 'deal';

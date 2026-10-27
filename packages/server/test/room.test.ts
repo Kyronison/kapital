@@ -1,19 +1,34 @@
 import type { Server } from '@colyseus/core';
 import { Client, type Room } from 'colyseus.js';
-import { existsSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SaveStore } from '../src/saves.js';
-import { createServer, ROOM_NAME, type ChatMessage, type TableView } from '../src/index.js';
-
-const SAVE_DIR = mkdtempSync(join(tmpdir(), 'kapital-saves-'));
+import { Auth, createServer, Db, ROOM_NAME, type ChatMessage, type TableView } from '../src/index.js';
 
 const PORT = 2600 + Math.floor(Math.random() * 1000);
 let server: Server;
+const db = Db.memory();
+const auth = new Auth(db);
+
+/** Клиент вошедшего игрока: каждое подключение к комнате идёт по свежему билету. */
+function as(name: string): Client {
+  const id = `u-${name}`;
+  if (!db.user(id)) db.createUser(id, name, null);
+  const client = new Client(`ws://localhost:${PORT}`);
+  const ticket = () => auth.ticket(id);
+  const wrap = <K extends 'create' | 'joinById' | 'joinOrCreate'>(k: K) => {
+    const orig = (client[k] as (...a: unknown[]) => Promise<Room>).bind(client);
+    (client as unknown as Record<string, unknown>)[k] = (...a: unknown[]) => {
+      client.auth.token = ticket();
+      return orig(...a);
+    };
+  };
+  wrap('create');
+  wrap('joinById');
+  wrap('joinOrCreate');
+  return client;
+}
 
 beforeAll(async () => {
-  server = createServer({ botDelayMs: 0, turnSeconds: 30, saves: new SaveStore(SAVE_DIR) });
+  server = createServer(auth, { botDelayMs: 0, turnSeconds: 30 });
   await server.listen(PORT);
 });
 
@@ -35,10 +50,9 @@ function nextMessage<T>(room: Room, type: string, until: (m: T) => boolean = () 
 
 describe('комната', () => {
   it('стол по ссылке: создание, вход второго игрока, старт и первый ход', async () => {
-    const client = new Client(`ws://localhost:${PORT}`);
-    const host = await client.create(ROOM_NAME, { name: 'Аня', professionId: 'teacher' });
+    const host = await as('Аня').create(ROOM_NAME, { professionId: 'teacher' });
     host.onMessage('events', () => {});
-    const guest = await client.joinById(host.roomId, { name: 'Боря' });
+    const guest = await as('Боря').joinById(host.roomId);
     guest.onMessage('events', () => {});
     guest.onMessage('view', () => {});
 
@@ -63,23 +77,23 @@ describe('комната', () => {
   });
 
   it('после старта в комнату нельзя войти новому игроку', async () => {
-    const client = new Client(`ws://localhost:${PORT}`);
-    const host = await client.create(ROOM_NAME, { name: 'Аня' });
+    const host = await as('Аня').create(ROOM_NAME);
     host.onMessage('*', () => {});
     const started = nextMessage<TableView>(host, 'view', (v) => v.game !== null);
     host.send('add_bot');
     host.send('start');
     await started;
     await new Promise((r) => setTimeout(r, 100));
-    await expect(client.joinById(host.roomId, { name: 'Опоздавший' })).rejects.toThrow();
+    await expect(as('Опоздавший').joinById(host.roomId)).rejects.toThrow();
+    // без билета или сессии в комнату не пускают вовсе
+    await expect(new Client(`ws://localhost:${PORT}`).joinById(host.roomId)).rejects.toThrow(/войти/);
     await host.leave();
   });
 
   it('чат: сообщение видят все за столом', async () => {
-    const client = new Client(`ws://localhost:${PORT}`);
-    const host = await client.create(ROOM_NAME, { name: 'Аня' });
+    const host = await as('Аня').create(ROOM_NAME);
     host.onMessage('*', () => {});
-    const guest = await client.joinById(host.roomId, { name: 'Боря' });
+    const guest = await as('Боря').joinById(host.roomId);
     guest.onMessage('*', () => {});
     const heard = nextMessage<ChatMessage[]>(guest, 'chat', (m) => m.length > 0);
     host.send('chat', '  Привет,   стол! ');
@@ -88,13 +102,14 @@ describe('комната', () => {
     await host.leave();
   });
 
-  it('партия сохраняется, когда все ушли, и продолжается по ключу места', async () => {
-    const client = new Client(`ws://localhost:${PORT}`);
-    const host = await client.create(ROOM_NAME, { name: 'Аня' });
+  it('партия сохраняется, когда все ушли, и продолжается из аккаунта', async () => {
+    const client = as('Аня');
+    const host = await client.create(ROOM_NAME);
     host.onMessage('*', () => {});
-    const hello = nextMessage<{ seatId: string; key: string; saveId: string }>(host, 'seat');
+    const hello = nextMessage<{ seatId: string; saveId: string }>(host, 'seat');
     host.send('hello');
     const seat = await hello;
+    expect(seat.seatId).toBe('u-Аня');
     const started = nextMessage<TableView>(host, 'view', (v) => v.game !== null);
     host.send('add_bot');
     host.send('start');
@@ -104,10 +119,12 @@ describe('комната', () => {
     await rolled;
     await host.leave();
     await new Promise((r) => setTimeout(r, 300));
-    expect(existsSync(join(SAVE_DIR, `${seat.saveId}.json`))).toBe(true);
+    expect(db.savesOf('u-Аня').map((x) => x.saveId)).toContain(seat.saveId);
+    expect(db.savesOf('u-Никто')).toHaveLength(0);
 
-    await expect(client.joinOrCreate(ROOM_NAME, { restore: seat.saveId, key: 'чужой' })).rejects.toThrow();
-    const back = await client.joinOrCreate(ROOM_NAME, { restore: seat.saveId, key: seat.key });
+    // чужой аккаунт в сохранённую партию не попадает
+    await expect(as('Боря').joinOrCreate(ROOM_NAME, { restore: seat.saveId })).rejects.toThrow();
+    const back = await client.joinOrCreate(ROOM_NAME, { restore: seat.saveId });
     back.onMessage('*', () => {});
     const again = nextMessage<{ seatId: string }>(back, 'seat');
     const viewed = nextMessage<TableView>(back, 'view');

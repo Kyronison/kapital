@@ -1,8 +1,10 @@
-import { Room, type Client, type Delayed } from '@colyseus/core';
+import { Room, type AuthContext, type Client, type Delayed } from '@colyseus/core';
 import { defaultContent, type Content } from '@kapital/content';
 import type { GameEvent } from '@kapital/engine';
 import { DEFAULT_TURN_SECONDS, type ChatMessage, type CreateOptions, type JoinOptions, type ServerMessages } from '@kapital/protocol';
-import { SaveStore } from './saves.js';
+import { parseCookies, SESSION_COOKIE } from './api.js';
+import type { Auth } from './auth.js';
+import type { User } from './db.js';
 import { Table, type Result } from './table.js';
 
 export interface RoomOptions {
@@ -13,8 +15,8 @@ export interface RoomOptions {
   /** Сколько секунд держится место отключившегося игрока. */
   reconnectSeconds?: number;
   content?: Content;
-  /** Где хранить незаконченные партии; null — не сохранять. */
-  saves?: SaveStore | null;
+  /** Аккаунты: без входа в комнату не пускают, незаконченные партии хранятся в той же базе. */
+  auth: Auth;
 }
 
 /**
@@ -27,21 +29,20 @@ export interface RoomOptions {
 export class KapitalRoom extends Room {
   maxClients = 6;
   private table!: Table;
-  private opts!: Required<Omit<RoomOptions, 'content' | 'saves'>>;
-  private saves: SaveStore | null = null;
+  private opts!: Required<Omit<RoomOptions, 'content' | 'auth'>>;
+  private auth!: Auth;
   private saveId = '';
-  private saving: Promise<void> = Promise.resolve();
   private botTimer: Delayed | null = null;
   private holdTimer: Delayed | null = null;
   private turnTimer: Delayed | null = null;
   private turnKey = '';
   private turnDeadline: number | null = null;
 
-  async onCreate(options: RoomOptions & CreateOptions = {}) {
+  async onCreate(options: RoomOptions & CreateOptions) {
     const content = options.content ?? defaultContent;
-    this.saves = options.saves ?? null;
+    this.auth = options.auth;
     if (options.restore) {
-      const snap = await this.saves?.load(options.restore);
+      const snap = this.auth.db.loadTable(options.restore);
       if (!snap) throw new Error('Сохранённая партия не найдена');
       this.table = Table.restore(content, snap);
       // не запираем: второй игрок той же партии должен найти эту комнату по restore
@@ -71,9 +72,7 @@ export class KapitalRoom extends Room {
     this.onMessage('set_turn_seconds', (client, s: unknown) => this.handle(client, this.table.setTurnSeconds(client.sessionId, s)));
     // клиент подписался на сообщения и просит своё место и стол: в onJoin он мог их не успеть принять
     this.onMessage('hello', (client) => {
-      const seatId = this.table.seatOf(client.sessionId);
-      const key = this.table.keyOf(seatId);
-      if (key) this.tell(client, 'seat', { seatId, key, saveId: this.saveId });
+      this.tell(client, 'seat', { seatId: this.table.seatOf(client.sessionId), saveId: this.saveId });
       this.tell(client, 'view', { ...this.table.view(), turnDeadline: this.turnDeadline });
       this.tell(client, 'chat', this.table.chat);
       if (this.table.log.events.length) this.tell(client, 'events', this.table.log);
@@ -89,21 +88,29 @@ export class KapitalRoom extends Room {
     });
   }
 
-  onJoin(client: Client, options: JoinOptions = {}) {
-    const key = typeof options.key === 'string' ? options.key : undefined;
-    const r = this.table.join(client.sessionId, String(options.name ?? ''), options.professionId, options.dreamId, key);
+  /** В комнату пускают по билету из /api/auth/ticket или по cookie сессии; аккаунт становится местом за столом. */
+  onAuth(_client: Client, _options: unknown, context: AuthContext): User {
+    const user = this.auth.userFromTicket(context.token) ?? this.auth.userFromSession(parseCookies(context.headers.cookie)[SESSION_COOKIE]);
+    if (!user) throw new Error('Нужно войти в аккаунт');
+    return user;
+  }
+
+  onJoin(client: Client<unknown, User>, options: JoinOptions = {}) {
+    const user = client.auth!;
+    const r = this.table.join(client.sessionId, { id: user.id, name: user.name }, options.professionId, options.dreamId);
     if (!r.ok) throw new Error(r.error);
     this.tell(client, 'seat', { ...r.value, saveId: this.saveId });
     if (this.table.level && !this.table.started) this.table.start(client.sessionId);
     this.publish([]);
   }
 
-  async onLeave(client: Client, consented?: boolean) {
+  async onLeave(client: Client<unknown, User>, consented?: boolean) {
     this.publish(this.table.leave(client.sessionId));
     if (consented || !this.table.started) return;
     try {
       await this.allowReconnection(client, this.opts.reconnectSeconds);
-      const r = this.table.join(client.sessionId, '');
+      const user = client.auth!;
+      const r = this.table.join(client.sessionId, { id: user.id, name: user.name });
       if (r.ok) this.tell(client, 'seat', { ...r.value, saveId: this.saveId });
       this.publish([]);
     } catch {
@@ -111,23 +118,22 @@ export class KapitalRoom extends Room {
     }
   }
 
-  async onDispose() {
+  onDispose() {
     this.botTimer?.clear();
     this.turnTimer?.clear();
     this.holdTimer?.clear();
     this.persist();
-    await this.saving;
   }
 
-  /** Незаконченная партия пишется на диск, законченная удаляется. Записи идут строго по очереди. */
+  /** Незаконченная партия пишется в базу зашифрованной и видна в списке каждому игроку за столом; законченная удаляется. */
   private persist() {
-    const saves = this.saves;
-    if (!saves || !this.table.started) return;
-    const finished = this.table.game!.status === 'finished';
-    const snap = finished ? null : structuredClone(this.table.snapshot());
-    this.saving = this.saving
-      .then(() => (snap ? saves.save(this.saveId, snap) : saves.remove(this.saveId)))
-      .catch((e: unknown) => console.error('Не удалось сохранить партию', e));
+    if (!this.table.started) return;
+    try {
+      if (this.table.game!.status === 'finished') this.auth.db.removeTable(this.saveId);
+      else this.auth.db.saveTable(this.saveId, this.table.snapshot(), this.table.seats.filter((s) => !s.bot).map((s) => s.id));
+    } catch (e) {
+      console.error('Не удалось сохранить партию', e);
+    }
   }
 
   /** Типизированная отправка: имя и форма сообщения берутся из протокола. */

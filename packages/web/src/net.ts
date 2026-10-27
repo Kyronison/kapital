@@ -1,49 +1,16 @@
-import type { GameMode } from '@kapital/content';
 import type { GameEvent } from '@kapital/engine';
 import type { ChatMessage, ClientAction, JoinOptions, SeatTicket, ServerMessages, TableView } from '@kapital/protocol';
+import { ticket } from './auth.js';
 import { Client, type Room } from 'colyseus.js';
 
 export type { ChatMessage, PublicGame, ReactionView as Reaction, Seat, TableView as View } from '@kapital/protocol';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** Незаконченная партия на этом устройстве: по ключу место возвращается даже после перезапуска сервера. */
-export interface SavedGame {
-  saveId: string;
-  key: string;
-  seatId: string;
-  players: string[];
-  mode: GameMode;
-  turn: number;
-  savedAt: number;
-}
-
-const SAVES_KEY = 'kapital:saves';
-
-export function loadSaves(): SavedGame[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(SAVES_KEY) ?? '[]') as unknown;
-    return Array.isArray(raw) ? (raw as SavedGame[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeSaves(list: SavedGame[]) {
-  try {
-    localStorage.setItem(SAVES_KEY, JSON.stringify(list.slice(0, 10)));
-  } catch {
-    // без localStorage архива просто не будет
-  }
-}
-
-export function forgetSave(saveId: string) {
-  writeSaves(loadSaves().filter((x) => x.saveId !== saveId));
-}
-
 const WS = location.protocol === 'https:' ? 'wss' : 'ws';
 // при разработке сайт отдаёт Vite, а игра на порту 2567; собранный сайт раздаёт сам игровой сервер
 const SERVER_URL =
   import.meta.env.VITE_SERVER_URL ?? (import.meta.env.DEV ? `${WS}://${location.hostname}:2567` : `${WS}://${location.host}`);
+export type { SaveSummary } from '@kapital/protocol';
 const ROOM = 'kapital';
 const TOKEN_KEY = 'kapital:reconnect';
 
@@ -112,7 +79,10 @@ export function useTable() {
       token = null;
     }
     if (!token) return;
-    client.current.reconnect(token).then(attach).catch(() => {
+    ticket().then((t) => {
+      client.current.auth.token = t;
+      return client.current.reconnect(token);
+    }).then(attach).catch(() => {
       try {
         sessionStorage.removeItem(TOKEN_KEY);
       } catch {
@@ -121,27 +91,11 @@ export function useTable() {
     });
   }, [attach]);
 
-  // архив партий: запоминаем начатую партию и удаляем законченную
-  useEffect(() => {
-    if (!seat || !view?.game) return;
-    if (view.game.status === 'finished') {
-      forgetSave(seat.saveId);
-      return;
-    }
-    const me = view.game.players.find((p) => p.id === seat.seatId);
-    const entry: SavedGame = {
-      ...seat,
-      players: view.seats.map((x) => x.name),
-      mode: view.mode,
-      turn: me?.turnsTaken ?? 0,
-      savedAt: Date.now(),
-    };
-    writeSaves([entry, ...loadSaves().filter((x) => x.saveId !== seat.saveId)]);
-  }, [seat, view]);
-
+  // в комнату пускают по билету аккаунта: он одноразовый, поэтому берётся перед каждым подключением
   const run = useCallback(async (f: () => Promise<Room>) => {
     setError(null);
     try {
+      client.current.auth.token = await ticket();
       attach(await f());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось подключиться к серверу');
@@ -156,14 +110,13 @@ export function useTable() {
     logStart: log.start,
     error,
     clearError: () => setError(null),
-    me: seat?.seatId ?? room?.sessionId ?? null,
+    me: seat?.seatId ?? null,
     create: (opts: JoinOptions) => run(() => client.current.create(ROOM, opts)),
-    startLevel: (levelId: string, name: string) => run(() => client.current.create(ROOM, { levelId, name })),
+    startLevel: (levelId: string) => run(() => client.current.create(ROOM, { levelId })),
     join: (roomId: string, opts: JoinOptions) => run(() => client.current.joinById(roomId, opts)),
     // партия ещё идёт на сервере — входим в ту же комнату, иначе сервер поднимет её из сохранения
-    resume: (save: SavedGame) => run(() =>
-      client.current.joinById(save.saveId, { key: save.key })
-        .catch(() => client.current.joinOrCreate(ROOM, { restore: save.saveId, key: save.key }))),
+    resume: (saveId: string) => run(() =>
+      client.current.joinById(saveId).catch(() => client.current.joinOrCreate(ROOM, { restore: saveId }))),
     leave: () => {
       const r = current.current;
       current.current = null;

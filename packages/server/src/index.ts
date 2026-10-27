@@ -1,6 +1,10 @@
+export { Table, type TableSnapshot, type Player } from './table.js';
 export { KapitalRoom, type RoomOptions } from './room.js';
-export { Table, type TableSnapshot } from './table.js';
-export type { Seat, TableView, PublicGame, ChatMessage, JoinOptions } from '@kapital/protocol';
 export { createServer, ROOM_NAME, type ServerOptions } from './server.js';
 export { staticHandler } from './static.js';
-export { SaveStore } from './saves.js';
+export { Db, type User } from './db.js';
+export { Auth, type AuthOptions } from './auth.js';
+export { Vault } from './vault.js';
+export { consoleMailer, smtpMailer, type Mailer } from './mail.js';
+export { apiHandler, SESSION_COOKIE } from './api.js';
+export type * from '@kapital/protocol';
