@@ -25,14 +25,14 @@ export const CELL_TITLES: Record<string, string> = {
   crisis: 'Кризис',
 };
 
-/** Короткие подписи для маленьких клеток на телефоне: полное название туда не помещается. */
-export const CELL_SHORT: Record<string, string> = {
+/** Название на корешке билета: одно полное слово, без сокращений. */
+export const CELL_NAMES: Record<string, string> = {
   opportunity: 'Сделка',
   market: 'Рынок',
   temptation: 'Соблазн',
   charity: 'Помощь',
   baby: 'Ребёнок',
-  layoff: 'Сокращ.',
+  layoff: 'Сокращение',
   everyday: 'Будни',
   venture: 'Проект',
   dream: 'Мечта',
@@ -60,46 +60,6 @@ export function cellHelp(cell: string): string {
     case 'audit': return `Налоговая проверка: вы отдаёте ${share(r.auditShare)} наличных.`;
     case 'crisis': return 'Кризис: следующий доход «Свободного пути» не придёт.';
     default: return '';
-  }
-}
-
-/** Название на корешке билета: одно полное слово, без сокращений. */
-export const TICKET_NAMES: Record<string, string> = {
-  ...CELL_SHORT,
-  layoff: 'Сокращение',
-};
-
-/** Главное о клетке в двух-трёх словах: строка эффекта на карточке клетки. */
-export function cellEffect(cell: string): string {
-  const r = content.rules;
-  switch (cell) {
-    case 'opportunity': return 'Купить актив';
-    case 'market': return 'Продать дороже';
-    case 'temptation': return 'Лишняя трата';
-    case 'charity': return `2 кубика × ${r.charityTurns}`;
-    case 'baby': return 'Расходы растут';
-    case 'layoff': return `−${r.layoffPaydays} зарплаты`;
-    case 'everyday': return 'Траты, полисы';
-    case 'venture': return 'Доход за период';
-    case 'dream': return 'Купить мечту';
-    case 'lawsuit': return `−${share(r.lawsuitShare)} наличных`;
-    case 'audit': return `−${share(r.auditShare)} наличных`;
-    case 'crisis': return 'Без дохода';
-    default: return '';
-  }
-}
-
-/** Вариант оформления клеток для показа: ?cells=card|scene|info|classic|ticket, запоминается. */
-export type CellStyle = 'tiles' | 'card' | 'scene' | 'info' | 'classic' | 'ticket';
-export function cellStyle(): CellStyle {
-  const all: CellStyle[] = ['tiles', 'card', 'scene', 'info', 'classic', 'ticket'];
-  try {
-    const asked = new URLSearchParams(location.search).get('cells') as CellStyle | null;
-    if (asked && all.includes(asked)) localStorage.setItem('kapital:cells', asked);
-    const saved = localStorage.getItem('kapital:cells') as CellStyle | null;
-    return saved && all.includes(saved) ? saved : 'tiles';
-  } catch {
-    return 'tiles';
   }
 }
 
