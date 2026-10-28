@@ -431,6 +431,108 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .empty { display: flex; align-items: center; gap: 12px; margin-top: 12px; font-size: 13px; }
 .empty img { width: 96px; }
 
+/* сводка: доходы − расходы = поток, слагаемые ведут к разделам отчёта под полем */
+.main-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.flow-sum { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.flow-term {
+  display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 5px; width: 100%; padding: 8px 10px; text-align: left;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; box-shadow: none; font: inherit; color: inherit;
+}
+.flow-term:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.flow-term small { font-size: 12px; line-height: 1.3; font-weight: 500; }
+.flow-line { display: flex; align-items: baseline; gap: 8px; }
+.flow-label { font-weight: 700; }
+.flow-line b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.flow-more { color: var(--muted); font-weight: 700; }
+.flow-sum .op { display: inline-block; width: 14px; color: var(--muted); font-weight: 800; }
+.flow-bar { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--line) 50%, transparent); }
+.flow-bar > span { min-width: 2px; height: 100%; }
+.seg-active { background: var(--accent); }
+.seg-passive { background: var(--gold); }
+.seg-expense { background: var(--bad); opacity: 0.85; }
+.flow-result {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 10px 0;
+  border-top: 2px solid var(--line); font-weight: 700;
+}
+.flow-result strong { font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
+.balance-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.balance-tile {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; padding: 8px 10px; text-align: left; font-weight: 400;
+  background: none; border: 1px solid var(--line); border-radius: 12px; box-shadow: none; font: inherit; color: inherit;
+}
+.balance-tile:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.balance-tile > span { display: flex; align-items: center; gap: 4px; font-size: 12.5px; }
+.balance-tile b { font-variant-numeric: tabular-nums; }
+.balance-tile small { font-size: 11.5px; }
+.freedom-gap { margin: 0; font-size: 12.5px; }
+.freedom-gap b { color: var(--text); }
+
+/* полный отчёт: два шага, в каждом пара карточек */
+.fin-report { display: flex; flex-direction: column; gap: 12px; }
+.fin-step {
+  display: flex; align-items: center; gap: 8px; align-self: flex-start; margin: 4px 0 0; padding: 6px 14px 6px 6px; color: var(--text);
+  font-size: 15px; text-transform: none; letter-spacing: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 999px; box-shadow: var(--shadow);
+}
+.fin-step > span { flex: none; }
+.fin-step > span {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent); color: var(--accent-ink); font-size: 13px;
+}
+.fin-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.fin-card { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 12px; border-top: 4px solid var(--fin-tone); }
+.fin-income { --fin-tone: var(--good); }
+.fin-expenses { --fin-tone: var(--bad); }
+.fin-assets { --fin-tone: var(--gold); }
+.fin-liabilities { --fin-tone: var(--muted); }
+.fin-card.fin-flash { animation: fin-flash 1.4s ease-out; }
+@keyframes fin-flash { 0%, 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--fin-tone) 45%, transparent), var(--shadow); } 100% { box-shadow: var(--shadow); } }
+.fin-card-head { display: flex; gap: 10px; align-items: flex-start; }
+.fin-card-head h3 { margin: 0 0 2px; font-size: 16px; }
+.fin-card-head p { margin: 0; font-size: 12.5px; line-height: 1.35; }
+.fin-badge {
+  display: inline-grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 10px;
+  background: color-mix(in srgb, var(--fin-tone) 16%, transparent); color: var(--fin-tone);
+}
+.fin-total { margin-left: auto; font-family: var(--font-display); font-size: 20px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fin-income .fin-total { color: var(--good); }
+.fin-expenses .fin-total { color: var(--bad); }
+.fin-group-head {
+  display: flex; justify-content: space-between; gap: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line);
+  font-size: 11.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+}
+.fin-group-head b { color: var(--text); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.fin-hint { margin: 4px 0 0; font-size: 12px; }
+.fin-empty { margin: 6px 0 0; padding: 8px 10px; font-size: 12.5px; border: 1px dashed var(--line); border-radius: 10px; }
+.fin-group ul { list-style: none; margin: 0; padding: 0; }
+.fin-group li {
+  position: relative; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 8px; align-items: start;
+  padding: 7px 0 8px; font-size: 13.5px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
+}
+.fin-group li:last-child { border-bottom: 0; }
+.fin-group li > .icon { margin-top: 2px; color: var(--fin-tone); }
+.fin-label { display: flex; flex-direction: column; min-width: 0; }
+.fin-label small { color: var(--muted); font-size: 12px; }
+.fin-amount { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fin-share {
+  position: absolute; left: 24px; bottom: 2px; height: 3px; max-width: calc(100% - 24px); border-radius: 999px;
+  background: color-mix(in srgb, var(--fin-tone) 55%, transparent);
+}
+.fin-group li.off { opacity: 0.6; }
+.fin-group li.off .fin-amount { text-decoration: line-through; }
+.fin-foot {
+  display: flex; justify-content: space-between; gap: 8px; padding-top: 8px; border-top: 2px solid var(--line);
+  font-weight: 800;
+}
+.fin-foot b { font-variant-numeric: tabular-nums; }
+.fin-result {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 0; padding: 10px 14px;
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; font-weight: 700;
+}
+.fin-result .op { color: var(--muted); }
+.fin-result strong { font-family: var(--font-display); font-size: 18px; }
+.fin-result small { flex-basis: 100%; font-weight: 500; }
+
 .players ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .players li { display: flex; align-items: center; gap: 10px; padding: 6px; border-radius: 12px; }
 .players li.current { background: color-mix(in srgb, var(--gold) 16%, transparent); }
@@ -498,6 +600,9 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 
 @media (max-width: 1000px) {
   .game { grid-template-columns: 1fr; }
+  /* отчёт уходит под сводку и панель хода */
+  .game .main-col { display: contents; }
+  .game .fin-report { order: 1; }
   /*
    * Панель хода прилипает к низу экрана, пока её место ниже, а дальше стоит на своём месте.
    * Раньше она была fixed и закрывала цель уровня и подсказки наставника под полем.
