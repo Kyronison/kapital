@@ -1,7 +1,7 @@
 import type { Content } from '@kapital/content';
 import type { Effect } from '@kapital/content';
 import {
-  availableLoan, cashflow, effectAmount, effectsValue, everydayAmount, passiveIncome, professionOf, roundUpToStep,
+  availableLoan, cashflow, effectAmount, effectsValue, everydayAmount, expectedDeal, passiveIncome, professionOf, roundUpToStep,
   trainingSaving,
 } from './finance.js';
 import { choiceOptions, defaultOption, dreamPrice } from './game.js';
@@ -114,7 +114,9 @@ export function botAction(content: Content, s: GameState, playerId: string, goal
       if (!pending || (pending.deck !== 'smallDeals' && pending.deck !== 'bigDeals')) return end;
       const card = pending.card;
       if (card.kind === 'asset') {
-        const worth = card.flow > 0 && card.flow / card.down > rules.loanRate * 1.1;
+        // считаем с учётом дефекта: в среднем он съедает часть потока и добавляет ремонт ко взносу
+        const expected = expectedDeal(card, (rules.maxTurns - p.turnsTaken) / 2);
+        const worth = expected.flow > 0 && expected.flow / expected.invested > rules.loanRate * 1.1;
         const short = card.down - p.cash;
         if (!worth || short > availableLoan(content, p) || (goal.saveCash && short > 0)) return end;
         if (short > 0) return { type: 'TAKE_LOAN', playerId, amount: roundUpToStep(short, rules.loanStep) };

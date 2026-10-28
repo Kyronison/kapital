@@ -2,13 +2,15 @@ import type { Profession } from './types.js';
 
 export const professions: Profession[] = [
   {
-    id: 'courier', title: 'Курьер', salary: 2000,
+    id: 'courier', about: 'Самая скромная зарплата, но и расходы небольшие: ни ипотеки, ни машины в кредит.',
+    title: 'Курьер', salary: 2000,
     expenses: { taxes: 200, housing: 450, car: 80, loans: 50, other: 700 },
     perChild: 110, startCash: 900,
     liabilities: [{ title: 'Кредитные карты', amount: 2000 }],
   },
   {
-    id: 'nurse', title: 'Медсестра', salary: 3000,
+    id: 'nurse', about: 'Ипотека и кредит на обучение, своей машины нет.',
+    title: 'Медсестра', salary: 3000,
     expenses: { taxes: 450, housing: 600, car: 0, loans: 190, other: 900 },
     perChild: 160, startCash: 1300,
     liabilities: [
@@ -18,7 +20,8 @@ export const professions: Profession[] = [
     ],
   },
   {
-    id: 'teacher', title: 'Учитель', salary: 3300,
+    id: 'teacher', about: 'Стабильная зарплата, ипотека и старенькая машина в кредите.',
+    title: 'Учитель', salary: 3300,
     expenses: { taxes: 500, housing: 650, car: 120, loans: 80, other: 1000 },
     perChild: 170, startCash: 1400,
     liabilities: [
@@ -28,7 +31,8 @@ export const professions: Profession[] = [
     ],
   },
   {
-    id: 'mechanic', title: 'Автомеханик', salary: 3600,
+    id: 'mechanic', about: 'Руки на месте: машина обходится дороже, зато подработки всегда найдутся.',
+    title: 'Автомеханик', salary: 3600,
     expenses: { taxes: 600, housing: 700, car: 200, loans: 100, other: 1000 },
     perChild: 180, startCash: 1500,
     liabilities: [
@@ -38,7 +42,8 @@ export const professions: Profession[] = [
     ],
   },
   {
-    id: 'engineer', title: 'Инженер', salary: 5200,
+    id: 'engineer', about: 'Хорошая зарплата и типичный набор долгов: ипотека, автокредит, карты.',
+    title: 'Инженер', salary: 5200,
     expenses: { taxes: 1000, housing: 1050, car: 250, loans: 150, other: 1350 },
     perChild: 260, startCash: 2000,
     liabilities: [
@@ -48,7 +53,8 @@ export const professions: Profession[] = [
     ],
   },
   {
-    id: 'developer', title: 'Программист', salary: 6500,
+    id: 'developer', about: 'Высокая зарплата растёт быстрее привычек, но и расходы немаленькие.',
+    title: 'Программист', salary: 6500,
     expenses: { taxes: 1300, housing: 1300, car: 300, loans: 200, other: 1700 },
     perChild: 320, startCash: 2500,
     liabilities: [
@@ -58,7 +64,8 @@ export const professions: Profession[] = [
     ],
   },
   {
-    id: 'lawyer', title: 'Юрист', salary: 8500,
+    id: 'lawyer', about: 'Большие доходы, большой кредит на обучение и дорогая жизнь в центре.',
+    title: 'Юрист', salary: 8500,
     expenses: { taxes: 1800, housing: 1600, car: 450, loans: 450, other: 2100 },
     perChild: 420, startCash: 3000,
     liabilities: [
@@ -69,7 +76,8 @@ export const professions: Profession[] = [
     ],
   },
   {
-    id: 'surgeon', title: 'Хирург', salary: 12000,
+    id: 'surgeon', about: 'Самая высокая зарплата из врачей, но годы учёбы оставили огромный кредит.',
+    title: 'Хирург', salary: 12000,
     expenses: { taxes: 2800, housing: 2300, car: 600, loans: 800, other: 2700 },
     perChild: 600, startCash: 4000,
     liabilities: [
@@ -78,5 +86,216 @@ export const professions: Profession[] = [
       { title: 'Кредит на обучение', amount: 30000 },
       { title: 'Кредитные карты', amount: 12000 },
     ],
+  },
+  {
+    id: 'barista', about: 'Зарплата и чаевые невелики, зато почти нет долгов и не нужна машина.',
+    title: 'Бариста', salary: 1800,
+    expenses: { taxes: 180, housing: 400, car: 0, loans: 40, other: 700 },
+    perChild: 100, startCash: 800,
+    liabilities: [{ title: 'Кредитные карты', amount: 1500 }],
+  },
+  {
+    id: 'musician', about: 'Платит налог самозанятого, но в долгах за инструменты. Доход зависит от концертов.',
+    title: 'Музыкант', salary: 2200,
+    expenses: { taxes: 130, housing: 500, car: 60, loans: 120, other: 720 },
+    perChild: 120, startCash: 900,
+    liabilities: [
+      { title: 'Кредит на инструменты', amount: 6000 },
+      { title: 'Кредитные карты', amount: 2000 },
+    ],
+  },
+  {
+    id: 'hairdresser', about: 'Арендует кресло в салоне и работает на себя: налог самозанятого и свои клиенты.',
+    title: 'Парикмахер', salary: 2500,
+    expenses: { taxes: 150, housing: 550, car: 90, loans: 110, other: 820 },
+    perChild: 130, startCash: 1000,
+    liabilities: [
+      { title: 'Кредит на инструменты и кресло', amount: 5000 },
+      { title: 'Кредитные карты', amount: 2000 },
+    ],
+  },
+  {
+    id: 'trainer', about: 'Самозанятый тренер: клиенты, абонементы и спортпит за свой счёт.',
+    title: 'Фитнес-тренер', salary: 2600,
+    expenses: { taxes: 160, housing: 600, car: 100, loans: 90, other: 870 },
+    perChild: 140, startCash: 1000,
+    liabilities: [
+      { title: 'Рассрочка за сертификацию', amount: 3000 },
+      { title: 'Кредитные карты', amount: 2500 },
+    ],
+  },
+  {
+    id: 'taxi', about: 'Машина в лизинге съедает почти четверть дохода, зато работа есть всегда.',
+    title: 'Таксист', salary: 2700,
+    expenses: { taxes: 270, housing: 550, car: 550, loans: 50, other: 480 },
+    perChild: 140, startCash: 1000,
+    liabilities: [
+      { title: 'Лизинг автомобиля', amount: 18000 },
+      { title: 'Кредитные карты', amount: 2000 },
+    ],
+  },
+  {
+    id: 'cook', about: 'Снимает жильё у работы и ещё платит за кулинарную школу.',
+    title: 'Повар', salary: 2900,
+    expenses: { taxes: 380, housing: 600, car: 80, loans: 90, other: 900 },
+    perChild: 150, startCash: 1100,
+    liabilities: [
+      { title: 'Кредит на кулинарную школу', amount: 4000 },
+      { title: 'Кредитные карты', amount: 2500 },
+    ],
+  },
+  {
+    id: 'scientist', about: 'Небольшая ставка и льготная ипотека для молодых учёных. Гранты — если повезёт.',
+    title: 'Научный сотрудник', salary: 3000,
+    expenses: { taxes: 390, housing: 550, car: 0, loans: 160, other: 1050 },
+    perChild: 160, startCash: 1200,
+    liabilities: [
+      { title: 'Льготная ипотека', amount: 50000 },
+      { title: 'Кредитные карты', amount: 2000 },
+    ],
+  },
+  {
+    id: 'firefighter', about: 'Служебная ипотека под низкий процент и надёжная работа сутки через трое.',
+    title: 'Пожарный', salary: 3100,
+    expenses: { taxes: 400, housing: 500, car: 120, loans: 80, other: 1100 },
+    perChild: 160, startCash: 1300,
+    liabilities: [
+      { title: 'Служебная ипотека', amount: 40000 },
+      { title: 'Автокредит', amount: 3000 },
+      { title: 'Кредитные карты', amount: 2000 },
+    ],
+  },
+  {
+    id: 'electrician', about: 'Свой фургон с инструментом в кредите: можно брать вызовы в любое время.',
+    title: 'Электрик', salary: 3400,
+    expenses: { taxes: 450, housing: 650, car: 250, loans: 120, other: 950 },
+    perChild: 170, startCash: 1400,
+    liabilities: [
+      { title: 'Ипотека', amount: 55000 },
+      { title: 'Кредит на фургон', amount: 8000 },
+      { title: 'Кредитные карты', amount: 2500 },
+    ],
+  },
+  {
+    id: 'farmer', about: 'Свой дом в деревне почти ничего не стоит, но трактор в лизинге. С первого дня сдаёт амбар.',
+    title: 'Фермер', salary: 3500,
+    expenses: { taxes: 250, housing: 300, car: 700, loans: 400, other: 1000 },
+    perChild: 150, startCash: 1300,
+    liabilities: [
+      { title: 'Лизинг трактора', amount: 40000 },
+      { title: 'Кредит на семена и корм', amount: 10000 },
+    ],
+    startAssets: [{ assetType: 'garage', title: 'Амбар под сдачу соседям', cost: 8000, mortgage: 0, flow: 120 }],
+  },
+  {
+    id: 'accountant', about: 'Ровная зарплата и аккуратные расходы. Весной отчёты, весной и подработки.',
+    title: 'Бухгалтер', salary: 4000,
+    expenses: { taxes: 600, housing: 800, car: 200, loans: 150, other: 1100 },
+    perChild: 200, startCash: 1700,
+    liabilities: [
+      { title: 'Ипотека', amount: 80000 },
+      { title: 'Автокредит', amount: 6000 },
+      { title: 'Кредитные карты', amount: 3000 },
+    ],
+  },
+  {
+    id: 'designer', about: 'Налог самозанятого всего 6%, но коворкинг, техника и подписки обходятся дорого.',
+    title: 'Дизайнер-фрилансер', salary: 4300,
+    expenses: { taxes: 260, housing: 900, car: 0, loans: 250, other: 1700 },
+    perChild: 210, startCash: 1500,
+    liabilities: [
+      { title: 'Рассрочка за ноутбук', amount: 6000 },
+      { title: 'Кредитные карты', amount: 4000 },
+    ],
+  },
+  {
+    id: 'trucker', about: 'Свой тягач в кредите: хороший заработок, но и машина дорогая.',
+    title: 'Дальнобойщик', salary: 4600,
+    expenses: { taxes: 700, housing: 700, car: 700, loans: 100, other: 1100 },
+    perChild: 220, startCash: 1700,
+    liabilities: [
+      { title: 'Ипотека', amount: 70000 },
+      { title: 'Кредит на тягач', amount: 45000 },
+    ],
+  },
+  {
+    id: 'realtor', about: 'Знает рынок изнутри и с первого дня сдаёт комнату, купленную в ипотеку.',
+    title: 'Риелтор', salary: 4800,
+    expenses: { taxes: 720, housing: 1000, car: 350, loans: 250, other: 1400 },
+    perChild: 230, startCash: 1800,
+    liabilities: [
+      { title: 'Ипотека', amount: 90000 },
+      { title: 'Автокредит', amount: 8000 },
+      { title: 'Кредитные карты', amount: 4000 },
+    ],
+    startAssets: [{ assetType: 'room', title: 'Комната под сдачу', cost: 22000, mortgage: 19000, flow: 250 }],
+  },
+  {
+    id: 'sales', about: 'Оклад с премиями за план, дорогая машина для встреч и привычка тратить.',
+    title: 'Менеджер по продажам', salary: 5000,
+    expenses: { taxes: 750, housing: 1050, car: 350, loans: 300, other: 1200 },
+    perChild: 240, startCash: 1800,
+    liabilities: [
+      { title: 'Ипотека', amount: 95000 },
+      { title: 'Автокредит', amount: 15000 },
+      { title: 'Кредитные карты', amount: 7000 },
+    ],
+  },
+  {
+    id: 'architect', about: 'Престижная профессия: кредит на обучение и конкурсы, которые иногда приносят крупный заказ.',
+    title: 'Архитектор', salary: 6000,
+    expenses: { taxes: 1100, housing: 1200, car: 300, loans: 250, other: 1500 },
+    perChild: 290, startCash: 2300,
+    liabilities: [
+      { title: 'Ипотека', amount: 120000 },
+      { title: 'Автокредит', amount: 9000 },
+      { title: 'Кредит на обучение', amount: 8000 },
+    ],
+  },
+  {
+    id: 'entrepreneur', about: 'Своё небольшое дело: зарплату платит себе сам, а кредит на развитие тянет расходы.',
+    title: 'Предприниматель', salary: 7000,
+    expenses: { taxes: 700, housing: 1300, car: 500, loans: 900, other: 2000 },
+    perChild: 340, startCash: 2500,
+    liabilities: [
+      { title: 'Кредит на развитие бизнеса', amount: 30000 },
+      { title: 'Ипотека', amount: 130000 },
+      { title: 'Автокредит', amount: 14000 },
+    ],
+    startAssets: [{ assetType: 'vending', title: 'Кофейный автомат в своём офисе', cost: 3000, mortgage: 0, flow: 250 }],
+  },
+  {
+    id: 'pilot', about: 'Высокая зарплата, огромный кредит за лётную школу и ежегодная медкомиссия.',
+    title: 'Пилот', salary: 9500,
+    expenses: { taxes: 1900, housing: 1800, car: 500, loans: 700, other: 2250 },
+    perChild: 470, startCash: 3300,
+    liabilities: [
+      { title: 'Ипотека', amount: 180000 },
+      { title: 'Кредит за лётную школу', amount: 25000 },
+      { title: 'Автокредит', amount: 15000 },
+    ],
+  },
+  {
+    id: 'dentist', about: 'Частный кабинет: хороший доход, но оборудование куплено в кредит.',
+    title: 'Стоматолог', salary: 10500,
+    expenses: { taxes: 2100, housing: 1900, car: 550, loans: 1100, other: 2400 },
+    perChild: 520, startCash: 3500,
+    liabilities: [
+      { title: 'Ипотека', amount: 190000 },
+      { title: 'Кредит на оборудование кабинета', amount: 40000 },
+      { title: 'Автокредит', amount: 18000 },
+    ],
+  },
+  {
+    id: 'executive', about: 'Самая высокая зарплата и самые дорогие привычки. Уже сдаёт студию, купленную в ипотеку.',
+    title: 'Топ-менеджер', salary: 15000,
+    expenses: { taxes: 3400, housing: 3000, car: 900, loans: 1000, other: 3400 },
+    perChild: 750, startCash: 5000,
+    liabilities: [
+      { title: 'Ипотека', amount: 300000 },
+      { title: 'Автокредит', amount: 35000 },
+      { title: 'Кредитные карты', amount: 15000 },
+    ],
+    startAssets: [{ assetType: 'studio', title: 'Студия под сдачу', cost: 45000, mortgage: 40000, flow: 300 }],
   },
 ];

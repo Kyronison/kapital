@@ -1,4 +1,4 @@
-import type { Content, Effect, EverydayCard, Profession } from '@kapital/content';
+import type { AssetCard, Content, Effect, EverydayCard, Profession } from '@kapital/content';
 import type { PlayerState } from './types.js';
 
 export function professionOf(content: Content, player: PlayerState): Profession {
@@ -64,6 +64,27 @@ export function effectsValue(content: Content, player: PlayerState, effects: Eff
     }
   }
   return sum;
+}
+
+/** Шанс, что скрытый дефект всплывёт: на кубике меньше odds. */
+export function riskChance(odds: number): number {
+  return Math.max(0, Math.min(6, odds - 1)) / 6;
+}
+
+/**
+ * Чего в среднем ждать от сделки: поток за период в среднем по оставшимся `paydaysLeft` зарплатам
+ * (с учётом дефекта и того, когда объект будет готов) и деньги, вложенные сразу (взнос плюс
+ * ожидаемый ремонт). Для простой сделки — её поток и взнос.
+ */
+export function expectedDeal(card: AssetCard, paydaysLeft = 20): { flow: number; invested: number } {
+  const chance = card.risk ? riskChance(card.risk.odds) : 0;
+  const now = card.flow + chance * (card.risk?.flow ?? 0);
+  const left = Math.max(1, paydaysLeft);
+  const ready = card.later ? Math.max(0, left - card.later.paydays) / left : 0;
+  return {
+    flow: now + ready * (card.later?.flow ?? 0),
+    invested: card.down + chance * (card.risk?.cash ?? 0),
+  };
 }
 
 /** Доходность сделки за период: поток на вложенные деньги. */

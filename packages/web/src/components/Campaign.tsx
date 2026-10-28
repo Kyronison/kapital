@@ -1,9 +1,10 @@
-import { levels, type Level } from '@kapital/content';
+import { chapters, levels, type Level } from '@kapital/content';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { art, Icon } from '../art.js';
-import { currentLevel, goalText, isOpen, TIERS } from '../campaign.js';
+import { chapterOf, currentLevel, goalText, isOpen, TIERS } from '../campaign.js';
 import { useProgress } from '../campaign-progress.js';
 import { MAP_DESKTOP, MAP_MOBILE } from '../campaign-map.js';
+import { content } from '../content.js';
 import { professionTitle } from '../format.js';
 import type { TableApi } from '../net.js';
 import { LearningOptions } from './LearningOptions.js';
@@ -25,10 +26,20 @@ export function Campaign({ api }: { api: TableApi }) {
   const progress = useProgress();
   const firstOpen = currentLevel(progress);
   const [picked, setPicked] = useState<Level>(firstOpen);
+  const [chapter, setChapter] = useState(chapterOf(firstOpen));
   // прогресс приходит из аккаунта чуть позже первого рендера: выбранный уровень подтягивается за ним
-  useEffect(() => setPicked(firstOpen), [firstOpen]);
+  useEffect(() => {
+    setPicked(firstOpen);
+    setChapter(chapterOf(firstOpen));
+  }, [firstOpen]);
   const total = Object.values(progress).reduce((a, b) => a + b, 0);
   const map = useNarrow() ? MAP_MOBILE : MAP_DESKTOP;
+  const own = chapters[chapter]!.levels;
+  const pickChapter = (i: number) => {
+    setChapter(i);
+    const ls = chapters[i]!.levels;
+    setPicked(ls.find((l) => isOpen(l, progress) && !progress[l.id]) ?? ls[0]!);
+  };
 
   return (
     <div className="campaign">
@@ -36,9 +47,19 @@ export function Campaign({ api }: { api: TableApi }) {
         <h1><Icon name="ui-level" size={28} />Тренировка</h1>
         <span className="muted">Пройдено {Object.keys(progress).length} из {levels.length} · звёзд {total} из {levels.length * 3}</span>
       </header>
+      <div className="chapter-tabs" role="tablist" aria-label="Части тренировки">
+        {chapters.map((c, i) => {
+          const done = c.levels.filter((l) => progress[l.id]).length;
+          return (
+            <button key={c.title} role="tab" aria-selected={i === chapter} className={i === chapter ? 'active' : ''} onClick={() => pickChapter(i)}>
+              <strong>{c.title}</strong><small className="muted">{done} из {c.levels.length}</small>
+            </button>
+          );
+        })}
+      </div>
       <ul className="tier-badges">
         {TIERS.map((tier) => {
-          const tierLevels = levels.filter((l) => l.tier === tier.id);
+          const tierLevels = own.filter((l) => l.tier === tier.id);
           const open = isOpen(tierLevels[0]!, progress);
           const stars = tierLevels.reduce((a, l) => a + (progress[l.id] ?? 0), 0);
           return (
@@ -50,9 +71,10 @@ export function Campaign({ api }: { api: TableApi }) {
         })}
       </ul>
       <div className="campaign-body" style={{ ['--panel' as string]: `${map.panel * 100}%`, ['--map-ratio' as string]: map.ratioValue }}>
-        <div className="campaign-map" style={{ aspectRatio: map.ratio, backgroundImage: `url(${art(map.file)})` }}>
-          {levels.map((l, i) => {
-            const [x, y] = map.nodes[i]!;
+        <div className={`campaign-map chapter-${chapter + 1}`} style={{ aspectRatio: map.ratio, backgroundImage: `url(${art(map.file)})` }}>
+          {own.map((l, k) => {
+            const [x, y] = map.nodes[k % map.nodes.length]!;
+            const i = levels.indexOf(l);
             const open = isOpen(l, progress);
             const stars = progress[l.id] ?? 0;
             return (
@@ -78,7 +100,7 @@ export function Campaign({ api }: { api: TableApi }) {
           <p>{picked.brief}</p>
           <dl>
             <dt>Цель</dt><dd>{goalText(picked)}</dd>
-            <dt>Профессия</dt><dd>{professionTitle(picked.professionId)}</dd>
+            <dt>Профессия</dt><dd>{professionTitle(picked.professionId)}<small className="muted">{content.professions.find((p) => p.id === picked.professionId)?.about}</small></dd>
             <dt>Режим</dt><dd>{picked.mode === 'quick' ? 'Быстрый, со стартовым бизнесом' : 'Классика, с нуля'}</dd>
             <dt>Звёзды</dt><dd>3 — за {picked.stars[0]} ходов, 2 — за {picked.stars[1]}, 1 — за {picked.maxTurns}</dd>
           </dl>

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { VentureCard } from '@kapital/content';
 import {
   applyAction, availableLoan, botAction, cashflow, dreamPrice, hasEscaped, passiveIncome, totalExpenses,
   type GameState,
@@ -77,12 +76,12 @@ describe('клетки', () => {
     const pending = s.pending!;
     if (pending.deck !== 'smallDeals') throw new Error('ожидалась карта «Шанс»');
     const card = pending.card;
-    if (card.kind === 'asset') {
+    if (card.kind === 'asset' && !card.risk) {
       s = act(s, { type: 'TAKE_LOAN', playerId: 'p1', amount: 5000 });
       s = act(s, { type: 'BUY', playerId: 'p1' });
       expect(passiveIncome(content, s.players[0]!)).toBe(card.flow);
       expect(s.players[0]!.assets[0]!.mortgage).toBe(card.cost - card.down);
-    } else {
+    } else if (card.kind !== 'asset') {
       s = act(s, { type: 'BUY', playerId: 'p1', shares: 10 });
       expect(s.players[0]!.stocks[0]!.shares).toBe(10);
     }
@@ -226,7 +225,9 @@ describe('«Свободный путь»', () => {
     s = placeBefore(s, cellIndex('venture', 1, 'outer'));
     s = act(s, { type: 'ROLL', playerId: 'p1' });
     expect(s.phase).toBe('deal');
-    const card = s.pending!.card as VentureCard;
+    // надёжный проект: без броска кубика
+    const card = content.ventures.find((c) => c.odds === undefined)!;
+    s.pending = { deck: 'ventures', card };
     s = act(s, { type: 'BUY', playerId: 'p1', shares: 2 });
     expect(s.players[0]!.outerIncome).toBe(20000 + 2 * card.income);
     expect(s.players[0]!.cash).toBe(1_000_000 - 2 * card.cost);

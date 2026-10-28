@@ -17,15 +17,18 @@ const { values } = parseArgs({
     games: { type: 'string', default: '400' },
     seed: { type: 'string', default: '1' },
     check: { type: 'boolean', default: false },
+    /** Только уровни с этими id через запятую: для подбора сроков. */
+    only: { type: 'string' },
   },
 });
+const only = values.only?.split(',');
 const games = Number(values.games);
 const baseSeed = Number(values.seed);
 
 let failed = false;
 console.log(`Уровни «Тренировки»: ${games} партий бота на уровень\n`);
 console.log('Уровень       Лимит  Прошёл  Медиана  Звёзды 3/2/1');
-for (const level of levels) {
+for (const level of levels.filter((l) => !only || only.includes(l.id))) {
   const content = contentForLevel(level);
   const goal = { saveCash: level.goal.kind === 'cash' };
   const turns: number[] = [];

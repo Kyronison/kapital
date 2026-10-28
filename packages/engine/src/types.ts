@@ -10,10 +10,13 @@ export interface OwnedAsset {
   cardId: string;
   assetType: AssetType;
   title: string;
+  /** Рыночная стоимость: от неё считают цену покупатели. */
   cost: number;
   down: number;
   mortgage: number;
   flow: number;
+  /** Объект ещё не готов: через paydaysLeft зарплат поток изменится на flow. */
+  later?: { flow: number; paydaysLeft: number; title: string };
 }
 
 export interface StockHolding {
@@ -185,6 +188,10 @@ export type GameEvent =
   | { type: 'card_drawn'; playerId: PlayerId; deck: DeckName; cardId: string }
   | { type: 'bought'; playerId: PlayerId; cardId: string; price: number; count?: number }
   | { type: 'venture_rolled'; playerId: PlayerId; cardId: string; roll: number; success: boolean }
+  /** Проверка скрытого дефекта после покупки: hit — дефект всплыл. */
+  /** Объект готов: поток изменился. */
+  | { type: 'asset_ready'; playerId: PlayerId; assetId: string; title: string; flow: number }
+  | { type: 'deal_risk'; playerId: PlayerId; cardId: string; title: string; roll: number; odds: number; hit: boolean }
   | { type: 'sold'; playerId: PlayerId; what: string; proceeds: number }
   | { type: 'paid'; playerId: PlayerId; amount: number; reason: string }
   | { type: 'loan_taken'; playerId: PlayerId; amount: number; forced: boolean }

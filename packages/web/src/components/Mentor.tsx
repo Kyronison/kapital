@@ -34,7 +34,7 @@ function hintsFor(game: PublicGame, me: PlayerState): Hint[] {
     }],
     [mine && pending?.deck !== 'everyday' && !!pending && 'kind' in pending.card && pending.card.kind === 'asset', {
       id: 'deal_asset', pose: 'think', title: 'Стоит ли покупать',
-      text: `Смотрите на поток и доходность. Если доходность выше ставки кредита (${rate} за период), сделку выгодно купить даже в долг. Отрицательный поток — это пассив, а не актив.`,
+      text: `Смотрите на поток и доходность: если она выше ставки кредита (${rate} за период), сделку можно брать и в долг. Но проверьте подвох: переплату к рыночной цене, скрытый риск и стройку, которая начнёт приносить доход не сразу. Отрицательный поток — это пассив, а не актив.`,
     }],
     [!!pending && 'kind' in pending.card && pending.card.kind === 'stock', {
       id: 'stock', pose: 'explain', title: 'Акции',

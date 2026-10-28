@@ -1,4 +1,4 @@
-import { levels, type Level, type LevelTier } from '@kapital/content';
+import { chapters, levels, type Level, type LevelTier } from '@kapital/content';
 import { money } from './format.js';
 
 export const TIERS: { id: LevelTier; title: string }[] = [
@@ -9,10 +9,14 @@ export const TIERS: { id: LevelTier; title: string }[] = [
   { id: 'investor', title: 'Инвестор' },
 ];
 
-/** Уровень открыт, если пройден предыдущий. */
+/** Номер части «Тренировки», с нуля. */
+export const chapterOf = (level: Level) => chapters.findIndex((c) => c.levels.includes(level));
+
+/** Уровень открыт, если пройден предыдущий в его части. Первый уровень каждой части открыт сразу. */
 export function isOpen(level: Level, progress: Record<string, number>): boolean {
-  const i = levels.indexOf(level);
-  return i === 0 || (progress[levels[i - 1]!.id] ?? 0) > 0;
+  const own = chapters[chapterOf(level)]!.levels;
+  const i = own.indexOf(level);
+  return i === 0 || (progress[own[i - 1]!.id] ?? 0) > 0;
 }
 
 export function nextLevel(id: string): Level | null {
@@ -30,7 +34,7 @@ export function goalText(level: Level): string {
   return `${goal} за ${level.maxTurns} ходов`;
 }
 
-/** Уровень, с которого продолжать: последний открытый. */
+/** Уровень, с которого продолжать: первый открытый и не пройденный, по порядку частей. */
 export function currentLevel(progress: Record<string, number>): Level {
-  return [...levels].reverse().find((l) => isOpen(l, progress)) ?? levels[0]!;
+  return levels.find((l) => isOpen(l, progress) && !progress[l.id]) ?? levels.at(-1)!;
 }
