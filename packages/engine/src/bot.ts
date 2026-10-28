@@ -37,7 +37,12 @@ function reactiveSale(content: Content, s: GameState, p: PlayerState): Action | 
  * Используется для симуляции баланса и для замены отключившихся игроков.
  * Возвращает null, если боту нечего делать вне своего хода.
  */
-export function botAction(content: Content, s: GameState, playerId: string): Action | null {
+export interface BotGoal {
+  /** Цель уровня — накопить свои деньги: в долг не покупать, кредит гасить. */
+  saveCash?: boolean;
+}
+
+export function botAction(content: Content, s: GameState, playerId: string, goal: BotGoal = {}): Action | null {
   const p = s.players.find((x) => x.id === playerId);
   if (!p || s.status !== 'playing') return null;
   const sale = reactiveSale(content, s, p);
@@ -85,7 +90,7 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
       if (card.kind === 'asset') {
         const worth = card.flow > 0 && card.flow / card.down > rules.loanRate * 1.1;
         const short = card.down - p.cash;
-        if (!worth || short > availableLoan(content, p)) return end;
+        if (!worth || short > availableLoan(content, p) || (goal.saveCash && short > 0)) return end;
         if (short > 0) return { type: 'TAKE_LOAN', playerId, amount: roundUpToStep(short, rules.loanStep) };
         return { type: 'BUY', playerId };
       }
@@ -110,10 +115,11 @@ export function botAction(content: Content, s: GameState, playerId: string): Act
 
     case 'market':
     case 'end': {
-      if (p.bankLoan > 0 && p.cash > 2 * CASH_RESERVE) {
+      const reserve = goal.saveCash ? 0 : CASH_RESERVE;
+      if (p.bankLoan > 0 && p.cash > 2 * reserve && p.cash >= rules.loanStep) {
         const amount = Math.min(
           p.bankLoan,
-          Math.floor((p.cash - CASH_RESERVE) / rules.loanStep) * rules.loanStep,
+          Math.floor((p.cash - reserve) / rules.loanStep) * rules.loanStep,
         );
         if (amount > 0) return { type: 'REPAY_LOAN', playerId, amount };
       }

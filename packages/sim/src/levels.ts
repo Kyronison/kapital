@@ -27,13 +27,14 @@ console.log(`Уровни «Тренировки»: ${games} партий бот
 console.log('Уровень       Лимит  Прошёл  Медиана  Звёзды 3/2/1');
 for (const level of levels) {
   const content = contentForLevel(level);
+  const goal = { saveCash: level.goal.kind === 'cash' };
   const turns: number[] = [];
   const stars = [0, 0, 0];
   for (let g = 0; g < games; g++) {
     let s: GameState = createGame(content, [{ id: 'bot', name: 'Бот', professionId: level.professionId, dreamId: level.dreamId }], baseSeed + g);
     let done = false;
     for (let i = 0; i < MAX_ACTIONS && s.status === 'playing' && !done; i++) {
-      const r = applyAction(content, s, botAction(content, s, 'bot')!);
+      const r = applyAction(content, s, botAction(content, s, 'bot', goal)!);
       if (!r.ok) throw new Error(r.error);
       s = r.state;
       done = levelProgress(content, level, s, s.players[0]!).done;

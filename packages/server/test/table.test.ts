@@ -210,7 +210,7 @@ describe('«Тренировка»', () => {
     t.start('s1');
     expect(t.game!.players[0]!.professionId).toBe('teacher');
     expect(t.content.rules.maxTurns).toBe(40);
-    expect(t.view().level).toEqual({ id: 'pro-1', share: 0, result: null });
+    expect(t.view().level).toEqual({ id: 'pro-1', share: 0, result: null, track: { mine: [0], best: [0] } });
   });
 
   it('цель выполнена — партия закончена, за скорость звёзды', () => {
@@ -235,6 +235,23 @@ describe('«Тренировка»', () => {
     const level = t.view().level!;
     if (level.result?.passed) expect(level.result.turns).toBeLessThanOrEqual(40);
     else expect(level.result).toEqual({ passed: false });
+  });
+
+  it('график: точка игрока и лучший выбор на каждый сыгранный ход', () => {
+    const t = new Table(content, seeded());
+    t.setLevel('novice-1');
+    t.join('s1', player('s1', 'Аня'));
+    t.start('s1');
+    for (let i = 0; i < 4 && t.game!.status === 'playing'; i++) t.timeout();
+    const { mine, best } = t.view().level!.track;
+    const turns = t.game!.players[0]!.turnsTaken;
+    expect(mine).toHaveLength(turns + 1);
+    expect(best).toHaveLength(turns + 1);
+    best.forEach((b, i) => expect(b).toBeGreaterThanOrEqual(mine[i]!));
+    // после перезапуска сервера поиск собирается заново и даёт те же значения
+    const again = Table.restore(content, t.snapshot(), seeded());
+    again.track = { mine: again.track.mine, best: [] };
+    expect(again.view().level!.track.best).toEqual(best);
   });
 });
 

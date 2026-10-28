@@ -123,7 +123,7 @@ function Players({ game, view, me }: { game: PublicGame; view: View; me: string 
 }
 
 /** Итог уровня «Тренировки»: звёзды и переход к следующему. */
-function LevelResult({ api, view, onTraining, history }: { api: TableApi; view: View; onTraining: () => void; history: (number | undefined)[] }) {
+function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onTraining: () => void }) {
   const lv = view.level!;
   const level = levels.find((l) => l.id === lv.id)!;
   const result = lv.result!;
@@ -153,7 +153,7 @@ function LevelResult({ api, view, onTraining, history }: { api: TableApi; view: 
         ) : (
           <p>Цель: {goalText(level)}. Попробуйте ещё раз: вкладывайте раньше и следите за потоком.</p>
         )}
-        {history.some((v) => v !== undefined) && <LevelChart level={level} mine={history} />}
+        {lv.track.mine.length > 1 && <LevelChart level={level} track={lv.track} />}
         <div className="row wrap center">
           {result.passed && next && <button className="primary" autoFocus onClick={() => play(next.id)}>Следующий уровень</button>}
           {result.passed && result.stars < 3 && <button onClick={() => play(level.id)}>Повторить и улучшить</button>}
@@ -165,25 +165,6 @@ function LevelResult({ api, view, onTraining, history }: { api: TableApi; view: 
   );
 }
 
-interface LevelTrack { level: string | null; points: (number | undefined)[] }
-const TRACK_KEY = 'kapital:level-track';
-
-function loadTrack(): LevelTrack {
-  try {
-    const raw = JSON.parse(localStorage.getItem(TRACK_KEY) ?? 'null') as { level: string; points: (number | null)[] } | null;
-    if (raw && typeof raw.level === 'string' && Array.isArray(raw.points)) {
-      return { level: raw.level, points: raw.points.map((v) => (typeof v === 'number' ? v : undefined)) };
-    }
-  } catch { /* хранилище недоступно — начнём заново */ }
-  return { level: null, points: [] };
-}
-
-function saveTrack(track: LevelTrack) {
-  try {
-    localStorage.setItem(TRACK_KEY, JSON.stringify(track));
-  } catch { /* не страшно: график начнётся заново после перезагрузки */ }
-}
-
 type MobileTab = 'turn' | 'money' | 'players' | 'chat';
 const MOBILE_TABS: [MobileTab, string, string][] = [
   ['turn', 'Ход', 'ui-dice'],
@@ -192,7 +173,7 @@ const MOBILE_TABS: [MobileTab, string, string][] = [
   ['chat', 'Чат', 'ui-chat'],
 ];
 
-function LevelGoal({ view, history }: { view: View; history: (number | undefined)[] }) {
+function LevelGoal({ view }: { view: View }) {
   const level = levels.find((l) => l.id === view.level!.id)!;
   const pct = Math.floor(view.level!.share * 100);
   return (
@@ -202,7 +183,7 @@ function LevelGoal({ view, history }: { view: View; history: (number | undefined
       <div className="meter gold" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={`Цель выполнена на ${pct}%`}>
         <span style={{ width: `${pct}%` }} />
       </div>
-      {history.some((v) => v !== undefined) && <LevelChart level={level} mine={history} live />}
+      {view.level!.track.mine.length > 0 && <LevelChart level={level} track={view.level!.track} live />}
     </section>
   );
 }
@@ -227,32 +208,12 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
   const shownCircle = anyOuter ? pinned ?? turnCircle : 'inner';
   const onCircle = (c: 'inner' | 'outer') => game.players.filter((p) => p.circle === c).length;
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) : null;
-  // для графика уровня: выполнение цели к концу каждого хода, переживает перезагрузку страницы
-  const [track, setTrack] = useState<LevelTrack>(loadTrack);
-  const levelId = view.level?.id ?? null;
-  const levelShare = view.level?.share;
-  const myTurns = me?.turnsTaken;
-  useEffect(() => {
-    if (levelShare === undefined || myTurns === undefined) return;
-    setTrack((t) => {
-      // новый уровень или тот же уровень заново — начинаем историю сначала
-      const restarted = myTurns === 0 && t.points.length > 1;
-      const points = t.level === levelId && !restarted ? t.points : [];
-      if (points === t.points && points[myTurns] === levelShare) return t;
-      const next = [...points];
-      next[myTurns] = levelShare;
-      const track = { level: levelId, points: next };
-      saveTrack(track);
-      return track;
-    });
-  }, [levelId, levelShare, myTurns]);
-  const history = track.level === levelId ? track.points : [];
   // на телефоне партия разбита на вкладки, панель хода видна на всех
   const [mtab, setMtab] = useState<MobileTab>('turn');
 
   return (
     <main className="game" data-mtab={mtab}>
-      {view.level?.result && <LevelResult api={api} view={view} onTraining={onTraining} history={history} />}
+      {view.level?.result && <LevelResult api={api} view={view} onTraining={onTraining} />}
       {game.status === 'finished' && !winSeen && !view.level && (
         <Overlay
           picture={winner ? 'screens/win.webp' : 'screens/time-up.webp'}
@@ -300,7 +261,7 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
         <Board key={shownCircle} game={game} circle={shownCircle} center={turnCircle === shownCircle ? center : <span className="board-label">{shownCircle === 'inner' ? 'Круг забот' : 'Свободный путь'}</span>} />
       </div>
       <aside className="side">
-        {view.level && <LevelGoal view={view} history={history} />}
+        {view.level && <LevelGoal view={view} />}
         {me && game.status === 'playing' && <Actions api={api} game={game} me={me} reaction={view.reaction} seconds={seconds} />}
         <div className="pane" data-pane="turn">
           {me && <Mentor game={game} me={me} />}

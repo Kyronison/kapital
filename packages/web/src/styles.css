@@ -446,10 +446,24 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .level-chart .goal { stroke: var(--gold); stroke-width: 1.5; stroke-dasharray: 2 3; }
 .level-chart path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .level-chart path.mine { stroke: var(--emerald); stroke-width: 3; }
-.level-chart path.example { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5; }
+.level-chart path.best { stroke: var(--gold); stroke-width: 2.5; stroke-dasharray: 6 4; }
+.level-chart .dot.mine { fill: var(--emerald); }
+.level-chart .dot.best { fill: var(--gold); }
+.level-chart .dot.on { stroke: var(--surface); stroke-width: 2; }
+.level-chart .cursor { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 2; }
+.level-chart .hit { fill: transparent; cursor: pointer; }
+.level-chart-plot { position: relative; }
+.level-chart-tip {
+  position: absolute; top: 0; transform: translateX(8px); pointer-events: none; z-index: 1;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px 9px; border-radius: 8px; white-space: nowrap;
+  background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--line); font-size: 12px;
+}
+.level-chart-tip.left { transform: translateX(calc(-100% - 8px)); }
+.level-chart-tip .mine { color: var(--emerald); font-weight: 700; }
+.level-chart-tip .best { color: color-mix(in srgb, var(--gold) 80%, var(--text)); font-weight: 700; }
 .level-chart figcaption { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; margin-top: 6px; }
 .level-chart .legend::before { content: ''; display: inline-block; width: 18px; margin-right: 6px; vertical-align: middle; border-top: 3px solid var(--emerald); }
-.level-chart .legend.example::before { border-top: 2px dashed var(--muted); }
+.level-chart .legend.best::before { border-top: 3px dashed var(--gold); }
 .level-chart .muted { flex-basis: 100%; font-size: 12px; }
 .level-chart.live { margin: 10px 0 0; }
 .level-chart .gap { flex-basis: 100%; font-weight: 700; }
@@ -934,4 +948,83 @@ img.avatar-img { display: block; flex: none; border: none; border-radius: 50%; o
   .stat-tiles strong { font-size: 32px; }
   .tier-badges img { width: 60px; height: 60px; }
   .tier-badges span { font-size: 16px; }
+}
+
+/* Варианты оформления клеток для выбора (?cells=card|scene|info|classic). Цвет типа — --c. */
+.cell { --c: #0F5C4D; }
+.cell.market { --c: #4A90C2; }
+.cell.temptation { --c: #E0604A; }
+.cell.everyday { --c: #C98F1E; }
+.cell.charity, .cell.baby { --c: #7A4E8C; }
+.cell.layoff, .cell.lawsuit, .cell.audit, .cell.crisis { --c: #B9473A; }
+.cell.dream { --c: #D19A1E; }
+.cv { position: absolute; inset: 0; display: flex; flex-direction: column; pointer-events: none; }
+.cv-head { display: flex; align-items: center; gap: 4%; min-width: 0; }
+.cv-head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-short { display: none; }
+/* в карточках узко: короткое название («Сделка», «Рынок») */
+:is([data-cells='card'], [data-cells='info'], [data-cells='classic']) .cv-title { display: none; }
+:is([data-cells='card'], [data-cells='info'], [data-cells='classic']) .cv-short { display: block; }
+.cv-art { position: relative; flex: 1; min-height: 0; overflow: hidden; }
+.cv-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cv-icon { display: none; }
+.cv-effect { font-weight: 800; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+.board[data-cells]:not([data-cells='tiles']) .cell .tokens { bottom: 4px; }
+
+/* А. Игральная карта: цветная шапка с типом, иллюстрация в окне, строка эффекта */
+.board[data-cells='card'] .cell { background: var(--surface); border: 2px solid var(--c); }
+[data-cells='card'] .cv-head { background: var(--c); color: #fff; padding: 5% 7%; font-size: clamp(7px, 10.5cqw, 13px); }
+[data-cells='card'] .cv-head .icon { width: 1.25em; height: 1.25em; }
+[data-cells='card'] .cv-art { margin: 6% 6% 0; border-radius: 8%; background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
+[data-cells='card'] .cv-effect { color: var(--c); padding: 5% 4% 6%; font-size: clamp(7px, 10cqw, 12px); }
+@media (prefers-color-scheme: dark) { [data-cells='card'] .cv-effect { color: color-mix(in srgb, var(--c) 55%, #fff); } }
+
+/* Б. Сцена: картинка на всю клетку, значок типа в углу, название и эффект на цветной плашке */
+.board[data-cells='scene'] .cell { box-shadow: inset 0 0 0 2px var(--c); }
+[data-cells='scene'] .cv-art { position: absolute; inset: 0; }
+[data-cells='scene'] .cv-art img { transform: scale(1.15); }
+[data-cells='scene'] .cv-head { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; flex-direction: column; gap: 0; align-items: center;
+  padding: 18% 4% 4%; color: #fff; font-size: clamp(7px, 10.5cqw, 13px); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
+  background: linear-gradient(transparent, color-mix(in srgb, var(--c) 92%, #000) 55%); }
+[data-cells='scene'] .cv-head .icon { display: none; }
+[data-cells='scene'] .cv-effect { position: absolute; left: 0; right: 0; bottom: 3%; z-index: 2; color: #fff; font-size: clamp(6px, 8.5cqw, 11px); font-weight: 700; opacity: 0.92; }
+[data-cells='scene'] .cv-head { padding-bottom: 15%; }
+
+/* В. Инфографика: сплошной цвет типа, крупный значок и крупный эффект, без иллюстрации */
+.board[data-cells='info'] .cell { background: var(--c); color: #fff; }
+[data-cells='info'] .cv { justify-content: space-between; align-items: center; padding: 7% 5%; background: radial-gradient(circle at 50% 42%, rgb(255 255 255 / 0.18), transparent 60%); }
+[data-cells='info'] .cv-art { display: none; }
+[data-cells='info'] .cv-head { font-size: clamp(6px, 8.5cqw, 11px); opacity: 0.9; text-transform: uppercase; letter-spacing: 0.04em; }
+[data-cells='info'] .cv-head .icon { display: none; }
+[data-cells='info'] .cv-icon { display: block; width: 42%; aspect-ratio: 1; }
+[data-cells='info'] .cv-icon .icon { width: 100%; height: 100%; }
+[data-cells='info'] .cv-effect { font-size: clamp(7px, 10cqw, 13px); max-width: 100%; }
+
+/* Г. Настольная классика: цветная полоса без текста, название капителью, маленькая картинка, «цена» внизу */
+.board[data-cells='classic'] .cell { background: #fbf7ee; border-radius: 6px; box-shadow: inset 0 0 0 1px #d8cdb5; color: #2b2a26; }
+[data-cells='classic'] .cv::before { content: ''; flex: 0 0 17%; background: var(--c); border-bottom: 2px solid #2b2a26; }
+[data-cells='classic'] .cv-head { justify-content: center; padding: 6% 4% 0; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; font-size: clamp(6px, 8.5cqw, 11px); }
+[data-cells='classic'] .cv-head .icon { display: none; }
+[data-cells='classic'] .cv-art { margin: 4% 18%; }
+[data-cells='classic'] .cv-art img { object-fit: contain; }
+[data-cells='classic'] .cv-effect { padding: 0 4% 7%; font-size: clamp(6px, 8.5cqw, 11px); font-weight: 700; color: #5b5546; }
+@media (prefers-color-scheme: dark) { .board[data-cells='classic'] .cell { background: #e9e1cf; } }
+
+@media (max-width: 640px) {
+  .cv-title { display: none; }
+  .cv-short { display: block; }
+  [data-cells='card'] .cv-head { justify-content: center; padding: 4% 2%; font-size: clamp(6px, 15cqw, 9px); }
+  [data-cells='card'] .cv-head .icon, [data-cells='card'] .cv-effect { display: none; }
+  [data-cells='card'] .cv-art { margin: 5%; }
+  [data-cells='scene'] .cv-effect, [data-cells='scene'] .cv-head .icon { display: none; }
+  [data-cells='scene'] .cv-head { padding: 25% 2% 4%; font-size: clamp(6px, 15cqw, 9px); }
+  [data-cells='info'] .cv { padding: 8% 3%; }
+  [data-cells='info'] .cv-head { display: none; }
+  [data-cells='info'] .cv { justify-content: center; gap: 6%; }
+  [data-cells='info'] .cv-icon { width: 40%; }
+  [data-cells='info'] .cv-effect { font-size: clamp(5px, 12.5cqw, 8px); white-space: normal; letter-spacing: -0.03em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  [data-cells='classic'] .cv-head { font-size: clamp(5px, 13cqw, 8px); letter-spacing: 0; padding-top: 4%; }
+  [data-cells='classic'] .cv-effect { display: none; }
+  [data-cells='classic'] .cv-art { margin: 4% 10% 8%; }
 }

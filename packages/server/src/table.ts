@@ -1,9 +1,10 @@
 import { contentFor, contentForLevel, levels, type Content, type GameMode, type Level } from '@kapital/content';
 import {
-  applyAction, botAction, createGame, levelProgress, levelStars, MAX_PLAYERS, type Action, type GameEvent, type GameState,
+  advanceOptimal, applyAction, botAction, createGame, levelProgress, levelStars, MAX_PLAYERS, startOptimal,
+  type Action, type GameEvent, type GameState, type OptimalSearch,
 } from '@kapital/engine';
 import {
-  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type EventBatch, type LevelView, type ReactionView, type Seat, type TableView,
+  DEFAULT_TURN_SECONDS, parseClientAction, TURN_SECONDS_OPTIONS, type ChatMessage, type EventBatch, type LevelTrack, type LevelView, type ReactionView, type Seat, type TableView,
 } from '@kapital/protocol';
 
 /** Всё, что нужно, чтобы продолжить партию после перезапуска сервера. */
@@ -15,6 +16,7 @@ export interface TableSnapshot {
   levelId?: string | null;
   turnSeconds?: number;
   log?: EventBatch;
+  track?: LevelTrack;
   game: GameState | null;
   chat: ChatMessage[];
   botCount: number;
@@ -58,6 +60,10 @@ export class Table {
   chat: ChatMessage[] = [];
   /** Последние события партии: журнал для тех, кто перезагрузил страницу или вернулся позже. */
   log: EventBatch = { start: 0, events: [] };
+  /** График уровня: выполнение цели у игрока и лучший выбор на тех же картах по ходам. */
+  track: LevelTrack = { mine: [], best: [] };
+  /** Перебор «лучшего выбора»; после перезапуска сервера собирается заново из зерна партии. */
+  private search: OptimalSearch | null = null;
   private botCount = 0;
   private chatCount = 0;
   /** Соединение → место (id аккаунта). */
@@ -80,6 +86,7 @@ export class Table {
     t.mode = snap.mode;
     t.turnSeconds = snap.turnSeconds ?? DEFAULT_TURN_SECONDS;
     t.log = snap.log ?? { start: 0, events: [] };
+    t.track = snap.track ?? { mine: [], best: [] };
     t.level = levels.find((l) => l.id === snap.levelId) ?? null;
     t.game = snap.game;
     t.chat = snap.chat;
@@ -91,7 +98,7 @@ export class Table {
   snapshot(): TableSnapshot {
     return {
       v: 2, seats: this.seats, hostId: this.hostId, mode: this.mode, levelId: this.level?.id ?? null, turnSeconds: this.turnSeconds,
-      log: this.log, game: this.game, chat: this.chat,
+      log: this.log, track: this.track, game: this.game, chat: this.chat,
       botCount: this.botCount,
     };
   }
@@ -233,6 +240,8 @@ export class Table {
       seat.dreamId ??= pick(this.content.dreams).id;
     }
     const seed = Math.floor(this.random() * 2 ** 32);
+    this.track = { mine: [], best: [] };
+    this.search = null;
     this.game = createGame(
       this.content,
       this.seats.map((s) => ({ id: s.id, name: s.name, professionId: s.professionId!, dreamId: s.dreamId! })),
@@ -435,11 +444,33 @@ export class Table {
     if (!level) return null;
     const game = this.game;
     const p = game?.players[0];
-    if (!game || !p) return { id: level.id, share: 0, result: null };
+    if (!game || !p) return { id: level.id, share: 0, result: null, track: this.track };
     const progress = levelProgress(this.content, level, game, p);
+    this.follow(level, game, p.turnsTaken, progress.done ? 1 : progress.share);
     const result = game.status === 'playing' ? null
       : progress.done ? { passed: true as const, stars: levelStars(level, p.turnsTaken), turns: p.turnsTaken }
       : { passed: false as const };
-    return { id: level.id, share: progress.share, result };
+    return { id: level.id, share: progress.share, result, track: this.track };
+  }
+
+  /** Дописывает график до текущего хода: свою точку и лучший выбор на тех же кубиках и картах. */
+  private follow(level: Level, game: GameState, turn: number, share: number) {
+    const mine = [...this.track.mine];
+    mine[turn] = share;
+    for (let t = 0; t < turn; t++) mine[t] ??= mine[t - 1] ?? 0;
+    let best = this.track.best;
+    if (best.length <= turn) {
+      const content = this.content;
+      if (!this.search) {
+        // поиск идёт с начала партии: то же зерно даёт те же колоды и броски
+        const initial = createGame(content, game.players.map((p) => ({ id: p.id, name: p.name, professionId: p.professionId, dreamId: p.dreamId })), game.seed);
+        this.search = startOptimal(content, level, initial);
+      }
+      while (this.search.curve.length <= turn) this.search = advanceOptimal(content, level, this.search);
+      best = this.search.curve.slice(0, turn + 1);
+    }
+    // путь игрока тоже допустим, поэтому лучший выбор не может быть ниже
+    best = best.map((b, t) => Math.max(b, mine[t] ?? 0));
+    this.track = { mine, best };
   }
 }

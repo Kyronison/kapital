@@ -2,7 +2,7 @@ import { content } from '../content.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { art, Icon, playerColor, Token } from '../art.js';
-import { CELL_SHORT, CELL_TITLES, cellHelp, cellTile, dreamArt, dreamTitle, PAYDAY_HELP } from '../format.js';
+import { CELL_SHORT, CELL_TITLES, cellEffect, cellHelp, cellStyle, cellTile, dreamArt, dreamTitle, PAYDAY_HELP } from '../format.js';
 import type { PublicGame } from '../net.js';
 
 /** Клетки идут по периметру квадрата по часовой стрелке от левого верхнего угла. */
@@ -61,8 +61,9 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
   const current = game.players[game.current]!;
   const shown = useSteppedPositions(game);
   const [info, setInfo] = useState<number | null>(null);
+  const [style] = useState(cellStyle);
   return (
-    <div className={`board ${circle}`} style={{ gridTemplateColumns: `repeat(${size}, 1fr)`, gridTemplateRows: `repeat(${size}, 1fr)` }}>
+    <div className={`board ${circle}`} data-cells={style} style={{ gridTemplateColumns: `repeat(${size}, 1fr)`, gridTemplateRows: `repeat(${size}, 1fr)` }}>
       <div
         className="board-art"
         style={{ gridRow: `2 / ${size}`, gridColumn: `2 / ${size}`, backgroundImage: `url(${art(`board/center-${circle}.webp`)})` }}
@@ -92,10 +93,21 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
             {board.paydayAt.includes(i) && (
               <span className="payday" title="Зарплата"><Icon name="cell-payday" label="Зарплата" /></span>
             )}
-            <Tile name={tile} />
-            {dreamPicture && <img className="cell-dream-pic" src={art(dreamPicture)} alt="" loading="lazy" />}
-            <span className="cell-name">{title}</span>
-            <span className="cell-short" aria-hidden="true">{CELL_SHORT[cell] ?? title}</span>
+            {style === 'tiles' ? (
+              <>
+                <Tile name={tile} />
+                {dreamPicture && <img className="cell-dream-pic" src={art(dreamPicture)} alt="" loading="lazy" />}
+                <span className="cell-name">{title}</span>
+                <span className="cell-short" aria-hidden="true">{CELL_SHORT[cell] ?? title}</span>
+              </>
+            ) : (
+              <span className="cv" aria-hidden="true">
+                <span className="cv-head"><Icon name={`cell-${cell}`} /><b className="cv-title">{title}</b><b className="cv-short">{CELL_SHORT[cell] ?? title}</b></span>
+                <span className="cv-art"><img src={art(dreamPicture ?? `cells2/large/${tile}.webp`)} alt="" loading="lazy" /></span>
+                <span className="cv-icon"><Icon name={`cell-${cell}`} /></span>
+                <span className="cv-effect">{cellEffect(cell)}</span>
+              </span>
+            )}
             {here.length > 0 && (
               <span className="tokens">
                 {here.map((p) => (
