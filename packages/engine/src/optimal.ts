@@ -1,6 +1,6 @@
 import type { Content, Level } from '@kapital/content';
 import { availableLoan, cashflow, everydayAmount, passiveIncome, roundUpToStep, totalExpenses } from './finance.js';
-import { applyAction, dreamPrice } from './game.js';
+import { applyAction, choiceOptions, dreamPrice } from './game.js';
 import { levelProgress } from './level.js';
 import type { Action, GameState, PlayerState } from './types.js';
 
@@ -86,7 +86,7 @@ function potentialOf(content: Content, level: Level, s: GameState): number {
 
 function keyOf(s: GameState): string {
   const p = s.players[0]!;
-  return JSON.stringify([s.rng, s.phase, s.decks.smallDeals.pos, s.decks.bigDeals.pos, p]);
+  return JSON.stringify([s.rng, s.phase, s.decks.smallDeals.pos, s.decks.bigDeals.pos, s.news, p]);
 }
 
 const MAX_STEPS = 40;
@@ -137,6 +137,8 @@ function choices(content: Content, s: GameState, playerId: string): Action[][] {
       return [[{ type: 'DONATE', playerId }], ...end];
     case 'dream':
       return p.cash >= dreamPrice(content, p) ? [[{ type: 'BUY_DREAM', playerId }]] : end;
+    case 'choice':
+      return (choiceOptions(content, s) ?? []).map((_, option) => [{ type: 'CHOOSE', playerId, option } as Action]);
     case 'market': {
       const pending = s.pending;
       if (pending?.deck !== 'market' || pending.card.kind !== 'offer' || p.circle === 'outer') return end;

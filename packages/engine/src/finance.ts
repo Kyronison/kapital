@@ -1,4 +1,4 @@
-import type { Content, EverydayCard, Profession } from '@kapital/content';
+import type { Content, Effect, EverydayCard, Profession } from '@kapital/content';
 import type { PlayerState } from './types.js';
 
 export function professionOf(content: Content, player: PlayerState): Profession {
@@ -17,8 +17,53 @@ export function bondIncome(player: PlayerState): number {
   return player.bonds.reduce((sum, b) => sum + b.count * b.coupon, 0);
 }
 
+/** Дивиденды акций за период. */
+export function dividendIncome(player: PlayerState): number {
+  return player.stocks.reduce((sum, h) => sum + h.shares * (h.dividend ?? 0), 0);
+}
+
 export function passiveIncome(content: Content, player: PlayerState): number {
-  return player.assets.reduce((sum, a) => sum + a.flow, 0) + depositIncome(content, player) + bondIncome(player);
+  return player.assets.reduce((sum, a) => sum + a.flow, 0) + depositIncome(content, player) + bondIncome(player) +
+    dividendIncome(player);
+}
+
+/** Подработки за период: приходят вместе с зарплатой, пассивным доходом не считаются. */
+export function gigIncome(player: PlayerState): number {
+  return (player.gigs ?? []).reduce((sum, g) => sum + g.amount, 0);
+}
+
+/** Сумма последствия для игрока: доля зарплаты, округлённая до 10 К, или точная сумма. */
+export function effectAmount(content: Content, player: PlayerState, effect: { share?: number; amount?: number }): number {
+  if (effect.amount !== undefined) return effect.amount;
+  return Math.round(((effect.share ?? 0) * professionOf(content, player).salary) / 10) * 10;
+}
+
+/**
+ * Ожидаемая цена последствий в капах: сколько игрок в среднем получит (плюс) или отдаст (минус).
+ * Нужна боту и подсказкам, чтобы сравнивать варианты дилемм. `paydaysLeft` — сколько зарплат ещё впереди.
+ */
+export function effectsValue(content: Content, player: PlayerState, effects: Effect[], paydaysLeft = 20): number {
+  let sum = 0;
+  for (const e of effects) {
+    switch (e.kind) {
+      case 'cash': sum += effectAmount(content, player, e); break;
+      case 'monthly': sum -= effectAmount(content, player, e) * e.paydays; break;
+      case 'gig': sum += effectAmount(content, player, e) * e.paydays; break;
+      case 'saving': sum += effectAmount(content, player, e) * paydaysLeft; break;
+      case 'skipSalary': sum -= professionOf(content, player).salary * e.paydays; break;
+      case 'later': {
+        const f = content.followUps.find((x) => x.id === e.event);
+        if (f) sum += effectsValue(content, player, f.effects, paydaysLeft);
+        break;
+      }
+      case 'gamble': {
+        const chance = (7 - e.odds) / 6;
+        sum += chance * effectsValue(content, player, e.win, paydaysLeft) + (1 - chance) * effectsValue(content, player, e.lose, paydaysLeft);
+        break;
+      }
+    }
+  }
+  return sum;
 }
 
 /** Доходность сделки за период: поток на вложенные деньги. */
@@ -51,7 +96,8 @@ export function baseExpenses(content: Content, player: PlayerState): number {
 
 /** Сумма карты «Будней» для игрока: доля его зарплаты, округлённая до 10 К. */
 export function everydayAmount(content: Content, player: PlayerState, card: EverydayCard): number {
-  return Math.max(10, Math.round((card.share * professionOf(content, player).salary) / 10) * 10);
+  const share = 'share' in card ? card.share : 0;
+  return Math.max(10, Math.round((share * professionOf(content, player).salary) / 10) * 10);
 }
 
 /** На сколько тренинг снизит расходы за период. */
@@ -65,7 +111,7 @@ export function totalExpenses(content: Content, player: PlayerState): number {
 
 /** Денежный поток за период, если зарплата приходит. */
 export function cashflow(content: Content, player: PlayerState): number {
-  return professionOf(content, player).salary + passiveIncome(content, player) - totalExpenses(content, player);
+  return professionOf(content, player).salary + gigIncome(player) + passiveIncome(content, player) - totalExpenses(content, player);
 }
 
 /** Максимальный общий долг перед банком: платежи не больше доли положительного потока. */

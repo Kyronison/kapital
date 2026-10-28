@@ -64,6 +64,8 @@ export interface StockCard {
   /** Самая низкая и самая высокая цена этой акции в колоде: подсказка, дорого или дёшево. */
   low: number;
   high: number;
+  /** Дивиденд на одну акцию за период. У компаний роста его нет: на них зарабатывают продажей. */
+  dividend?: number;
 }
 
 /** Облигации: доход ниже, чем у бизнеса, зато их можно в любой свой ход вернуть по номиналу. */
@@ -97,12 +99,68 @@ export interface ExpenseCard {
   amount: number;
 }
 
-export type MarketCard = OfferCard | ExpenseCard;
+/** Что меняет новость, пока действует. */
+export type NewsEffect =
+  /** Цена акций на открытых картах умножается на factor. Без tickers — все компании. */
+  | { kind: 'stocks'; tickers?: string[]; factor: number }
+  /** Первый взнос по сделкам с этими активами умножается на factor. */
+  | { kind: 'down'; assetTypes: AssetType[]; factor: number }
+  /** Покупатели на эти активы дают на bonus больше от стоимости. */
+  | { kind: 'offers'; assetTypes: AssetType[]; bonus: number }
+  /** Соблазны дороже или дешевле. */
+  | { kind: 'temptations'; factor: number };
+
+/** Новость рынка: меняет условия для всех за столом на несколько ходов того, кто её вытянул. */
+export interface NewsCard {
+  id: string;
+  kind: 'news';
+  title: string;
+  /** Пояснение для игрока: что это значит. */
+  text: string;
+  turns: number;
+  effect: NewsEffect;
+}
+
+export type MarketCard = OfferCard | ExpenseCard | NewsCard;
 
 export interface TemptationCard {
   id: string;
   title: string;
   amount: number;
+  /** Можно взять в рассрочку на столько зарплат: выходит дороже на installmentMarkup. */
+  installments?: number;
+}
+
+/**
+ * Последствие решения или события. Суммы задаются долей зарплаты (share), чтобы событие было
+ * одинаково ощутимо для любой профессии, или точной суммой (amount).
+ */
+export type Effect =
+  /** Приход (больше нуля) или трата (меньше нуля). */
+  | { kind: 'cash'; share?: number; amount?: number }
+  /** Расход на несколько зарплат: добавляется к расходам как подписка. */
+  | { kind: 'monthly'; share?: number; amount?: number; paydays: number; title: string }
+  /** Подработка: доход к зарплате на несколько зарплат. Пассивным доходом не считается. */
+  | { kind: 'gig'; share: number; paydays: number; title: string }
+  /** Навсегда меняет прочие расходы: больше нуля — экономия, меньше — новый расход. */
+  | { kind: 'saving'; share: number }
+  /** Столько ближайших зарплат не придёт. */
+  | { kind: 'skipSalary'; paydays: number }
+  /** Цепочка: через столько зарплат случится продолжение этой истории. */
+  | { kind: 'later'; event: string; paydays: number }
+  /** Бросок кубика: выпало не меньше odds — win, иначе lose. */
+  | { kind: 'gamble'; odds: number; win: Effect[]; lose: Effect[] };
+
+export interface ChoiceOption {
+  label: string;
+  effects: Effect[];
+}
+
+/** Продолжение истории: случается само в день зарплаты. */
+export interface FollowUp {
+  id: string;
+  title: string;
+  effects: Effect[];
 }
 
 export type Risk = 'health' | 'property';
@@ -122,7 +180,12 @@ export type EverydayCard =
   | { id: string; kind: 'trouble'; title: string; share: number; risk: Risk }
   | { id: string; kind: 'insurance'; title: string; share: number; risk: Risk }
   | { id: string; kind: 'training'; title: string; share: number; saving: number }
-  | { id: string; kind: 'windfall'; title: string; share: number };
+  | { id: string; kind: 'windfall'; title: string; share: number }
+  /**
+   * Дилемма: игрок выбирает один из вариантов. С professions попадается только этим профессиям,
+   * остальные тянут следующую карту.
+   */
+  | { id: string; kind: 'dilemma'; title: string; text: string; options: ChoiceOption[]; professions?: string[] };
 
 export type OuterCellKind = 'venture' | 'dream' | 'lawsuit' | 'audit' | 'crisis' | 'charity';
 
@@ -182,6 +245,8 @@ export interface Rules {
   depositRate: number;
   /** Вклад открывается и пополняется суммами, кратными этому шагу. */
   depositStep: number;
+  /** Насколько рассрочка дороже покупки сразу. */
+  installmentMarkup: number;
 }
 
 export type GameMode = 'classic' | 'quick';
@@ -194,6 +259,7 @@ export interface Content {
   market: MarketCard[];
   temptations: TemptationCard[];
   everyday: EverydayCard[];
+  followUps: FollowUp[];
   outerBoard: OuterBoard;
   dreams: Dream[];
   ventures: VentureCard[];

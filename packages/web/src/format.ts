@@ -1,6 +1,6 @@
-import type { AssetType, EverydayCard, Risk } from '@kapital/content';
+import type { AssetType, Effect, EverydayCard, NewsCard, Risk } from '@kapital/content';
 import { content } from './content.js';
-import type { GameEvent } from '@kapital/engine';
+import { effectAmount, type GameEvent, type PlayerState } from '@kapital/engine';
 
 const nf = new Intl.NumberFormat('ru-RU');
 export const money = (n: number) => `${nf.format(Math.round(n))} К`;
@@ -48,12 +48,12 @@ export function cellHelp(cell: string): string {
   const r = content.rules;
   switch (cell) {
     case 'opportunity': return 'Вы выбираете колоду: «Шанс» — малые сделки (акции, комнаты, гаражи), «Проект» — крупные (дома, бизнес). Покупать или нет, решаете сами; не хватает денег — можно взять кредит.';
-    case 'market': return 'Новости рынка. Либо покупатель предлагает цену за определённый актив, и все его владельцы могут продать, даже не в свой ход. Либо владельцы такого актива платят за ремонт.';
-    case 'temptation': return 'Спонтанная покупка: сумма с карточки сразу списывается с наличных. Если денег не хватает, банк выдаст кредит.';
+    case 'market': return 'Новости рынка. Покупатель предлагает цену за определённый актив, и все его владельцы могут продать, даже не в свой ход. Или владельцы жилья платят за ремонт. Или выходит новость, которая на несколько ходов меняет цены акций, взносы по сделкам или покупателей.';
+    case 'temptation': return 'Спонтанная покупка: сумма с карточки списывается с наличных. Крупную покупку можно взять в рассрочку на 4 зарплаты, но выйдет дороже. Если денег не хватает, банк выдаст кредит.';
     case 'charity': return `Можно пожертвовать ${share(r.charityShare)} дохода и следующие ${r.charityTurns} хода бросать два кубика, чтобы чаще попадать на сделки. Можно отказаться.`;
     case 'baby': return `В семье пополнение: расходы растут на сумму «на ребёнка» вашей профессии. Детей не больше ${r.maxChildren}.`;
     case 'layoff': return `Сокращение: следующие ${r.layoffPaydays} зарплаты не придут. Ходить вы продолжаете, а пассивный доход идёт как обычно.`;
-    case 'everyday': return 'Будни: обычная трата, неприятность (её оплатит полис, если он есть), подписка на несколько зарплат, неожиданный доход или предложение страховки и тренинга.';
+    case 'everyday': return 'Будни: обычная трата, неприятность (её оплатит полис, если он есть), подписка, неожиданный доход, страховка и тренинг. Или жизненная ситуация с выбором: одолжить другу, взять подработку, рискнуть. У некоторых решений есть продолжение через несколько зарплат.';
     case 'venture': return 'Инвестиционный проект: покупаете доли, и они приносят доход каждый период. У рискованных проектов сразу бросают кубик: не повезло — вложение пропадает.';
     case 'dream': return 'Здесь продаются мечты. Купить можно только свою, если хватает наличных, и это победа.';
     case 'lawsuit': return `Судебный иск: вы отдаёте ${share(r.lawsuitShare)} наличных. Держите деньги в активах, а не на руках.`;
@@ -102,17 +102,24 @@ const cardTitle = (deck: string, id: string): string => {
 };
 
 /** Что дала покупка: ищем карту по id в колодах сделок и проектов. */
-function boughtText(cardId: string, price: number): string {
+function boughtText(cardId: string, price: number, count?: number): string {
   const deal = [...content.smallDeals, ...content.bigDeals].find((c) => c.id === cardId);
-  if (deal?.kind === 'asset') return `«${deal.title}», взнос ${money(price)}: пассивный доход ${signed(deal.flow)} за период`;
+  // поток и цена на карте могли измениться из-за новости, поэтому для жилья и бизнеса показываем только взнос
+  if (deal?.kind === 'asset') return `«${deal.title}», взнос ${money(price)}`;
   if (deal?.kind === 'bond') {
-    const count = Math.round(price / deal.price);
-    return `облигации «${deal.title}», ${count} шт. за ${money(price)}: купоны ${signed(count * deal.coupon)} за период`;
+    const n = count ?? Math.round(price / deal.price);
+    return `облигации «${deal.title}», ${n} шт. за ${money(price)}: купоны ${signed(n * deal.coupon)} за период`;
   }
-  if (deal?.kind === 'stock') return `${Math.round(price / deal.price)} акций «${deal.title}» за ${money(price)}: дохода не дают, заработать можно на продаже`;
+  if (deal?.kind === 'stock') {
+    const n = count ?? Math.round(price / deal.price);
+    const name = `«${TICKER_TITLES[deal.ticker] ?? deal.ticker}»`;
+    return deal.dividend
+      ? `${n} акций ${name} за ${money(price)}: дивиденды ${signed(n * deal.dividend)} за период`
+      : `${n} акций ${name} за ${money(price)}: дохода не дают, заработать можно на продаже`;
+  }
   const venture = content.ventures.find((c) => c.id === cardId);
   if (venture) {
-    const shares = Math.round(price / venture.cost);
+    const shares = count ?? Math.round(price / venture.cost);
     return `доли «${venture.title}», ${shares} шт. за ${money(price)}${venture.odds === undefined ? `: доход ${signed(shares * venture.income)} за период` : ''}`;
   }
   return `за ${money(price)}`;
@@ -129,7 +136,7 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'income_lost': return `${who}: доход пропал из-за кризиса`;
     case 'landed': return `${who} → ${CELL_TITLES[e.cell] ?? e.cell}`;
     case 'card_drawn': return `${who}: «${cardTitle(e.deck, e.cardId)}»`;
-    case 'bought': return `${who} покупает ${boughtText(e.cardId, e.price)}`;
+    case 'bought': return `${who} покупает ${boughtText(e.cardId, e.price, e.count)}`;
     case 'venture_rolled': return `${who}: на кубике ${e.roll} — ${e.success ? 'проект взлетел' : 'проект закрылся, вложение пропало'}`;
     case 'sold': return `${who} продаёт, выручка ${signed(e.proceeds)}`;
     case 'paid': return `${who} платит ${money(e.amount)}: ${e.reason}`;
@@ -152,6 +159,12 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'deposited': return `${who} кладёт на вклад ${money(e.amount)}: доход ${signed(Math.round(e.amount * content.rules.depositRate))} за период`;
     case 'withdrawn': return `${who} снимает со вклада ${money(e.amount)}${e.forced ? ' (не хватило денег)' : ''}`;
     case 'bond_sold': return `${who} возвращает облигации за ${money(e.proceeds)}`;
+    case 'chose': return `${who} выбирает: ${e.label}`;
+    case 'gambled': return `${who}: на кубике ${e.roll}, нужно ${e.odds}+ — ${e.success ? 'повезло' : 'не повезло'}`;
+    case 'gig_started': return `${who}: «${e.title}», ${signed(e.amount)} к зарплате, ${times(e.paydays)}`;
+    case 'follow_up': return `${who}: продолжение истории — ${e.title}`;
+    case 'news': return `${who} открывает новость «${e.title}»: действует ${e.turns} хода`;
+    case 'news_ended': return `Новость «${e.title}» больше не действует`;
     case 'turn_started': return `Ходит ${who}`;
     case 'game_finished': return 'Партия окончена';
   }
@@ -183,6 +196,7 @@ export const DECK_BACKS: Record<string, string> = {
 
 /** Картинки карт «Будней»: своя у вида карты, у некоторых карт — особая. */
 const EVERYDAY_KIND_ART: Record<EverydayCard['kind'], string> = {
+  dilemma: 'everyday/consultation.webp',
   spend: 'everyday/spend-once.webp',
   monthly: 'everyday/spend-monthly.webp',
   trouble: 'everyday/trouble-health.webp',
@@ -200,6 +214,23 @@ const EVERYDAY_CARD_ART: Record<string, string> = {
   'ev-ins-property': 'everyday/insurance-property.webp',
   'ev-training-2': 'everyday/consultation.webp',
   'ev-windfall-2': 'everyday/tax-refund.webp',
+  'ev-dilemma-friend-loan': 'everyday/gift.webp',
+  'ev-dilemma-weekend-job': 'everyday/spend-once.webp',
+  'ev-dilemma-car-noise': 'everyday/repair.webp',
+  'ev-dilemma-evening-courses': 'everyday/training.webp',
+  'ev-dilemma-fridge': 'everyday/repair.webp',
+  'ev-dilemma-pyramid': 'deals/stock-down.webp',
+  'ev-dilemma-jubilee': 'everyday/gift.webp',
+  'ev-dilemma-dacha': 'everyday/trouble-property.webp',
+  'ev-dilemma-lottery': 'everyday/bonus.webp',
+  'ev-dilemma-promotion': 'everyday/bonus.webp',
+  'ev-dilemma-courier-nights': 'everyday/spend-once.webp',
+  'ev-dilemma-nurse-home': 'everyday/trouble-health.webp',
+  'ev-dilemma-teacher-tutor': 'everyday/training.webp',
+  'ev-dilemma-mechanic-box': 'deals/garage.webp',
+  'ev-dilemma-developer-startup': 'deals/venture.webp',
+  'ev-dilemma-lawyer-case': 'deals/lawsuit.webp',
+  'ev-dilemma-surgeon-clinic': 'everyday/trouble-health.webp',
 };
 export const everydayArt = (c: EverydayCard) => EVERYDAY_CARD_ART[c.id] ?? EVERYDAY_KIND_ART[c.kind];
 
@@ -215,3 +246,55 @@ export const SITUATIONS: Record<string, { art: string; text: string }> = {
   audit: { art: 'deals/audit.webp', text: `Налоговая проверка забирает ${Math.round(content.rules.auditShare * 100)}% наличных.` },
   crisis: { art: 'deals/crisis.webp', text: 'Кризис: следующий доход «Свободного пути» не придёт.' },
 };
+
+export const TICKER_TITLES: Record<string, string> = content.smallDeals.reduce<Record<string, string>>((acc, c) => {
+  if (c.kind === 'stock') acc[c.ticker] = c.title.replace(/^Акции «(.+)» по .*$/, '$1');
+  return acc;
+}, {});
+
+/** Картинка новости рынка: по тому, что она меняет. */
+export function newsArt(card: NewsCard): string {
+  const e = card.effect;
+  switch (e.kind) {
+    case 'stocks': return e.factor >= 1 ? 'deals/stock-up.webp' : 'deals/stock-down.webp';
+    case 'down': return e.assetTypes.includes('studio') ? 'deals/fourplex.webp' : 'deals/carwash.webp';
+    case 'offers': return 'deals/market-offer.webp';
+    case 'temptations': return 'deals/temptation.webp';
+  }
+}
+
+/** Последствия варианта простыми словами: «−1 500 К сразу», «+450 К к зарплате 4 раза». */
+export function effectsText(p: PlayerState, effects: Effect[]): string {
+  if (!effects.length) return 'ничего не меняется';
+  return effects.map((e) => effectText(p, e)).join(', ');
+}
+
+/** «1 раз», «3 раза», «5 раз». */
+const times = (n: number) => {
+  const d = n % 10;
+  const many = n % 100 >= 11 && n % 100 <= 14;
+  return `${n} ${!many && d >= 2 && d <= 4 ? 'раза' : 'раз'}`;
+};
+
+/** «1 зарплату», «3 зарплаты», «5 зарплат». */
+const paydays = (n: number) => {
+  const d = n % 10;
+  const many = n % 100 >= 11 && n % 100 <= 14;
+  return `${n} ${many ? 'зарплат' : d === 1 ? 'зарплату' : d >= 2 && d <= 4 ? 'зарплаты' : 'зарплат'}`;
+};
+
+function effectText(p: PlayerState, e: Effect): string {
+  switch (e.kind) {
+    case 'cash': return `${signed(effectAmount(content, p, e))} сразу`;
+    case 'monthly': return `${signed(-effectAmount(content, p, e))} в период, ${times(e.paydays)}`;
+    case 'gig': return `${signed(effectAmount(content, p, e))} к зарплате, ${times(e.paydays)}`;
+    case 'saving': return `расходы ${signed(-effectAmount(content, p, e))} навсегда`;
+    case 'skipSalary': return `${paydays(e.paydays)} не придёт`;
+    case 'later': return `продолжение через ${paydays(e.paydays)}`;
+    case 'gamble': {
+      const win = e.win.length ? effectsText(p, e.win) : 'ничего';
+      const lose = e.lose.length ? effectsText(p, e.lose) : 'ничего';
+      return `кубик: ${e.odds}+ — ${win}, иначе ${lose}`;
+    }
+  }
+}

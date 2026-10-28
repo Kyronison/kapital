@@ -100,12 +100,18 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
         )}
         {p.savings > 0 && <Row icon="ui-training" label="Тренинги снизили расходы" tone="good">{signed(-p.savings)}</Row>}
       </dl>
-      {(p.policies.length > 0 || p.subscriptions.length > 0) && (
+      {(p.policies.length > 0 || p.subscriptions.length > 0 || (p.gigs ?? []).length > 0) && (
         <ul className="assets everyday">
           {p.policies.map((x) => (
             <li key={x.risk}>
               <Icon name={`ui-insurance-${x.risk === 'health' ? 'life' : 'property'}`} size={16} />
               {RISK_TITLES[x.risk]}<span>{signed(-x.premium)}</span>
+            </li>
+          ))}
+          {(p.gigs ?? []).map((x, i) => (
+            <li key={`gig-${i}`}>
+              <Icon name="ui-income" size={16} />
+              {x.title} <small className="muted">ещё {x.paydaysLeft}</small><span className="good">{signed(x.amount)}</span>
             </li>
           ))}
           {p.subscriptions.map((x, i) => (
@@ -126,7 +132,10 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
             <li key={b.id}><Icon name="ui-bond" size={16} />{b.title} × {b.count}<span>{signed(b.count * b.coupon)}</span></li>
           ))}
           {p.stocks.map((s) => (
-            <li key={s.ticker}><Icon name={`stock-${s.ticker.toLowerCase()}`} size={16} />Акции {s.ticker} × {s.shares}<span>по {Math.round(s.avgPrice)} К</span></li>
+            <li key={s.ticker}>
+              <Icon name={`stock-${s.ticker.toLowerCase()}`} size={16} />Акции {s.ticker} × {s.shares}
+              <span>{s.dividend ? signed(s.shares * s.dividend) : `по ${Math.round(s.avgPrice)} К`}</span>
+            </li>
           ))}
         </ul>
       ) : (

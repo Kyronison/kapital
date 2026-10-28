@@ -173,7 +173,9 @@ describe('места и сохранение', () => {
     t.start('s1');
     let total = 0;
     while (t.game!.status === 'playing' && total < 3 * LOG_LIMIT) {
-      const events = t.botStep() ?? t.timeout();
+      let events = t.botStep() ?? t.timeout();
+      // окно ответа человека закрывает таймер комнаты
+      if (!events.length) events = t.expireHold();
       total += events.length;
     }
     expect(t.log.events.length).toBeLessThanOrEqual(LOG_LIMIT);

@@ -2,7 +2,7 @@ import { content } from '../content.js';
 import { everydayAmount, roi, trainingSaving, type GameEvent } from '@kapital/engine';
 import { art, Icon } from '../art.js';
 import {
-  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, everydayArt, RISK_TITLES, SITUATIONS, dreamTitle, money, percent, signed,
+  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, everydayArt, newsArt, RISK_TITLES, SITUATIONS, dreamTitle, money, percent, signed,
 } from '../format.js';
 import type { PublicGame, TableApi } from '../net.js';
 
@@ -63,6 +63,8 @@ function faceOf(game: PublicGame): Face | null {
     const amount = everydayAmount(content, player, c);
     const picture = everydayArt(c);
     switch (c.kind) {
+      case 'dilemma':
+        return { deck, picture, title: c.title, facts: [], note: c.text };
       case 'spend':
         return { deck, picture, title: c.title, facts: [['Трата', money(amount)]] };
       case 'trouble': {
@@ -102,12 +104,19 @@ function faceOf(game: PublicGame): Face | null {
           facts: [['Цена', money(card.cost)], ['Взнос', money(card.down)], ['Поток', signed(card.flow)], ['Доходность', percent(roi(card.flow, card.down))]],
           note: 'Доходность: поток за период на вложенный взнос.',
         };
-      case 'stock':
+      case 'stock': {
+        const base = content.smallDeals.find((x) => x.id === card.id);
+        const moved = base?.kind === 'stock' && base.price !== card.price;
+        const facts: [string, string][] = [['Цена акции', money(card.price)], ['Бывает', `${card.low}–${card.high} К`]];
+        if (card.dividend) facts.push(['Дивиденд', `${signed(card.dividend)} на акцию`], ['Доходность', percent(roi(card.dividend, card.price))]);
         return {
-          deck, picture: card.price <= 10 ? 'deals/stock-down.webp' : 'deals/stock-up.webp', title: card.title,
-          facts: [['Цена акции', money(card.price)], ['Бывает', `${card.low}–${card.high} К`]],
-          note: `${card.price <= (card.low + card.high) / 2 ? 'Цена ниже середины диапазона.' : 'Цена выше середины диапазона.'} Продать по ней может любой владелец.`,
+          deck, picture: card.price <= 10 ? 'deals/stock-down.webp' : 'deals/stock-up.webp',
+          title: moved ? `Акции по ${card.price} К (новость рынка)` : card.title,
+          facts,
+          note: `${card.price <= (card.low + card.high) / 2 ? 'Цена ниже середины диапазона.' : 'Цена выше середины диапазона.'} Продать по ней может любой владелец.` +
+            (card.dividend ? ' Дивиденды идут в пассивный доход каждый период.' : ''),
         };
+      }
       case 'bond':
         return {
           deck, picture: 'invest/bonds.webp', title: card.title,
@@ -122,9 +131,16 @@ function faceOf(game: PublicGame): Face | null {
         };
       case 'expense':
         return { deck, picture: 'deals/market-expense.webp', title: card.title, facts: [['Расход', money(card.amount)]] };
+      case 'news':
+        return { deck, picture: newsArt(card), title: card.title, facts: [['Сколько', `${card.turns} хода`]], note: card.text };
     }
   }
-  if ('amount' in card) return { deck, picture: 'deals/temptation.webp', title: card.title, facts: [['Трата', money(card.amount)]] };
+  if ('amount' in card) {
+    return {
+      deck, picture: 'deals/temptation.webp', title: card.title, facts: [['Трата', money(card.amount)]],
+      note: card.installments ? `Можно оплатить сразу или в рассрочку на ${card.installments} зарплаты: так дороже.` : undefined,
+    };
+  }
   return null;
 }
 
@@ -231,6 +247,15 @@ export function Center({ api, game, seconds, deadline, turnSeconds }: {
         </span>
         {deadline && seconds !== null && game.status === 'playing' && <TurnTimer deadline={deadline} seconds={seconds} total={turnSeconds} />}
       </div>
+      {(game.news ?? []).length > 0 && (
+        <ul className="news-strip" aria-label="Действующие новости">
+          {game.news.map((n) => (
+            <li key={n.cardId} title={(content.market.find((c) => c.id === n.cardId) as { text?: string } | undefined)?.text}>
+              <Icon name="cell-market" size={14} />{n.title}<small>ещё {n.turnsLeft}</small>
+            </li>
+          ))}
+        </ul>
+      )}
       {game.lastRoll && <Dice roll={game.lastRoll} rollKey={rollKey} />}
       {game.phase === 'choose_deal' ? (
         <DeckChoice api={api} mine={mine} />

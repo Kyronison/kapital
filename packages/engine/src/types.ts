@@ -1,5 +1,5 @@
 import type {
-  AssetType, Content, DealCard, EverydayCard, MarketCard, Risk, TemptationCard, VentureCard,
+  AssetType, Content, DealCard, EverydayCard, MarketCard, NewsEffect, Risk, TemptationCard, VentureCard,
 } from '@kapital/content';
 
 export type PlayerId = string;
@@ -20,6 +20,31 @@ export interface StockHolding {
   ticker: string;
   shares: number;
   avgPrice: number;
+  /** Дивиденд на акцию за период, если компания его платит. */
+  dividend?: number;
+}
+
+/** Временный доход к зарплате: подработка, надбавка. */
+export interface Gig {
+  title: string;
+  amount: number;
+  paydaysLeft: number;
+}
+
+/** Отложенное продолжение истории из дилеммы. */
+export interface PendingFollowUp {
+  event: string;
+  paydaysLeft: number;
+}
+
+/** Новость рынка, которая ещё действует. */
+export interface ActiveNews {
+  cardId: string;
+  title: string;
+  effect: NewsEffect;
+  /** Чьи ходы отсчитывают срок: того, кто вытянул карту. */
+  ownerId: PlayerId;
+  turnsLeft: number;
 }
 
 export interface OwnedVenture {
@@ -90,6 +115,8 @@ export interface PlayerState {
   /** Сумма на банковском вкладе. */
   deposit: number;
   bonds: BondHolding[];
+  gigs: Gig[];
+  followUps: PendingFollowUp[];
 }
 
 export type Phase =
@@ -99,6 +126,8 @@ export type Phase =
   | 'market'
   | 'charity'
   | 'dream'
+  /** Нужно выбрать вариант: дилемма или соблазн с рассрочкой. */
+  | 'choice'
   | 'end';
 
 export type DeckName = 'smallDeals' | 'bigDeals' | 'market' | 'temptations' | 'everyday' | 'ventures';
@@ -129,6 +158,7 @@ export interface GameState {
   pendingResolved: boolean;
   decks: Record<DeckName, DeckState>;
   nextAssetId: number;
+  news: ActiveNews[];
 }
 
 export type Action =
@@ -145,6 +175,7 @@ export type Action =
   | { type: 'WITHDRAW'; playerId: PlayerId; amount: number }
   | { type: 'SELL_BOND'; playerId: PlayerId; bondId: string }
   | { type: 'CANCEL_POLICY'; playerId: PlayerId; risk: Risk }
+  | { type: 'CHOOSE'; playerId: PlayerId; option: number }
   | { type: 'END_TURN'; playerId: PlayerId };
 
 export type GameEvent =
@@ -152,7 +183,7 @@ export type GameEvent =
   | { type: 'payday'; playerId: PlayerId; amount: number; salaryPaid: boolean }
   | { type: 'landed'; playerId: PlayerId; cell: string }
   | { type: 'card_drawn'; playerId: PlayerId; deck: DeckName; cardId: string }
-  | { type: 'bought'; playerId: PlayerId; cardId: string; price: number }
+  | { type: 'bought'; playerId: PlayerId; cardId: string; price: number; count?: number }
   | { type: 'venture_rolled'; playerId: PlayerId; cardId: string; roll: number; success: boolean }
   | { type: 'sold'; playerId: PlayerId; what: string; proceeds: number }
   | { type: 'paid'; playerId: PlayerId; amount: number; reason: string }
@@ -177,6 +208,12 @@ export type GameEvent =
   | { type: 'deposited'; playerId: PlayerId; amount: number }
   | { type: 'withdrawn'; playerId: PlayerId; amount: number; forced: boolean }
   | { type: 'bond_sold'; playerId: PlayerId; bondId: string; proceeds: number }
+  | { type: 'chose'; playerId: PlayerId; cardId: string; label: string }
+  | { type: 'gambled'; playerId: PlayerId; roll: number; odds: number; success: boolean }
+  | { type: 'gig_started'; playerId: PlayerId; title: string; amount: number; paydays: number }
+  | { type: 'follow_up'; playerId: PlayerId; event: string; title: string }
+  | { type: 'news'; playerId: PlayerId; cardId: string; title: string; turns: number }
+  | { type: 'news_ended'; cardId: string; title: string }
   | { type: 'turn_started'; playerId: PlayerId }
   | { type: 'game_finished' };
 

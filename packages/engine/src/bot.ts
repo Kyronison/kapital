@@ -1,8 +1,10 @@
 import type { Content } from '@kapital/content';
+import type { Effect } from '@kapital/content';
 import {
-  availableLoan, cashflow, everydayAmount, passiveIncome, professionOf, roundUpToStep, trainingSaving,
+  availableLoan, cashflow, effectAmount, effectsValue, everydayAmount, passiveIncome, professionOf, roundUpToStep,
+  trainingSaving,
 } from './finance.js';
-import { dreamPrice } from './game.js';
+import { choiceOptions, defaultOption, dreamPrice } from './game.js';
 import type { Action, GameState, PlayerState } from './types.js';
 
 /** Порог взноса, после которого бот смотрит в колоду «Проект». */
@@ -30,6 +32,30 @@ function reactiveSale(content: Content, s: GameState, p: PlayerState): Action | 
     if (h && card.price >= 2 * h.avgPrice) return { type: 'SELL_STOCK', playerId: p.id, shares: h.shares };
   }
   return null;
+}
+
+/** Сколько отдать сразу: траты без броска кубика. */
+function upfront(content: Content, p: PlayerState, effects: Effect[]): number {
+  return effects.reduce((sum, e) => sum + (e.kind === 'cash' ? Math.max(0, -effectAmount(content, p, e)) : 0), 0);
+}
+
+/** Вариант с лучшим ожидаемым итогом, на который хватает наличных; если ни на что — вариант по умолчанию. */
+function bestOption(content: Content, s: GameState, p: PlayerState): number {
+  const options = choiceOptions(content, s) ?? [];
+  const paydaysLeft = (content.rules.maxTurns - p.turnsTaken) / 2;
+  let best = defaultOption(s);
+  let bestValue = -Infinity;
+  options.forEach((o, i) => {
+    const pay = upfront(content, p, o.effects);
+    // на необязательную трату не берём в долг: только из того, что сверх запаса
+    if (pay > 0 && i !== defaultOption(s) && pay > p.cash - CASH_RESERVE) return;
+    const value = effectsValue(content, p, o.effects, paydaysLeft);
+    if (value > bestValue) {
+      bestValue = value;
+      best = i;
+    }
+  });
+  return best;
 }
 
 /**
@@ -97,7 +123,13 @@ export function botAction(content: Content, s: GameState, playerId: string, goal
       // облигации боту не нужны: бизнес доходнее
       if (card.kind === 'bond') return end;
       const holds = p.stocks.some((x) => x.ticker === card.ticker);
-      if (!s.pendingResolved && card.price <= 10 && !holds) {
+      // дивидендные акции бот покупает как бизнес: если доходность выше ставки кредита
+      if (card.dividend && !s.pendingResolved && card.dividend / card.price > rules.loanRate * 1.1) {
+        const shares = Math.floor((p.cash - CASH_RESERVE) / card.price);
+        if (shares > 0) return { type: 'BUY', playerId, shares };
+        return end;
+      }
+      if (!card.dividend && !s.pendingResolved && card.price <= 10 && !holds) {
         const shares = Math.floor((p.cash * 0.5) / card.price);
         if (shares > 0) return { type: 'BUY', playerId, shares };
       }
@@ -106,6 +138,9 @@ export function botAction(content: Content, s: GameState, playerId: string, goal
 
     case 'dream':
       return p.cash >= dreamPrice(content, p) ? { type: 'BUY_DREAM', playerId } : end;
+
+    case 'choice':
+      return { type: 'CHOOSE', playerId, option: bestOption(content, s, p) };
 
     case 'charity': {
       const income = p.circle === 'inner' ? professionOf(content, p).salary + passiveIncome(content, p) : p.outerIncome;

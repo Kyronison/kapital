@@ -389,6 +389,19 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .outcome-good dd { color: var(--good); }
 .outcome-warn dd { color: var(--bad); }
 .outcome p { margin: 6px 0 0; font-size: 13px; }
+.choice-options { display: grid; gap: 8px; width: 100%; }
+.choice-options button { flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.choice-options button small { font-weight: 500; font-size: 12.5px; opacity: 0.85; }
+.choice-options p { margin: 0; font-size: 12.5px; }
+/* на компьютере история дилеммы видна на карте, на телефоне карта показывает только заголовок */
+.choice-options .choice-text { display: none; font-size: 14px; color: var(--text); }
+@media (max-width: 640px) { .choice-options .choice-text { display: block; } }
+.news-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.news-strip li {
+  display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  background: var(--tone-market); color: var(--ink-market); font-size: 12.5px; font-weight: 700;
+}
+.news-strip small { font-weight: 600; opacity: 0.8; }
 .loan-toggle { display: none; }
 .loan { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .actions p { margin: 0; font-size: 13.5px; }
