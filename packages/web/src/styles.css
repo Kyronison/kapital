@@ -276,6 +276,25 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .cell.lawsuit, .cell.audit, .cell.crisis, .cell.layoff { background: var(--tone-risk); color: var(--ink-risk); }
 .cell.active { outline: 2px solid var(--gold); outline-offset: 1px; z-index: 2; }
 .cell-name { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cell-short { display: none; }
+.cell[role='button'] { cursor: pointer; }
+.cell[role='button']:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; z-index: 3; }
+.cell-info { text-align: left; }
+.cell-info-art {
+  display: grid; place-items: center; aspect-ratio: 3 / 2; margin: -4px 0 4px; border-radius: 16px;
+  background: var(--tone-special); overflow: hidden;
+}
+.cell-info.opportunity .cell-info-art, .cell-info.venture .cell-info-art { background: var(--tone-opportunity); }
+.cell-info.market .cell-info-art { background: var(--tone-market); }
+.cell-info.temptation .cell-info-art { background: var(--tone-temptation); }
+.cell-info.everyday .cell-info-art { background: var(--tone-everyday); }
+.cell-info.dream .cell-info-art { background: var(--tone-dream); }
+.cell-info.lawsuit .cell-info-art, .cell-info.audit .cell-info-art, .cell-info.crisis .cell-info-art, .cell-info.layoff .cell-info-art { background: var(--tone-risk); }
+.overlay-card.cell-info .cell-info-art img { width: 100%; height: 100%; aspect-ratio: auto; object-fit: contain; }
+.overlay-card.cell-info h2 { display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
+.overlay-card.cell-info p { color: var(--text); margin-bottom: 10px; }
+.overlay-card.cell-info .cell-info-extra { color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: flex-start; }
+.overlay-card.cell-info .primary { width: 100%; margin-top: 6px; }
 .payday {
   position: absolute; top: 4px; right: 4px; display: grid; place-items: center;
   width: 20px; height: 20px; border-radius: 50%; background: var(--gold); color: var(--graphite);
@@ -412,10 +431,13 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .overlay-card.escape-burst { --burst-size: 260px; }
 
 @media (max-width: 1000px) {
-  .game { grid-template-columns: 1fr; padding-bottom: 40vh; }
-  /* панель хода всегда под рукой: кнопка, наличные и таймер, остальное выше по странице */
+  .game { grid-template-columns: 1fr; }
+  /*
+   * Панель хода прилипает к низу экрана, пока её место ниже, а дальше стоит на своём месте.
+   * Раньше она была fixed и закрывала цель уровня и подсказки наставника под полем.
+   */
   .actions {
-    position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 20; max-height: 40vh; overflow: auto;
+    position: sticky; bottom: 8px; z-index: 20; max-height: 40vh; overflow: auto;
     box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.18), var(--shadow-lift);
   }
   .actions-meta { display: inline-flex; }
@@ -428,7 +450,17 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
   .board { padding: 6px; gap: 3px; border-radius: 16px; }
   .cell { padding: 3px; border-radius: 8px; align-items: center; justify-content: center; }
   .cell-name { display: none; }
-  .cell-art { inset: -8% 0 0; height: 108%; }
+  /* картинка над подписью, подпись — полоса цвета клетки внизу */
+  .cell-art { inset: 0 0 12px; height: calc(100% - 12px); }
+  .cell-dream .cell-art { inset: 2px 2px 13px; width: calc(100% - 4px); height: calc(100% - 15px); }
+  .cell-short {
+    display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
+    padding: 1px 1px 2px; border-radius: 0 0 8px 8px; text-align: center;
+    font-size: 8.5px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;
+    white-space: nowrap; overflow: hidden; text-overflow: clip;
+    background: color-mix(in srgb, currentColor 16%, var(--surface)); color: inherit;
+  }
+  .cell .tokens { bottom: 12px; }
   .board-frame { display: none; }
   .cell > .icon { display: none; }
   .payday { width: 14px; height: 14px; top: 1px; right: 1px; }
