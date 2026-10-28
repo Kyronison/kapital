@@ -163,6 +163,14 @@ function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onT
   );
 }
 
+type MobileTab = 'turn' | 'money' | 'players' | 'chat';
+const MOBILE_TABS: [MobileTab, string, string][] = [
+  ['turn', 'Ход', 'ui-dice'],
+  ['money', 'Финансы', 'ui-wallet'],
+  ['players', 'Игроки', 'ui-family'],
+  ['chat', 'Чат', 'ui-chat'],
+];
+
 function LevelGoal({ view }: { view: View }) {
   const level = levels.find((l) => l.id === view.level!.id)!;
   const pct = Math.floor(view.level!.share * 100);
@@ -197,9 +205,11 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
   const shownCircle = anyOuter ? pinned ?? turnCircle : 'inner';
   const onCircle = (c: 'inner' | 'outer') => game.players.filter((p) => p.circle === c).length;
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) : null;
+  // на телефоне партия разбита на вкладки, панель хода видна на всех
+  const [mtab, setMtab] = useState<MobileTab>('turn');
 
   return (
-    <main className="game">
+    <main className="game" data-mtab={mtab}>
       {view.level?.result && <LevelResult api={api} view={view} onTraining={onTraining} />}
       {game.status === 'finished' && !winSeen && !view.level && (
         <Overlay
@@ -231,7 +241,7 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
           onClose={closeMoment}
         />
       )}
-      <div className="boards">
+      <div className="boards" data-pane="turn">
         {anyOuter && (
           <div className="board-switch" role="tablist" aria-label="Какое поле показать">
             {(['inner', 'outer'] as const).map((c) => (
@@ -250,12 +260,14 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
       <aside className="side">
         {view.level && <LevelGoal view={view} />}
         {me && game.status === 'playing' && <Actions api={api} game={game} me={me} reaction={view.reaction} seconds={seconds} />}
-        {me && <Mentor game={game} me={me} />}
-        <ReportQuiz log={api.log} logStart={api.logStart} me={api.me} />
-        {me && <div className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'bankrupt-shake' : ''}><Statement p={me} flash={lastFlash(api.log, api.logStart, api.me)} /></div>}
-        <Players game={game} view={view} me={api.me} />
-        <Chat api={api} view={view} />
-        <section className="log card">
+        <div className="pane" data-pane="turn">
+          {me && <Mentor game={game} me={me} />}
+          <ReportQuiz log={api.log} logStart={api.logStart} me={api.me} />
+        </div>
+        {me && <div data-pane="money" className={moment?.kind === 'bankrupt' && moment.playerId === me.id ? 'pane bankrupt-shake' : 'pane'}><Statement p={me} flash={lastFlash(api.log, api.logStart, api.me)} /></div>}
+        <div className="pane" data-pane="players"><Players game={game} view={view} me={api.me} /></div>
+        <div className="pane" data-pane="chat"><Chat api={api} view={view} /></div>
+        <section className="log card" data-pane="players">
           <h2><Icon name="ui-chat" size={16} />Журнал</h2>
           <ol ref={logRef}>
             {api.log.map((e, i) => {
@@ -264,11 +276,18 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
             })}
           </ol>
         </section>
-        <button className="ghost leave" onClick={view.level ? onTraining : api.leave}>
+        <button className="ghost leave" data-pane="players" onClick={view.level ? onTraining : api.leave}>
           <Icon name="ui-exit" />
           {view.level ? 'К уровням' : game.status === 'playing' ? 'В кабинет: партия сохранится' : 'В кабинет'}
         </button>
       </aside>
+      <nav className="bottom-nav game-tabs" aria-label="Разделы партии">
+        {MOBILE_TABS.map(([id, title, icon]) => (
+          <button key={id} aria-current={mtab === id ? 'page' : undefined} onClick={() => { setMtab(id); window.scrollTo({ top: 0 }); }}>
+            <Icon name={icon} size={20} />{title}
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }

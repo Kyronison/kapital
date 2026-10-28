@@ -26,6 +26,8 @@ export function Actions({ api, game, me, reaction, seconds }: {
   const awaitingMe = reaction?.waiting.includes(me.id) ?? false;
   const awaited = (reaction?.waiting ?? []).map((id) => game.players.find((p) => p.id === id)?.name ?? id);
   const [shares, setShares] = useState(10);
+  // на телефоне кредит, вклад и полисы свёрнуты, чтобы панель хода не закрывала поле
+  const [moreOpen, setMoreOpen] = useState(false);
   const pending = game.pending;
   const step = content.rules.loanStep;
   const depositStep = content.rules.depositStep;
@@ -200,7 +202,7 @@ export function Actions({ api, game, me, reaction, seconds }: {
   }
 
   const loan = myTurn && !reaction && game.phase !== 'roll' && (
-    <div className="loan">
+    <div className={`loan${moreOpen ? ' open' : ''}`}>
       {me.circle === 'inner' && (
         <button className="ghost" disabled={availableLoan(content, me) < step} onClick={() => api.act({ type: 'TAKE_LOAN', amount: step })}>
           <Icon name="ui-loan-take" />
@@ -254,6 +256,11 @@ export function Actions({ api, game, me, reaction, seconds }: {
       {outcome && <Outcome outcome={outcome} />}
       {(main || sales.length > 0) && <div className="row wrap">{main}{sales}</div>}
       {!myTurn && sales.length === 0 && <p className="muted">Ждём хода соперника. Если на столе окажется выгодная цена, здесь появится кнопка продажи.</p>}
+      {loan && (
+        <button className="ghost loan-toggle" aria-expanded={moreOpen} onClick={() => setMoreOpen(!moreOpen)}>
+          {moreOpen ? 'Скрыть кредит и вклад' : 'Кредит, вклад, полисы'}
+        </button>
+      )}
       {loan}
     </section>
   );
