@@ -69,19 +69,20 @@ export const PAYDAY_HELP: Record<'inner' | 'outer', string> = {
 };
 
 /**
- * Картинка клетки поля из третьего набора. У одинаковых клеток картинки чередуются по номеру,
- * чтобы поле не выглядело однообразным. На клетке мечты — первая из мечт этой клетки.
+ * Клетка поля из пятого набора: готовая плитка с рамкой цвета типа и полосой под подпись.
+ * У одинаковых клеток плитки чередуются по номеру, чтобы поле не выглядело однообразным.
  */
-const CELL_ART: Record<string, number | string> = {
-  opportunity: 8, market: 3, temptation: 2, everyday: 2, venture: 6,
-  charity: 'charity', baby: 'baby', layoff: 'layoff', lawsuit: 'lawsuit', audit: 'audit', crisis: 'crisis',
-};
-export function cellArt(cell: string, i: number, circle: 'inner' | 'outer', dreams?: string[]): string | null {
-  if (cell === 'dream') return dreams?.[0] ? `dreams/${dreams[0]}.webp` : null;
-  if (cell === 'charity' && circle === 'outer') return 'cells/charity-outer.webp';
-  const art = CELL_ART[cell];
-  if (art === undefined) return null;
-  return typeof art === 'number' ? `cells/${cell}-${(i % art) + 1}.webp` : `cells/${art}.webp`;
+const CELL_TILES: Record<string, number> = { opportunity: 4, market: 3, temptation: 2, everyday: 2, venture: 4 };
+export function cellTile(cell: string, i: number, circle: 'inner' | 'outer'): string {
+  if (cell === 'dream') return 'dream-frame';
+  if (cell === 'charity' && circle === 'outer') return 'charity-outer';
+  const count = CELL_TILES[cell];
+  return count ? `${cell}-${(i % count) + 1}` : cell;
+}
+
+/** Картинка мечты для клетки-мечты: встаёт в окно золотой рамки. */
+export function dreamArt(dreams?: string[]): string | null {
+  return dreams?.[0] ? `dreams/${dreams[0]}.webp` : null;
 }
 
 export const ASSET_TITLES: Record<AssetType, string> = {

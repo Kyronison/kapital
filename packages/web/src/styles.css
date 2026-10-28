@@ -240,7 +240,6 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
   position: absolute; inset: -5.5%; z-index: 3; pointer-events: none;
   background: url('/art/board/frame.webp') center / 100% 100% no-repeat;
 }
-.cell-dream .cell-art { inset: auto 8% 6%; width: 84%; height: 58%; object-fit: cover; border-radius: 8px; }
 @media (prefers-color-scheme: dark) {
   .board { background-image: url('/art/board/table-dark.webp'); }
   .board.outer { background-image: linear-gradient(160deg, color-mix(in srgb, var(--gold) 16%, transparent), transparent), url('/art/board/table-dark.webp'); }
@@ -256,29 +255,25 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .board-label { font-family: var(--font-display); font-size: 15px; color: var(--muted); background: var(--surface); padding: 6px 14px; border-radius: 999px; box-shadow: var(--shadow); }
 
 .cell {
-  position: relative; border-radius: 12px; padding: 6px; min-width: 0; min-height: 0;
-  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px;
-  font-size: 11px; font-weight: 600; line-height: 1.15;
-  background: var(--tone-special); color: var(--ink-special);
-  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.06);
+  /* плитка пятого набора рисует фон, рамку и полосу подписи; радиус как у плитки (56 из 512) */
+  position: relative; border-radius: 10.9375%; overflow: hidden; min-width: 0; min-height: 0;
+  container-type: inline-size; background: var(--surface-2);
 }
-.cell > .icon, .cell-name { position: relative; z-index: 1; }
+.cell-tile, .cell-tile img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+/* окно золотой рамки мечты по разметке плитки */
+.cell-dream-pic { position: absolute; left: 7.8%; top: 7.4%; width: 65%; height: 62.5%; object-fit: cover; border-radius: 6%; pointer-events: none; }
+.cell-name, .cell-short {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 22%; z-index: 1;
+  display: flex; align-items: center; justify-content: center; padding: 0 4%;
+  color: #fff; font-weight: 800; line-height: 1; letter-spacing: -0.01em; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1px rgb(0 0 0 / 0.25);
+  font-size: clamp(8px, 11cqw, 13px);
+}
+.cell.dream .cell-name { color: #3a2a06; text-shadow: none; }
 .cell .payday, .cell .tokens { z-index: 2; }
-.cell-art {
-  position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit;
-  object-fit: contain; object-position: center bottom; pointer-events: none;
-  filter: drop-shadow(0 2px 2px rgb(0 0 0 / 0.12));
-}
-.cell .icon { width: clamp(14px, 2.2vw, 24px); height: clamp(14px, 2.2vw, 24px); }
-.cell.opportunity { background: var(--tone-opportunity); color: var(--ink-opportunity); }
-.cell.market { background: var(--tone-market); color: var(--ink-market); }
-.cell.temptation { background: var(--tone-temptation); color: var(--ink-temptation); }
-.cell.everyday { background: var(--tone-everyday); color: var(--ink-everyday); }
-.cell.venture { background: var(--tone-opportunity); color: var(--ink-opportunity); }
-.cell.dream { background: var(--tone-dream); color: var(--ink-dream); }
-.cell.lawsuit, .cell.audit, .cell.crisis, .cell.layoff { background: var(--tone-risk); color: var(--ink-risk); }
-.cell.active { outline: 2px solid var(--gold); outline-offset: 1px; z-index: 2; }
-.cell-name { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cell .tokens { bottom: 23%; }
+.cell.active { outline: 3px solid var(--gold); outline-offset: 1px; overflow: visible; z-index: 2; }
+.cell.active .cell-tile img { border-radius: 10.9375%; }
 .cell-short { display: none; }
 .cell[role='button'] { cursor: pointer; }
 .cell[role='button']:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; z-index: 3; }
@@ -292,7 +287,7 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .cell-info.everyday .cell-info-art { background: var(--tone-everyday); }
 .cell-info.dream .cell-info-art { background: var(--tone-dream); }
 .cell-info.lawsuit .cell-info-art, .cell-info.audit .cell-info-art, .cell-info.crisis .cell-info-art, .cell-info.layoff .cell-info-art { background: var(--tone-risk); }
-.overlay-card.overlay-card.cell-info .cell-info-art img { position: absolute; inset: 8%; width: 84%; height: 84%; aspect-ratio: auto; object-fit: contain; object-position: center; }
+.overlay-card.overlay-card.cell-info .cell-info-art img { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; object-fit: cover; }
 .overlay-card.cell-info h2 { display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
 .overlay-card.cell-info p { color: var(--text); margin-bottom: 10px; }
 .overlay-card.cell-info .cell-info-extra { color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: flex-start; }
@@ -479,21 +474,9 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 @media (max-width: 640px) {
   .app { padding: 12px; }
   .board { padding: 6px; gap: 3px; border-radius: 16px; }
-  .cell { padding: 3px; border-radius: 8px; align-items: center; justify-content: center; }
   .cell-name { display: none; }
-  /* картинка над подписью, подпись — полоса цвета клетки внизу */
-  .cell-art { inset: 0 0 12px; height: calc(100% - 12px); }
-  .cell-dream .cell-art { inset: 2px 2px 13px; width: calc(100% - 4px); height: calc(100% - 15px); }
-  .cell-short {
-    display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 1;
-    padding: 1px 1px 2px; border-radius: 0 0 8px 8px; text-align: center;
-    font-size: 8.5px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em;
-    white-space: nowrap; overflow: hidden; text-overflow: clip;
-    background: color-mix(in srgb, currentColor 16%, var(--surface)); color: inherit;
-  }
-  .cell .tokens { bottom: 12px; }
+  .cell-short { display: flex; font-size: clamp(7px, 15cqw, 9.5px); letter-spacing: -0.03em; padding: 0 1px; text-overflow: clip; }
   .board-frame { display: none; }
-  .cell > .icon { display: none; }
   .payday { width: 14px; height: 14px; top: 1px; right: 1px; }
   .payday .icon { width: 10px; height: 10px; }
   .token-hop { margin-right: -8px; }

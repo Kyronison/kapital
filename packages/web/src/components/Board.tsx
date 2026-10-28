@@ -2,7 +2,7 @@ import { content } from '../content.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { art, Icon, playerColor, Token } from '../art.js';
-import { CELL_SHORT, CELL_TITLES, cellArt, cellHelp, dreamTitle, PAYDAY_HELP } from '../format.js';
+import { CELL_SHORT, CELL_TITLES, cellHelp, cellTile, dreamArt, dreamTitle, PAYDAY_HELP } from '../format.js';
 import type { PublicGame } from '../net.js';
 
 /** Клетки идут по периметру квадрата по часовой стрелке от левого верхнего угла. */
@@ -75,7 +75,8 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
         const dreams = circle === 'outer' ? content.outerBoard.dreamsAt[i] : undefined;
         const active = current.circle === circle && current.position === i && game.status === 'playing';
         const title = CELL_TITLES[cell] ?? cell;
-        const picture = cellArt(cell, i, circle, dreams);
+        const tile = cellTile(cell, i, circle);
+        const dreamPicture = dreamArt(dreams);
         return (
           <div
             key={i}
@@ -91,8 +92,8 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
             {board.paydayAt.includes(i) && (
               <span className="payday" title="Зарплата"><Icon name="cell-payday" label="Зарплата" /></span>
             )}
-            {picture && <img className="cell-art" src={art(picture)} alt="" loading="lazy" />}
-            <Icon name={`cell-${cell}`} />
+            <Tile name={tile} />
+            {dreamPicture && <img className="cell-dream-pic" src={art(dreamPicture)} alt="" loading="lazy" />}
             <span className="cell-name">{title}</span>
             <span className="cell-short" aria-hidden="true">{CELL_SHORT[cell] ?? title}</span>
             {here.length > 0 && (
@@ -120,6 +121,16 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
   );
 }
 
+/** Плитка клетки: светлая и тёмная версии из пятого набора. */
+function Tile({ name }: { name: string }) {
+  return (
+    <picture className="cell-tile">
+      <source srcSet={art(`cells2/dark/${name}.webp`)} media="(prefers-color-scheme: dark)" />
+      <img src={art(`cells2/${name}.webp`)} alt="" loading="lazy" />
+    </picture>
+  );
+}
+
 /** Карточка клетки по нажатию: что это за клетка и что на ней происходит. */
 function CellInfo({ game, circle, index, shown, onClose }: {
   game: PublicGame; circle: 'inner' | 'outer'; index: number; shown: Map<string, string>; onClose: () => void;
@@ -127,7 +138,7 @@ function CellInfo({ game, circle, index, shown, onClose }: {
   const board = circle === 'inner' ? content.board : content.outerBoard;
   const cell = board.cells[index]!;
   const dreams = circle === 'outer' ? content.outerBoard.dreamsAt[index] : undefined;
-  const picture = cellArt(cell, index, circle, dreams);
+  const picture = dreamArt(dreams) ?? `cells2/large/${cellTile(cell, index, circle)}.webp`;
   const here = game.players.filter((p) => shown.get(p.id) === `${circle}:${index}`);
   const title = CELL_TITLES[cell] ?? cell;
   useEffect(() => {
@@ -140,7 +151,7 @@ function CellInfo({ game, circle, index, shown, onClose }: {
     <div className="overlay toast-in" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className={`overlay-card cell-info ${cell}`} onClick={(e) => e.stopPropagation()}>
         <div className="cell-info-art">
-          {picture ? <img src={art(picture)} alt="" /> : <Icon name={`cell-${cell}`} size={64} />}
+          <img src={art(picture)} alt="" />
         </div>
         <h2><Icon name={`cell-${cell}`} />{title}</h2>
         <p>{cellHelp(cell)}</p>
