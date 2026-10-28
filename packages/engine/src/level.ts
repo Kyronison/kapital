@@ -19,7 +19,8 @@ export function levelProgress(content: Content, level: Level, game: GameState | 
     case 'cover':
       return of(passiveIncome(content, p) / Math.max(1, totalExpenses(content, p)), g.share);
     case 'cash':
-      return of(p.cash, g.amount);
+      // свои деньги: иначе цель выполнялась бы взятым кредитом
+      return of(p.cash - p.bankLoan, g.amount);
     case 'escape':
       return p.circle === 'outer' ? { done: true, share: 1 } : of(passiveIncome(content, p), totalExpenses(content, p));
     case 'win':

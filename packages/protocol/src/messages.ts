@@ -29,11 +29,19 @@ export interface ChatMessage {
   at: number;
 }
 
+/** Выполнение цели по ходам, от 0 до 1; [0] — старт. */
+export interface LevelTrack {
+  mine: number[];
+  /** Лучший выбор на тех же кубиках и картах, что выпали игроку. Считается не дальше текущего хода. */
+  best: number[];
+}
+
 /** Итог уровня «Тренировки»: null, пока партия идёт. */
 export interface LevelView {
   id: string;
   /** Насколько цель выполнена, от 0 до 1. */
   share: number;
+  track: LevelTrack;
   result: { passed: true; stars: 1 | 2 | 3; turns: number } | { passed: false } | null;
 }
 

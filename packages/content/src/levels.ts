@@ -12,8 +12,8 @@ export const levels: Level[] = [
   },
   {
     id: 'novice-2', tier: 'novice', title: 'Подушка безопасности', professionId: 'nurse', dreamId: 'sea-house', mode: 'classic',
-    brief: 'Накопите 4 000 К наличными. Соблазны и будни мешают — не тратьте лишнего.',
-    goal: { kind: 'cash', amount: 4000 }, maxTurns: 18, stars: [6, 10],
+    brief: 'Накопите 2 500 К своих денег: долг банку вычитается. Соблазны и будни мешают — не тратьте лишнего.',
+    goal: { kind: 'cash', amount: 2500 }, maxTurns: 18, stars: [6, 10],
   },
   {
     id: 'novice-3', tier: 'novice', title: 'Треть расходов', professionId: 'mechanic', dreamId: 'yacht', mode: 'classic',
@@ -22,8 +22,8 @@ export const levels: Level[] = [
   },
   {
     id: 'novice-4', tier: 'novice', title: 'Без лишних трат', professionId: 'engineer', dreamId: 'sea-house', mode: 'classic',
-    brief: 'Накопите 6 000 К наличными. Зарплата приличная, но соблазны рядом.',
-    goal: { kind: 'cash', amount: 6000 }, maxTurns: 20, stars: [8, 12],
+    brief: 'Накопите 4 000 К своих денег: долг банку вычитается. Зарплата приличная, но соблазны рядом.',
+    goal: { kind: 'cash', amount: 4000 }, maxTurns: 20, stars: [8, 12],
   },
   {
     id: 'novice-5', tier: 'novice', title: 'Поток растёт', professionId: 'courier', dreamId: 'world-trip', mode: 'classic',

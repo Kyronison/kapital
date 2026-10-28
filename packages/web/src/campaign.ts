@@ -24,7 +24,7 @@ export function goalText(level: Level): string {
   const g = level.goal;
   const goal = g.kind === 'passive' ? `пассивный доход ${money(g.amount)}`
     : g.kind === 'cover' ? `пассивный доход покрывает ${Math.round(g.share * 100)}% расходов`
-    : g.kind === 'cash' ? `${money(g.amount)} наличными`
+    : g.kind === 'cash' ? `${money(g.amount)} своих денег (без долга)`
     : g.kind === 'escape' ? 'выход из «Круга забот»'
     : 'победа: купить мечту';
   return `${goal} за ${level.maxTurns} ходов`;

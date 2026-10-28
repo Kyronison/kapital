@@ -63,6 +63,40 @@ export function cellHelp(cell: string): string {
   }
 }
 
+/** Главное о клетке в двух-трёх словах: строка эффекта на карточке клетки. */
+export function cellEffect(cell: string): string {
+  const r = content.rules;
+  switch (cell) {
+    case 'opportunity': return 'Купить актив';
+    case 'market': return 'Продать дороже';
+    case 'temptation': return 'Лишняя трата';
+    case 'charity': return `2 кубика × ${r.charityTurns}`;
+    case 'baby': return 'Расходы растут';
+    case 'layoff': return `−${r.layoffPaydays} зарплаты`;
+    case 'everyday': return 'Траты, полисы';
+    case 'venture': return 'Доход за период';
+    case 'dream': return 'Купить мечту';
+    case 'lawsuit': return `−${share(r.lawsuitShare)} наличных`;
+    case 'audit': return `−${share(r.auditShare)} наличных`;
+    case 'crisis': return 'Без дохода';
+    default: return '';
+  }
+}
+
+/** Вариант оформления клеток для показа: ?cells=card|scene|info|classic, запоминается. */
+export type CellStyle = 'tiles' | 'card' | 'scene' | 'info' | 'classic';
+export function cellStyle(): CellStyle {
+  const all: CellStyle[] = ['tiles', 'card', 'scene', 'info', 'classic'];
+  try {
+    const asked = new URLSearchParams(location.search).get('cells') as CellStyle | null;
+    if (asked && all.includes(asked)) localStorage.setItem('kapital:cells', asked);
+    const saved = localStorage.getItem('kapital:cells') as CellStyle | null;
+    return saved && all.includes(saved) ? saved : 'tiles';
+  } catch {
+    return 'tiles';
+  }
+}
+
 export const PAYDAY_HELP: Record<'inner' | 'outer', string> = {
   inner: 'Рубеж зарплаты: когда фишка проходит или встаёт сюда, приходит поток за период — зарплата плюс пассивный доход минус расходы.',
   outer: 'Рубеж дохода: когда фишка проходит или встаёт сюда, приходит доход «Свободного пути».',
