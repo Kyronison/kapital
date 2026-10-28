@@ -9,7 +9,17 @@ const MAX_ACTIONS = 20000;
  * «Пример стратегии»: как бот из симуляции проходит этот уровень. Берём медиану выполнения цели
  * по ходам из нескольких партий: у каждой свои броски и карты, поэтому это ориентир, а не точный путь.
  */
+const cache = new Map<string, number[]>();
+
 export function exampleCurve(level: Level): number[] {
+  const hit = cache.get(level.id);
+  if (hit) return hit;
+  const curve = simulate(level);
+  cache.set(level.id, curve);
+  return curve;
+}
+
+function simulate(level: Level): number[] {
   const content = contentForLevel(level);
   const runs: number[][] = [];
   for (let seed = 1; seed <= RUNS; seed++) {
@@ -53,16 +63,21 @@ function path(points: (number | undefined)[], maxTurns: number): string {
   return d;
 }
 
-/** График после уровня: выполнение цели по ходам у игрока и в примере стратегии. */
-export function LevelChart({ level, mine }: { level: Level; mine: (number | undefined)[] }) {
+/**
+ * График выполнения цели по ходам у игрока и в примере стратегии. Во время уровня (`live`) ось идёт
+ * чуть дальше текущего хода и под графиком видно, насколько игрок впереди или позади примера.
+ */
+export function LevelChart({ level, mine, live }: { level: Level; mine: (number | undefined)[]; live?: boolean }) {
   const example = useMemo(() => exampleCurve(level), [level]);
   const last = mine.reduce<number>((n, v, t) => (v === undefined ? n : t), 0);
-  const turns = Math.max(last, 1);
-  const shown = example.slice(0, turns + 1);
+  const turns = live ? Math.min(level.maxTurns, Math.max(last + 4, 8)) : Math.max(last, 1);
   const ticks = [0, 0.5, 1];
   const y = (v: number) => PAD.t + (1 - v) * (H - PAD.t - PAD.b);
+  const now = mine[last] ?? 0;
+  const ref = example[last] ?? 0;
+  const gap = Math.round((now - ref) * 100);
   return (
-    <figure className="level-chart">
+    <figure className={`level-chart${live ? ' live' : ''}`}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Выполнение цели по ходам: ваше и пример стратегии">
         {ticks.map((v) => (
           <g key={v}>
@@ -72,13 +87,19 @@ export function LevelChart({ level, mine }: { level: Level; mine: (number | unde
         ))}
         <text x={PAD.l} y={H - 4}>ход 0</text>
         <text x={W - PAD.r} y={H - 4} textAnchor="end">ход {turns}</text>
-        <path d={path(shown, turns)} className="example" />
+        <path d={path(example.slice(0, turns + 1), turns)} className="example" />
         <path d={path(mine.slice(0, turns + 1), turns)} className="mine" />
       </svg>
       <figcaption>
-        <span className="legend mine">Вы</span>
-        <span className="legend example">Пример стратегии</span>
-        <span className="muted">Пример — середина из {RUNS} партий бота на этом уровне. Карты у вас были другие, так что это ориентир, а не правильный ответ.</span>
+        <span className="legend mine">Вы{live ? `: ${Math.round(now * 100)}%` : ''}</span>
+        <span className="legend example">Пример стратегии{live ? `: ${Math.round(ref * 100)}%` : ''}</span>
+        {live ? (
+          <span className={`gap ${gap >= 0 ? 'ahead' : 'behind'}`}>
+            {gap > 0 ? `Вы впереди примера на ${gap}%` : gap < 0 ? `До примера не хватает ${-gap}%` : 'Идёте вровень с примером'}
+          </span>
+        ) : (
+          <span className="muted">Пример — середина из {RUNS} партий бота на этом уровне. Карты у вас были другие, так что это ориентир, а не правильный ответ.</span>
+        )}
       </figcaption>
     </figure>
   );
