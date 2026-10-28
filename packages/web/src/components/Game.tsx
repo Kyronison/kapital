@@ -12,6 +12,7 @@ import { goalText, nextLevel } from '../campaign.js';
 import { saveStars } from '../campaign-progress.js';
 import { levels } from '@kapital/content';
 import { Chat } from './Chat.js';
+import { LevelChart } from './LevelChart.js';
 import { Mentor } from './Mentor.js';
 import { ReportQuiz } from './ReportQuiz.js';
 import { Statement, type Flash } from './Statement.js';
@@ -122,7 +123,7 @@ function Players({ game, view, me }: { game: PublicGame; view: View; me: string 
 }
 
 /** Итог уровня «Тренировки»: звёзды и переход к следующему. */
-function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onTraining: () => void }) {
+function LevelResult({ api, view, onTraining, history }: { api: TableApi; view: View; onTraining: () => void; history: (number | undefined)[] }) {
   const lv = view.level!;
   const level = levels.find((l) => l.id === lv.id)!;
   const result = lv.result!;
@@ -136,7 +137,7 @@ function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onT
   };
   return (
     <div className="overlay toast-in" role="dialog" aria-modal="true" aria-label={result.passed ? 'Уровень пройден' : 'Уровень не пройден'}>
-      <div className="overlay-card">
+      <div className="overlay-card level-result">
         {result.passed && (
           <div className="level-complete-confetti" aria-hidden="true">
             {Array.from({ length: 16 }, (_, i) => <span key={i} className="level-complete-confetti__piece" />)}
@@ -152,6 +153,7 @@ function LevelResult({ api, view, onTraining }: { api: TableApi; view: View; onT
         ) : (
           <p>Цель: {goalText(level)}. Попробуйте ещё раз: вкладывайте раньше и следите за потоком.</p>
         )}
+        {history.some((v) => v !== undefined) && <LevelChart level={level} mine={history} />}
         <div className="row wrap center">
           {result.passed && next && <button className="primary" autoFocus onClick={() => play(next.id)}>Следующий уровень</button>}
           {result.passed && result.stars < 3 && <button onClick={() => play(level.id)}>Повторить и улучшить</button>}
@@ -205,12 +207,28 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
   const shownCircle = anyOuter ? pinned ?? turnCircle : 'inner';
   const onCircle = (c: 'inner' | 'outer') => game.players.filter((p) => p.circle === c).length;
   const winner = game.winnerId ? game.players.find((p) => p.id === game.winnerId) : null;
+  // для графика после уровня: выполнение цели к концу каждого хода. После перезагрузки страницы
+  // история начинается заново, это допустимо для разбора
+  const [history, setHistory] = useState<(number | undefined)[]>([]);
+  const levelShare = view.level?.share;
+  const myTurns = me?.turnsTaken;
+  useEffect(() => {
+    if (levelShare === undefined || myTurns === undefined) return;
+    setHistory((h) => {
+      if (h[myTurns] === levelShare) return h;
+      const next = [...h];
+      next[myTurns] = levelShare;
+      return next;
+    });
+  }, [levelShare, myTurns]);
+  const levelId = view.level?.id;
+  useEffect(() => setHistory([]), [levelId]);
   // на телефоне партия разбита на вкладки, панель хода видна на всех
   const [mtab, setMtab] = useState<MobileTab>('turn');
 
   return (
     <main className="game" data-mtab={mtab}>
-      {view.level?.result && <LevelResult api={api} view={view} onTraining={onTraining} />}
+      {view.level?.result && <LevelResult api={api} view={view} onTraining={onTraining} history={history} />}
       {game.status === 'finished' && !winSeen && !view.level && (
         <Overlay
           picture={winner ? 'screens/win.webp' : 'screens/time-up.webp'}
