@@ -370,6 +370,15 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .board-switch button.active { background: var(--accent); color: #fff; }
 .board-switch .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
 .actions .row { gap: 8px; }
+.outcome { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.outcome h3 { margin: 0 0 6px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.outcome dl { margin: 0; display: grid; gap: 3px; }
+.outcome dl div { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.outcome dt { color: var(--muted); }
+.outcome dd { margin: 0; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.outcome-good dd { color: var(--good); }
+.outcome-warn dd { color: var(--bad); }
+.outcome p { margin: 6px 0 0; font-size: 13px; }
 .loan { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .actions p { margin: 0; font-size: 13.5px; }
 

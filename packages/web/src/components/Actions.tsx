@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Icon } from '../art.js';
 import { money, RISK_TITLES, signed } from '../format.js';
 import type { PublicGame, Reaction, TableApi } from '../net.js';
+import { Outcome, outcomeOf } from './Outcome.js';
 
 function useSecondsLeft(until: number | null) {
   const [now, setNow] = useState(Date.now());
@@ -238,6 +239,8 @@ export function Actions({ api, game, me, reaction, seconds }: {
     </div>
   );
 
+  const outcome = myTurn && !reaction ? outcomeOf(game, me, shares) : null;
+
   return (
     <section className={`actions card${myTurn ? ' my-turn' : ''}`}>
       <h2>
@@ -248,6 +251,7 @@ export function Actions({ api, game, me, reaction, seconds }: {
         </span>
       </h2>
       {awaitingMe && <p className="muted">Ход ждёт вашего решения: продайте по этой цене или пропустите.</p>}
+      {outcome && <Outcome outcome={outcome} />}
       {(main || sales.length > 0) && <div className="row wrap">{main}{sales}</div>}
       {!myTurn && sales.length === 0 && <p className="muted">Ждём хода соперника. Если на столе окажется выгодная цена, здесь появится кнопка продажи.</p>}
       {loan}
