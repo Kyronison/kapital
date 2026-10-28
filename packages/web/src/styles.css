@@ -255,26 +255,39 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .board-label { font-family: var(--font-display); font-size: 15px; color: var(--muted); background: var(--surface); padding: 6px 14px; border-radius: 999px; box-shadow: var(--shadow); }
 
 .cell {
-  /* плитка пятого набора рисует фон, рамку и полосу подписи; радиус как у плитки (56 из 512) */
-  position: relative; border-radius: 10.9375%; overflow: hidden; min-width: 0; min-height: 0;
-  container-type: inline-size; background: var(--surface-2);
+  /* билет набора 7: перфорация и вырезы прозрачные, линия отрыва на 76% высоты, корешок ниже пустой */
+  --ink: #0b3d33;
+  position: relative; min-width: 0; min-height: 0; container-type: inline-size;
 }
-.cell-tile, .cell-tile img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
-/* окно золотой рамки мечты по разметке плитки */
-.cell-dream-pic { position: absolute; left: 7.8%; top: 7.4%; width: 65%; height: 62.5%; object-fit: cover; border-radius: 6%; pointer-events: none; }
-.cell-name, .cell-short {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 22%; z-index: 1;
-  display: flex; align-items: center; justify-content: center; padding: 0 4%;
-  color: #fff; font-weight: 800; line-height: 1; letter-spacing: -0.01em; text-align: center;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 1px rgb(0 0 0 / 0.25);
-  font-size: clamp(8px, 11cqw, 13px);
+.cell.market { --ink: #1f4a69; }
+.cell.temptation { --ink: #7a2618; }
+.cell.everyday { --ink: #5c400a; }
+.cell.charity, .cell.baby { --ink: #3d2148; }
+.cell.layoff, .cell.lawsuit, .cell.audit, .cell.crisis { --ink: #5e1d16; }
+.cell.dream { --ink: #5a3d05; }
+.cell-ticket { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+/* окно витрины мечты по разметке билета: [61,61,390,267] из 512, радиус 24 */
+.cell-dream-pic { position: absolute; left: 11.9%; top: 11.9%; width: 76.2%; height: 52.1%; object-fit: cover; border-radius: 6.15% / 9%; pointer-events: none; }
+.cell-stub {
+  position: absolute; left: 6%; right: 6%; top: 76%; bottom: 0; z-index: 1; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
 }
-.cell.dream .cell-name { color: #3a2a06; text-shadow: none; }
+.cell-stub b {
+  display: flex; align-items: center; gap: 0.35em; white-space: nowrap; line-height: 1;
+  font-family: 'Oswald Variable', var(--font); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink); text-shadow: 0 1px 0 rgb(255 255 255 / 0.22);
+  /* до 6 букв полный размер, длиннее мельче */
+  font-size: clamp(6px, min(15cqw, 90cqw / var(--len, 6)), 17px);
+}
+.cell-stub b::before, .cell-stub b::after { content: '◆'; font-size: 0.45em; opacity: 0.7; }
+/* длинное слово без ромбов и почти без разрядки, чтобы шрифт оставался крупным */
+.cell-stub b[data-long] { letter-spacing: 0.02em; font-size: clamp(6px, min(15cqw, 120cqw / var(--len, 6)), 17px); }
+.cell-stub b[data-long]::before, .cell-stub b[data-long]::after { display: none; }
 .cell .payday, .cell .tokens { z-index: 2; }
-.cell .tokens { bottom: 23%; }
-.cell.active { outline: 3px solid var(--gold); outline-offset: 1px; overflow: visible; z-index: 2; }
-.cell.active .cell-tile img { border-radius: 10.9375%; }
-.cell-short { display: none; }
+/* монетка в правом верхнем углу, фишки слева над линией отрыва */
+.cell .payday { top: 2%; right: 2%; }
+.cell .tokens { bottom: 25%; }
+.cell.active { outline: 3px solid var(--gold); outline-offset: 1px; border-radius: 6px; z-index: 2; }
 .cell[role='button'] { cursor: pointer; }
 .cell[role='button']:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; z-index: 3; }
 .cell-info-art {
@@ -501,8 +514,8 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 @media (max-width: 640px) {
   .app { padding: 12px; }
   .board { padding: 6px; gap: 3px; border-radius: 16px; }
-  .cell-name { display: none; }
-  .cell-short { display: flex; font-size: clamp(7px, 15cqw, 9.5px); letter-spacing: -0.03em; padding: 0 1px; text-overflow: clip; }
+  .cell-stub b::before, .cell-stub b::after { display: none; }
+  .cell-stub b, .cell-stub b[data-long] { letter-spacing: 0.02em; font-size: clamp(5px, min(15cqw, 92cqw / var(--len, 6)), 10px); }
   .board-frame { display: none; }
   .payday { width: 14px; height: 14px; top: 1px; right: 1px; }
   .payday .icon { width: 10px; height: 10px; }
@@ -961,116 +974,4 @@ img.avatar-img { display: block; flex: none; border: none; border-radius: 50%; o
   .stat-tiles strong { font-size: 32px; }
   .tier-badges img { width: 60px; height: 60px; }
   .tier-badges span { font-size: 16px; }
-}
-
-/* Варианты оформления клеток для выбора (?cells=card|scene|info|classic). Цвет типа — --c. */
-.cell { --c: #0F5C4D; }
-.cell.market { --c: #4A90C2; }
-.cell.temptation { --c: #E0604A; }
-.cell.everyday { --c: #C98F1E; }
-.cell.charity, .cell.baby { --c: #7A4E8C; }
-.cell.layoff, .cell.lawsuit, .cell.audit, .cell.crisis { --c: #B9473A; }
-.cell.dream { --c: #D19A1E; }
-.cv { position: absolute; inset: 0; display: flex; flex-direction: column; pointer-events: none; }
-.cv-head { display: flex; align-items: center; gap: 4%; min-width: 0; }
-.cv-head b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cv-short { display: none; }
-/* в карточках узко: короткое название («Сделка», «Рынок») */
-:is([data-cells='card'], [data-cells='info'], [data-cells='classic']) .cv-title { display: none; }
-:is([data-cells='card'], [data-cells='info'], [data-cells='classic']) .cv-short { display: block; }
-.cv-art { position: relative; flex: 1; min-height: 0; overflow: hidden; }
-.cv-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.cv-icon { display: none; }
-.cv-effect { font-weight: 800; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
-.board[data-cells]:not([data-cells='tiles']) .cell .tokens { bottom: 4px; }
-
-/* А. Игральная карта: цветная шапка с типом, иллюстрация в окне, строка эффекта */
-.board[data-cells='card'] .cell { background: var(--surface); border: 2px solid var(--c); }
-[data-cells='card'] .cv-head { background: var(--c); color: #fff; padding: 5% 7%; font-size: clamp(7px, 10.5cqw, 13px); }
-[data-cells='card'] .cv-head .icon { width: 1.25em; height: 1.25em; }
-[data-cells='card'] .cv-art { margin: 6% 6% 0; border-radius: 8%; background: color-mix(in srgb, var(--c) 14%, var(--surface)); }
-[data-cells='card'] .cv-effect { color: var(--c); padding: 5% 4% 6%; font-size: clamp(7px, 10cqw, 12px); }
-@media (prefers-color-scheme: dark) { [data-cells='card'] .cv-effect { color: color-mix(in srgb, var(--c) 55%, #fff); } }
-
-/* Б. Сцена: картинка на всю клетку, значок типа в углу, название и эффект на цветной плашке */
-.board[data-cells='scene'] .cell { box-shadow: inset 0 0 0 2px var(--c); }
-[data-cells='scene'] .cv-art { position: absolute; inset: 0; }
-[data-cells='scene'] .cv-art img { transform: scale(1.15); }
-[data-cells='scene'] .cv-head { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; flex-direction: column; gap: 0; align-items: center;
-  padding: 18% 4% 4%; color: #fff; font-size: clamp(7px, 10.5cqw, 13px); text-shadow: 0 1px 2px rgb(0 0 0 / 0.35);
-  background: linear-gradient(transparent, color-mix(in srgb, var(--c) 92%, #000) 55%); }
-[data-cells='scene'] .cv-head .icon { display: none; }
-[data-cells='scene'] .cv-effect { position: absolute; left: 0; right: 0; bottom: 3%; z-index: 2; color: #fff; font-size: clamp(6px, 8.5cqw, 11px); font-weight: 700; opacity: 0.92; }
-[data-cells='scene'] .cv-head { padding-bottom: 15%; }
-
-/* В. Инфографика: сплошной цвет типа, крупный значок и крупный эффект, без иллюстрации */
-.board[data-cells='info'] .cell { background: var(--c); color: #fff; }
-[data-cells='info'] .cv { justify-content: space-between; align-items: center; padding: 7% 5%; background: radial-gradient(circle at 50% 42%, rgb(255 255 255 / 0.18), transparent 60%); }
-[data-cells='info'] .cv-art { display: none; }
-[data-cells='info'] .cv-head { font-size: clamp(6px, 8.5cqw, 11px); opacity: 0.9; text-transform: uppercase; letter-spacing: 0.04em; }
-[data-cells='info'] .cv-head .icon { display: none; }
-[data-cells='info'] .cv-icon { display: block; width: 42%; aspect-ratio: 1; }
-[data-cells='info'] .cv-icon .icon { width: 100%; height: 100%; }
-[data-cells='info'] .cv-effect { font-size: clamp(7px, 10cqw, 13px); max-width: 100%; }
-
-/* Г. Настольная классика: цветная полоса без текста, название капителью, маленькая картинка, «цена» внизу */
-.board[data-cells='classic'] .cell { background: #fbf7ee; border-radius: 6px; box-shadow: inset 0 0 0 1px #d8cdb5; color: #2b2a26; }
-[data-cells='classic'] .cv::before { content: ''; flex: 0 0 17%; background: var(--c); border-bottom: 2px solid #2b2a26; }
-[data-cells='classic'] .cv-head { justify-content: center; padding: 6% 4% 0; font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; font-size: clamp(6px, 8.5cqw, 11px); }
-[data-cells='classic'] .cv-head .icon { display: none; }
-[data-cells='classic'] .cv-art { margin: 4% 18%; }
-[data-cells='classic'] .cv-art img { object-fit: contain; }
-[data-cells='classic'] .cv-effect { padding: 0 4% 7%; font-size: clamp(6px, 8.5cqw, 11px); font-weight: 700; color: #5b5546; }
-@media (prefers-color-scheme: dark) { .board[data-cells='classic'] .cell { background: #e9e1cf; } }
-
-@media (max-width: 640px) {
-  .cv-title { display: none; }
-  .cv-short { display: block; }
-  [data-cells='card'] .cv-head { justify-content: center; padding: 4% 2%; font-size: clamp(6px, 15cqw, 9px); }
-  [data-cells='card'] .cv-head .icon, [data-cells='card'] .cv-effect { display: none; }
-  [data-cells='card'] .cv-art { margin: 5%; }
-  [data-cells='scene'] .cv-effect, [data-cells='scene'] .cv-head .icon { display: none; }
-  [data-cells='scene'] .cv-head { padding: 25% 2% 4%; font-size: clamp(6px, 15cqw, 9px); }
-  [data-cells='info'] .cv { padding: 8% 3%; }
-  [data-cells='info'] .cv-head { display: none; }
-  [data-cells='info'] .cv { justify-content: center; gap: 6%; }
-  [data-cells='info'] .cv-icon { width: 40%; }
-  [data-cells='info'] .cv-effect { font-size: clamp(5px, 12.5cqw, 8px); white-space: normal; letter-spacing: -0.03em;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  [data-cells='classic'] .cv-head { font-size: clamp(5px, 13cqw, 8px); letter-spacing: 0; padding-top: 4%; }
-  [data-cells='classic'] .cv-effect { display: none; }
-  [data-cells='classic'] .cv-art { margin: 4% 10% 8%; }
-}
-
-/* Д. Билет: рисунок билета из набора 6, корешок с названием печатает интерфейс в стиле билета */
-.board[data-cells='ticket'] .cell { background: transparent; border-radius: 4%; overflow: visible; }
-.tk { position: absolute; inset: 0; pointer-events: none; }
-.tk-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.tk-dream { position: absolute; left: 12%; top: 10%; width: 76%; height: 58%; object-fit: cover; border-radius: 4%; }
-.tk-stub {
-  --paper: color-mix(in srgb, var(--c) 78%, #f3e6c8);
-  position: absolute; left: 4.5%; right: 4.5%; bottom: 3%; height: 20.5%;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06em;
-  background:
-    radial-gradient(circle at 0 50%, transparent 0 7%, var(--paper) 7.5%) left / 51% 100% no-repeat,
-    radial-gradient(circle at 100% 50%, transparent 0 7%, var(--paper) 7.5%) right / 51% 100% no-repeat;
-  border-top: 1.5px dashed color-mix(in srgb, #fff8e6 70%, transparent);
-  color: #fff8e6; font-family: 'Oswald Variable', var(--font); text-transform: uppercase; line-height: 1;
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--c) 60%, #000);
-}
-.tk-title {
-  display: flex; align-items: center; gap: 0.35em; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap;
-  /* до 6 букв полный размер, длиннее — мельче: «Сокращение» влезает целиком */
-  font-size: clamp(6px, min(15cqw, 90cqw / var(--len, 6)), 17px);
-}
-/* длинное слово: без ромбов и почти без разрядки, чтобы шрифт оставался крупным */
-.tk-title[data-long] { letter-spacing: 0.02em; font-size: clamp(6px, min(15cqw, 120cqw / var(--len, 6)), 17px); }
-.tk-title[data-long]::before, .tk-title[data-long]::after { display: none; }
-.tk-title::before, .tk-title::after { content: '◆'; font-size: 0.45em; opacity: 0.75; }
-.board[data-cells='ticket'] .cell .tokens { bottom: 24%; }
-.board[data-cells='ticket'] .cell.active { outline-offset: -1px; }
-@media (max-width: 640px) {
-  .tk-title::before, .tk-title::after { display: none; }
-  .tk-title { letter-spacing: 0.02em; font-size: clamp(5px, min(15cqw, 92cqw / var(--len, 6)), 10px); }
-  .tk-stub { height: 20%; }
 }
