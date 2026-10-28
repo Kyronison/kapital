@@ -100,6 +100,25 @@ const cardTitle = (deck: string, id: string): string => {
   return list.find((c) => c.id === id)?.title ?? id;
 };
 
+/** Что дала покупка: ищем карту по id в колодах сделок и проектов. */
+function boughtText(cardId: string, price: number): string {
+  const deal = [...content.smallDeals, ...content.bigDeals].find((c) => c.id === cardId);
+  if (deal?.kind === 'asset') return `«${deal.title}», взнос ${money(price)}: пассивный доход ${signed(deal.flow)} за период`;
+  if (deal?.kind === 'bond') {
+    const count = Math.round(price / deal.price);
+    return `облигации «${deal.title}», ${count} шт. за ${money(price)}: купоны ${signed(count * deal.coupon)} за период`;
+  }
+  if (deal?.kind === 'stock') return `${Math.round(price / deal.price)} акций «${deal.title}» за ${money(price)}: дохода не дают, заработать можно на продаже`;
+  const venture = content.ventures.find((c) => c.id === cardId);
+  if (venture) {
+    const shares = Math.round(price / venture.cost);
+    return `доли «${venture.title}», ${shares} шт. за ${money(price)}${venture.odds === undefined ? `: доход ${signed(shares * venture.income)} за период` : ''}`;
+  }
+  return `за ${money(price)}`;
+}
+
+const loanPaymentText = (amount: number) => money(Math.round(amount * content.rules.loanRate));
+
 export function describe(e: GameEvent, name: (id: string) => string): string | null {
   const who = 'playerId' in e ? name(e.playerId) : '';
   switch (e.type) {
@@ -109,15 +128,15 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'income_lost': return `${who}: доход пропал из-за кризиса`;
     case 'landed': return `${who} → ${CELL_TITLES[e.cell] ?? e.cell}`;
     case 'card_drawn': return `${who}: «${cardTitle(e.deck, e.cardId)}»`;
-    case 'bought': return `${who} покупает за ${money(e.price)}`;
+    case 'bought': return `${who} покупает ${boughtText(e.cardId, e.price)}`;
     case 'venture_rolled': return `${who}: на кубике ${e.roll} — ${e.success ? 'проект взлетел' : 'проект закрылся, вложение пропало'}`;
     case 'sold': return `${who} продаёт, выручка ${signed(e.proceeds)}`;
     case 'paid': return `${who} платит ${money(e.amount)}: ${e.reason}`;
-    case 'loan_taken': return `${who} берёт кредит ${money(e.amount)}${e.forced ? ' (не хватило денег)' : ''}`;
-    case 'loan_repaid': return `${who} гасит кредит ${money(e.amount)}`;
+    case 'loan_taken': return `${who} берёт кредит ${money(e.amount)}${e.forced ? ' (не хватило денег)' : ''}: расходы +${loanPaymentText(e.amount)} за период`;
+    case 'loan_repaid': return `${who} гасит кредит ${money(e.amount)}: расходы −${loanPaymentText(e.amount)} за период`;
     case 'child_born': return `${who}: в семье пополнение, детей ${e.children}`;
-    case 'laid_off': return `${who} попадает под сокращение: две зарплаты не придут`;
-    case 'donated': return `${who} жертвует ${money(e.amount)}: три хода с двумя кубиками`;
+    case 'laid_off': return `${who} попадает под сокращение: зарплат не будет ещё ${content.rules.layoffPaydays}, пассивный доход идёт`;
+    case 'donated': return `${who} жертвует ${money(e.amount)}: ${content.rules.charityTurns} хода с двумя кубиками`;
     case 'asset_liquidated': return `${who} распродаёт актив за ${money(e.proceeds)}`;
     case 'bankrupt': return `${who} банкротится и начинает заново`;
     case 'escaped': return `${who} выходит из «Круга забот»! Доход на «Свободном пути» ${money(e.outerIncome)}`;
@@ -129,7 +148,7 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'subscribed': return `${who}: «${e.title}», ${money(e.amount)} за период ещё ${e.paydays} зарплаты`;
     case 'trained': return `${who} учится за ${money(e.cost)}: расходы ниже на ${money(e.saving)}`;
     case 'received': return `${who} получает ${money(e.amount)}: ${e.reason}`;
-    case 'deposited': return `${who} кладёт на вклад ${money(e.amount)}`;
+    case 'deposited': return `${who} кладёт на вклад ${money(e.amount)}: доход ${signed(Math.round(e.amount * content.rules.depositRate))} за период`;
     case 'withdrawn': return `${who} снимает со вклада ${money(e.amount)}${e.forced ? ' (не хватило денег)' : ''}`;
     case 'bond_sold': return `${who} возвращает облигации за ${money(e.proceeds)}`;
     case 'turn_started': return `Ходит ${who}`;
