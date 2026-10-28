@@ -456,6 +456,10 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .level-chart .legend::before { content: ''; display: inline-block; width: 18px; margin-right: 6px; vertical-align: middle; border-top: 3px solid var(--emerald); }
 .level-chart .legend.example::before { border-top: 2px dashed var(--muted); }
 .level-chart .muted { flex-basis: 100%; font-size: 12px; }
+.level-chart.live { margin: 10px 0 0; }
+.level-chart .gap { flex-basis: 100%; font-weight: 700; }
+.level-chart .gap.ahead { color: var(--good); }
+.level-chart .gap.behind { color: var(--bad); }
 
 @media (max-width: 1000px) {
   .game { grid-template-columns: 1fr; }
