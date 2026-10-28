@@ -31,8 +31,14 @@ setInterval(() => db.sweep(), 3600_000).unref();
 // собранный клиент раздаём с того же порта: после pnpm build:web игра открывается по адресу сервера
 const webDir = env.KAPITAL_WEB_DIR ?? fileURLToPath(new URL('../../web/dist', import.meta.url));
 const serveWeb = existsSync(webDir);
-await createServer(auth, {}, serveWeb ? { webDir } : {}).listen(port);
+const site = {
+  operator: env.KAPITAL_OPERATOR?.trim() || null,
+  contact: env.KAPITAL_CONTACT_EMAIL?.trim() || null,
+  metrika: env.KAPITAL_METRIKA_ID?.trim().match(/^\d+$/)?.[0] ?? null,
+};
+await createServer(auth, {}, { ...(serveWeb ? { webDir } : {}), site }).listen(port);
 console.log(`Игровой сервер «Капитал» слушает порт ${port}`);
 if (serveWeb) console.log(`Сайт: http://localhost:${port}`);
 const p = auth.providers();
+if (production && (!site.operator || !site.contact)) console.warn('Не заданы KAPITAL_OPERATOR и KAPITAL_CONTACT_EMAIL: в политике конфиденциальности не будет оператора и почты для запросов');
 console.log(`Способы входа: почта ${p.email ? (env.KAPITAL_SMTP_URL ? 'через SMTP' : 'код в консоли') : 'выключена'}, Google ${p.google ? 'да' : 'нет'}, Яндекс ${p.yandex ? 'да' : 'нет'}, Telegram ${p.telegram ?? 'нет'}`);

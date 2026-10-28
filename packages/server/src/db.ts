@@ -124,6 +124,15 @@ export class Db {
   }
 
   /** Подпись почты для поиска: регистр и пробелы не важны. */
+  /**
+   * Удаление аккаунта по просьбе игрока: способы входа, пароль, сессии, прогресс и итоги уходят каскадом.
+   * Общие сохранения остаются у других игроков стола, из своего списка игрок пропадает.
+   */
+  deleteUser(id: string) {
+    this.sql.prepare('DELETE FROM save_players WHERE user_id = ?').run(id);
+    this.sql.prepare('DELETE FROM users WHERE id = ?').run(id);
+  }
+
   emailSubject(email: string): string {
     return this.vault.sign(email.trim().toLowerCase());
   }

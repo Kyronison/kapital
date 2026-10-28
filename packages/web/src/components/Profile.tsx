@@ -5,6 +5,7 @@ import { art, Icon } from '../art.js';
 import type { AccountApi } from '../auth.js';
 import { useProgress } from '../campaign-progress.js';
 import { useRating } from '../rating.js';
+import { goal, rememberConsent } from '../site.js';
 import { Avatar } from './Shell.js';
 
 const PROVIDER_TITLES = { email: 'Почта', google: 'Google', yandex: 'Яндекс ID', telegram: 'Telegram' } as const;
@@ -19,6 +20,7 @@ export function Profile({ auth }: { auth: AccountApi }) {
   const [password, setPassword] = useState('');
   const [note, setNote] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   if (!account || !providers) return null;
 
   const stars = Object.values(progress).reduce((a, b) => a + b, 0);
@@ -32,6 +34,9 @@ export function Profile({ auth }: { auth: AccountApi }) {
     if (password) patch.password = password;
     if (!patch.name && !patch.password) return setNote('Нечего сохранять');
     auth.update(patch).then(() => { setNote('Сохранено'); setPassword(''); }).catch((err: Error) => setNote(err.message));
+  };
+  const remove = () => {
+    auth.deleteAccount().then(() => { goal('account_deleted'); rememberConsent(false); }).catch((err: Error) => setNote(err.message));
   };
   const linked = (p: keyof typeof PROVIDER_TITLES) => account.logins.find((l) => l.provider === p);
 
@@ -118,6 +123,23 @@ export function Profile({ auth }: { auth: AccountApi }) {
           </ul>
         </section>
       </div>
+
+      <section className="card danger-zone">
+        <h2><Icon name="ui-shield" size={18} />Данные и удаление</h2>
+        <p className="muted">
+          Как мы храним ваши данные, написано в <a href="#/privacy">политике конфиденциальности</a>. Удаление аккаунта
+          отзывает согласие на обработку данных: имя, почта, способы входа, прогресс и место в рейтинге стираются сразу.
+        </p>
+        {!deleting ? (
+          <button className="ghost" onClick={() => setDeleting(true)}>Удалить аккаунт</button>
+        ) : (
+          <div className="row wrap">
+            <strong>Удалить аккаунт навсегда? Вернуть прогресс будет нельзя.</strong>
+            <button className="danger" onClick={remove}>Да, удалить</button>
+            <button className="ghost" onClick={() => setDeleting(false)}>Отмена</button>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

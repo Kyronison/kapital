@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { art, Icon } from '../art.js';
 import { keepInvite, type AccountApi } from '../auth.js';
+import { consentGiven, rememberConsent } from '../site.js';
+import { LegalFooter } from './Legal.js';
 
 type Step = { kind: 'email' } | { kind: 'code'; email: string; needName: boolean } | { kind: 'password' };
 
@@ -20,6 +22,20 @@ export function Login({ auth, invited }: { auth: AccountApi; invited: boolean })
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(consentGiven);
+  const NEED_CONSENT = 'Отметьте согласие на обработку персональных данных';
+  const agree = (v: boolean) => {
+    setAgreed(v);
+    rememberConsent(v);
+    if (v && error === NEED_CONSENT) setError(null);
+  };
+  /** Без согласия не уходим ни к Яндексу, ни к почте: данные начинают собираться с первого шага. */
+  const guard = (e: { preventDefault(): void }) => {
+    if (agreed) return true;
+    e.preventDefault();
+    setError(NEED_CONSENT);
+    return false;
+  };
 
   const run = async (f: () => Promise<void>) => {
     setBusy(true);
@@ -35,6 +51,7 @@ export function Login({ auth, invited }: { auth: AccountApi; invited: boolean })
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!guard(e)) return;
     if (step.kind === 'email') {
       void run(async () => {
         await auth.sendCode(email);
@@ -71,16 +88,25 @@ export function Login({ auth, invited }: { auth: AccountApi; invited: boolean })
         <span className="eyebrow">Рады вас видеть</span>
         <h2>Вход</h2>
         {step.kind === 'code' && <img className="login-step-art" src={art('login/code-sent.webp')} alt="" />}
+        {!none && step.kind !== 'code' && (
+          <label className="consent-check">
+            <input type="checkbox" checked={agreed} onChange={(e) => agree(e.target.checked)} />
+            <span>
+              Я даю <a href="#/consent">согласие на обработку персональных данных</a> и принимаю{' '}
+              <a href="#/privacy">политику конфиденциальности</a>
+            </span>
+          </label>
+        )}
         {services && step.kind === 'email' && (
           <div className="providers">
             {providers.yandex && (
-              <a className="kap-button provider provider-yandex" href="/api/auth/oauth/yandex/start">
+              <a className="kap-button provider provider-yandex" href="/api/auth/oauth/yandex/start" onClick={guard}>
                 <span className="provider-mark" aria-hidden="true">Я</span>
                 Войти с Яндекс ID
               </a>
             )}
-            {providers.google && <a className="kap-button provider" href="/api/auth/oauth/google/start"><Icon name="ui-user-circle" size={18} />Войти через Google</a>}
-            {providers.telegram && <TelegramButton bot={providers.telegram} onAuth={(d) => run(() => auth.signInTelegram(d))} />}
+            {providers.google && <a className="kap-button provider" href="/api/auth/oauth/google/start" onClick={guard}><Icon name="ui-user-circle" size={18} />Войти через Google</a>}
+            {providers.telegram && agreed && <TelegramButton bot={providers.telegram} onAuth={(d) => run(() => auth.signInTelegram(d))} />}
             {providers.email && <span className="or muted">или по почте</span>}
           </div>
         )}
@@ -142,7 +168,7 @@ export function Login({ auth, invited }: { auth: AccountApi; invited: boolean })
             <p>{error}</p>
           </div>
         )}
-        <p className="consent muted"><Icon name="ui-shield" size={14} /> Для входа мы храним только имя и почту, на серверах в России.</p>
+        <p className="consent muted"><Icon name="ui-shield" size={14} /> Для входа мы храним только имя и почту, зашифрованными, на серверах в России.</p>
         <img className="login-art" src={art('login/card-art.webp')} alt="" />
       </form>
     </main>

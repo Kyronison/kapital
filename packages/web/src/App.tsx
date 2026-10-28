@@ -6,6 +6,7 @@ import { applyRules } from './content.js';
 import { Campaign } from './components/Campaign.js';
 import { Game } from './components/Game.js';
 import { Help } from './components/Help.js';
+import { LegalFooter, LegalPage, useLegalDoc } from './components/Legal.js';
 import { Lobby } from './components/Lobby.js';
 import { Login } from './components/Login.js';
 import { Play } from './components/Play.js';
@@ -15,11 +16,13 @@ import { Shell } from './components/Shell.js';
 import { go, useTab } from './nav.js';
 import { useTable } from './net.js';
 import { loadRating, resetRating } from './rating.js';
+import { goal, startMetrika } from './site.js';
 
 export function App() {
   const api = useTable();
   const auth = useAccount();
   const tab = useTab();
+  const legal = useLegalDoc();
   const { view, room } = api;
   applyRules(view?.mode, view?.level?.id);
   const signedIn = auth.state.status === 'in';
@@ -47,6 +50,27 @@ export function App() {
     if (screen === 'cabinet') void loadRating().catch(() => undefined);
   }, [screen, tab]);
 
+  useEffect(() => {
+    void startMetrika();
+    if (new URLSearchParams(location.search).has('room')) goal('invite_opened');
+  }, []);
+  // цели воронки: вход, начало и конец партии или уровня
+  const [wasOut, setWasOut] = useState(false);
+  useEffect(() => {
+    if (auth.state.status === 'out') setWasOut(true);
+    if (signedIn && wasOut) goal('signed_in');
+  }, [auth.state.status, signedIn, wasOut]);
+  const level = view?.level?.id ?? null;
+  useEffect(() => {
+    if (screen === 'game') goal(level ? 'level_started' : 'game_started');
+  }, [screen, level]);
+  const finished = view?.game?.status === 'finished';
+  const iWon = finished && view?.game?.winnerId === api.me;
+  useEffect(() => {
+    if (finished && !level) goal('game_finished');
+    if (finished && level && iWon) goal('level_won');
+  }, [finished, iWon, level]);
+
   const name = auth.state.status === 'in' ? auth.state.account.user.name : '';
   const avatar = auth.state.status === 'in' ? auth.state.account.user.avatar : null;
   const toTraining = () => {
@@ -67,8 +91,9 @@ export function App() {
           {api.error}
         </div>
       )}
-      {screen === 'loading' ? null
-        : screen === 'login' ? <Login auth={auth} invited={new URLSearchParams(location.search).has('room')} />
+      {legal ? <LegalPage doc={legal} />
+        : screen === 'loading' ? null
+        : screen === 'login' ? <><Login auth={auth} invited={new URLSearchParams(location.search).has('room')} /><LegalFooter /></>
         : screen === 'game' ? <Game api={api} view={view!} onTraining={toTraining} />
         : screen === 'lobby' ? <Lobby api={api} view={view!} />
         : (

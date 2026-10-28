@@ -1080,3 +1080,25 @@ img.avatar-img { display: block; flex: none; border: none; border-radius: 50%; o
   .tier-badges img { width: 60px; height: 60px; }
   .tier-badges span { font-size: 16px; }
 }
+
+/* Документы о персональных данных, согласие при входе, знак 12+ */
+.consent-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.4; cursor: pointer; }
+.consent-check input { width: 18px; height: 18px; margin: 1px 0 0; flex: none; accent-color: var(--accent); }
+.consent-check a, .legal-footer a, .danger-zone a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.legal-footer { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 18px; padding: 20px 16px 28px; font-size: 12.5px; }
+.age-mark { display: inline-grid; place-items: center; min-width: 32px; height: 22px; padding: 0 6px; border: 1.5px solid currentColor; border-radius: 6px; font-weight: 700; }
+.legal { max-width: 760px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.legal-doc { padding: 28px; line-height: 1.55; }
+.legal-doc h1 { font-size: clamp(22px, 3vw, 28px); margin: 0 0 4px; }
+.legal-doc h2 { font-size: 17px; margin: 22px 0 8px; }
+.legal-doc ul, .legal-doc ol { padding-left: 20px; display: grid; gap: 6px; }
+.legal-doc a { color: var(--accent); }
+.danger-zone { margin-top: 16px; display: grid; gap: 12px; justify-items: start; }
+.danger-zone h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px; }
+.danger-zone p { margin: 0; max-width: 640px; }
+button.danger { background: var(--bad); color: #fff; border-color: var(--bad); }
+@media (max-width: 720px) {
+  .legal-doc { padding: 20px 16px; }
+  .cabinet .legal-footer { padding-bottom: 96px; }
+}
+.legal > .link { color: var(--accent); align-self: flex-start; }
