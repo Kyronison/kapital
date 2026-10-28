@@ -83,10 +83,10 @@ export function cellEffect(cell: string): string {
   }
 }
 
-/** Вариант оформления клеток для показа: ?cells=card|scene|info|classic, запоминается. */
-export type CellStyle = 'tiles' | 'card' | 'scene' | 'info' | 'classic';
+/** Вариант оформления клеток для показа: ?cells=card|scene|info|classic|ticket, запоминается. */
+export type CellStyle = 'tiles' | 'card' | 'scene' | 'info' | 'classic' | 'ticket';
 export function cellStyle(): CellStyle {
-  const all: CellStyle[] = ['tiles', 'card', 'scene', 'info', 'classic'];
+  const all: CellStyle[] = ['tiles', 'card', 'scene', 'info', 'classic', 'ticket'];
   try {
     const asked = new URLSearchParams(location.search).get('cells') as CellStyle | null;
     if (asked && all.includes(asked)) localStorage.setItem('kapital:cells', asked);

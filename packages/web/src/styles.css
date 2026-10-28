@@ -1028,3 +1028,30 @@ img.avatar-img { display: block; flex: none; border: none; border-radius: 50%; o
   [data-cells='classic'] .cv-effect { display: none; }
   [data-cells='classic'] .cv-art { margin: 4% 10% 8%; }
 }
+
+/* Д. Билет: рисунок билета из набора 6, корешок с названием печатает интерфейс в стиле билета */
+.board[data-cells='ticket'] .cell { background: transparent; border-radius: 4%; overflow: visible; }
+.tk { position: absolute; inset: 0; pointer-events: none; }
+.tk-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.tk-dream { position: absolute; left: 12%; top: 10%; width: 76%; height: 58%; object-fit: cover; border-radius: 4%; }
+.tk-stub {
+  --paper: color-mix(in srgb, var(--c) 78%, #f3e6c8);
+  position: absolute; left: 4.5%; right: 4.5%; bottom: 3%; height: 20.5%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.06em;
+  background:
+    radial-gradient(circle at 0 50%, transparent 0 7%, var(--paper) 7.5%) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 50%, transparent 0 7%, var(--paper) 7.5%) right / 51% 100% no-repeat;
+  border-top: 1.5px dashed color-mix(in srgb, #fff8e6 70%, transparent);
+  color: #fff8e6; font-family: 'Oswald Variable', var(--font); text-transform: uppercase; line-height: 1;
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--c) 60%, #000);
+}
+.tk-title { display: flex; align-items: center; gap: 0.35em; font-weight: 700; letter-spacing: 0.09em; font-size: clamp(7px, 10.5cqw, 14px); }
+.tk-title::before, .tk-title::after { content: '◆'; font-size: 0.45em; opacity: 0.75; }
+.tk-effect { font-weight: 500; letter-spacing: 0.06em; font-size: clamp(5px, 6.8cqw, 9px); opacity: 0.88; }
+.board[data-cells='ticket'] .cell .tokens { bottom: 24%; }
+.board[data-cells='ticket'] .cell.active { outline-offset: -1px; }
+@media (max-width: 640px) {
+  .tk-effect, .tk-title::before, .tk-title::after { display: none; }
+  .tk-title { letter-spacing: 0.02em; font-size: clamp(5px, 13.5cqw, 9px); }
+  .tk-stub { height: 20%; }
+}

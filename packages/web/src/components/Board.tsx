@@ -100,6 +100,15 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
                 <span className="cell-name">{title}</span>
                 <span className="cell-short" aria-hidden="true">{CELL_SHORT[cell] ?? title}</span>
               </>
+            ) : style === 'ticket' ? (
+              <span className="tk" aria-hidden="true">
+                <img className="tk-art" src={art(`cells-ticket/${cell}.webp`)} alt="" loading="lazy" />
+                {dreamPicture && <img className="tk-dream" src={art(dreamPicture)} alt="" loading="lazy" />}
+                <span className="tk-stub">
+                  <b className="tk-title">{CELL_SHORT[cell] ?? title}</b>
+                  <span className="tk-effect">{cellEffect(cell)}</span>
+                </span>
+              </span>
             ) : (
               <span className="cv" aria-hidden="true">
                 <span className="cv-head"><Icon name={`cell-${cell}`} /><b className="cv-title">{title}</b><b className="cv-short">{CELL_SHORT[cell] ?? title}</b></span>
