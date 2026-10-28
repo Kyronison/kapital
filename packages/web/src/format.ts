@@ -1,6 +1,6 @@
-import type { AssetType, Effect, EverydayCard, NewsCard, Risk } from '@kapital/content';
+import type { AssetCard, AssetType, Effect, EverydayCard, NewsCard, Risk } from '@kapital/content';
 import { content } from './content.js';
-import { effectAmount, type GameEvent, type PlayerState } from '@kapital/engine';
+import { effectAmount, roi, type GameEvent, type PlayerState } from '@kapital/engine';
 
 const nf = new Intl.NumberFormat('ru-RU');
 export const money = (n: number) => `${nf.format(Math.round(n))} К`;
@@ -137,6 +137,8 @@ export function describe(e: GameEvent, name: (id: string) => string): string | n
     case 'landed': return `${who} → ${CELL_TITLES[e.cell] ?? e.cell}`;
     case 'card_drawn': return `${who}: «${cardTitle(e.deck, e.cardId)}»`;
     case 'bought': return `${who} покупает ${boughtText(e.cardId, e.price, e.count)}`;
+    case 'deal_risk': return `${who}: на кубике ${e.roll}, нужно ${e.odds}+ — ${e.hit ? `не повезло: ${e.title.toLowerCase()}` : 'подвоха не оказалось'}`;
+    case 'asset_ready': return `${who}: ${e.title}, поток объекта ${signed(e.flow)}`;
     case 'venture_rolled': return `${who}: на кубике ${e.roll} — ${e.success ? 'проект взлетел' : 'проект закрылся, вложение пропало'}`;
     case 'sold': return `${who} продаёт, выручка ${signed(e.proceeds)}`;
     case 'paid': return `${who} платит ${money(e.amount)}: ${e.reason}`;
@@ -297,4 +299,31 @@ function effectText(p: PlayerState, e: Effect): string {
       return `кубик: ${e.odds}+ — ${win}, иначе ${lose}`;
     }
   }
+}
+
+/** Строки карточки сделки: цена, рыночная цена, поток сейчас и потом, риск. */
+export function assetFacts(card: AssetCard): [string, string][] {
+  const facts: [string, string][] = [['Цена', money(card.cost)]];
+  if (card.value !== undefined && card.value !== card.cost) facts.push(['Рыночная цена', money(card.value)]);
+  facts.push(['Взнос', money(card.down)], ['Поток', signed(card.flow)]);
+  if (card.later) facts.push([`Через ${paydaysText(card.later.paydays)}`, signed(card.flow + card.later.flow)]);
+  if (card.risk) facts.push(['Риск', riskOdds(card.risk.odds)]);
+  facts.push(['Доходность', percent(roi(card.flow, card.down))]);
+  return facts;
+}
+
+/** Пояснение к сделке: подвох из карты, что будет потом и чем грозит риск. */
+export function assetNote(card: AssetCard): string {
+  const parts = [card.note ?? 'Доходность: поток за период на вложенный взнос.'];
+  if (card.later) parts.push(`Через ${paydaysText(card.later.paydays)}: ${card.later.title.toLowerCase()}.`);
+  if (card.risk) parts.push(`Риск: ${card.risk.title.toLowerCase()}, если на кубике меньше ${card.risk.odds}.`);
+  return parts.join(' ');
+}
+
+/** «2 из 6»: на скольких гранях кубика срабатывает риск. */
+export const riskOdds = (odds: number) => `${Math.max(0, odds - 1)} из 6`;
+
+export function paydaysText(n: number): string {
+  const word = n % 10 === 1 && n % 100 !== 11 ? 'зарплату' : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? 'зарплаты' : 'зарплат';
+  return `${n} ${word}`;
 }

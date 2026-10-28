@@ -240,13 +240,14 @@ function Pickers({ professionId, dreamId, onProfession, onDream }: {
             <strong>Случайная</strong>
           </Choice>
           {content.professions.map((p) => (
-            <Choice key={p.id} checked={professionId === p.id} onPick={() => onProfession(p.id)} group="profession" label={p.title}>
+            <Choice key={p.id} checked={professionId === p.id} onPick={() => onProfession(p.id)} group="profession" label={p.title} hint={p.about}>
               <img src={art(`professions/${p.id}.webp`)} alt="" loading="lazy" />
               <strong>{p.title}</strong>
               <small>{nf.format(p.salary)} К</small>
             </Choice>
           ))}
         </div>
+        {professionId && <p className="muted">{content.professions.find((p) => p.id === professionId)?.about}</p>}
       </fieldset>
       <fieldset>
         <legend>Мечта</legend>
@@ -267,11 +268,11 @@ function Pickers({ professionId, dreamId, onProfession, onDream }: {
   );
 }
 
-function Choice({ checked, onPick, group, label, children }: {
-  checked: boolean; onPick: () => void; group: string; label: string; children: ReactNode;
+function Choice({ checked, onPick, group, label, hint, children }: {
+  checked: boolean; onPick: () => void; group: string; label: string; hint?: string; children: ReactNode;
 }) {
   return (
-    <label className={`choice${checked ? ' checked' : ''}`}>
+    <label className={`choice${checked ? ' checked' : ''}`} title={hint}>
       <input type="radio" name={group} checked={checked} onChange={onPick} aria-label={label} />
       {children}
     </label>

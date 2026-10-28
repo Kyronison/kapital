@@ -16,6 +16,19 @@ export interface Profession {
   startCash: number;
   /** Долги, которые числятся в пассивах (ипотека, автокредит, карты). */
   liabilities: { title: string; amount: number }[];
+  /** Чем профессия владеет с самого начала: квартира риелтора под сдачу, гараж фермера. */
+  startAssets?: StartAsset[];
+  /** Одна строка о профессии для выбора и карточки уровня: в чём её особенность. */
+  about: string;
+}
+
+export interface StartAsset {
+  assetType: AssetType;
+  title: string;
+  cost: number;
+  /** Остаток ипотеки: первый взнос уже внесён до начала партии. */
+  mortgage: number;
+  flow: number;
 }
 
 export type CellKind =
@@ -53,6 +66,27 @@ export interface AssetCard {
   cost: number;
   down: number;
   flow: number;
+  /**
+   * Рыночная стоимость, от которой считают цену покупатели. Без неё равна цене покупки.
+   * Ниже цены — переплата, которую не вернуть при продаже; выше — объект с торгов, на котором
+   * можно заработать перепродажей.
+   */
+  value?: number;
+  /** Скрытый дефект: всплывает после покупки, если на кубике выпало меньше odds. */
+  risk?: DealRisk;
+  /** Объект ещё не готов: через столько зарплат поток изменится на flow (дом сдадут, трассу откроют). */
+  later?: { paydays: number; flow: number; title: string };
+  /** Подсказка, в чём подвох или почему сделка спорная. */
+  note?: string;
+}
+
+export interface DealRisk {
+  odds: number;
+  title: string;
+  /** На сколько изменится поток объекта, обычно вниз. */
+  flow?: number;
+  /** Разовая трата на исправление. */
+  cash?: number;
 }
 
 export interface StockCard {

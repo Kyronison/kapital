@@ -62,6 +62,14 @@ export function createGame(content: Content, setups: PlayerSetup[], seed: number
   });
 
   let nextAssetId = 1;
+  for (const p of players) {
+    for (const a of professionOf(content, p).startAssets ?? []) {
+      p.assets.push({
+        id: `a${nextAssetId++}`, cardId: 'profession', assetType: a.assetType, title: a.title,
+        cost: a.cost, down: a.cost - a.mortgage, mortgage: a.mortgage, flow: a.flow,
+      });
+    }
+  }
   if (content.rules.startPassiveShare > 0) {
     for (const p of players) {
       const flow = Math.round(content.rules.startPassiveShare * baseExpenses(content, p));
@@ -280,6 +288,12 @@ class Turn {
     p.subscriptions = p.subscriptions.filter((x) => x.paydaysLeft > 0);
     for (const g of p.gigs) g.paydaysLeft--;
     p.gigs = p.gigs.filter((x) => x.paydaysLeft > 0);
+    for (const a of p.assets) {
+      if (!a.later || --a.later.paydaysLeft > 0) continue;
+      a.flow += a.later.flow;
+      this.events.push({ type: 'asset_ready', playerId: p.id, assetId: a.id, title: `${a.title}: ${a.later.title.toLowerCase()}`, flow: a.flow });
+      delete a.later;
+    }
     this.settle(p);
     this.followUps(p);
   }
@@ -659,17 +673,29 @@ export function applyAction(content: Content, state: GameState, action: Action):
       if (card.kind === 'asset') {
         if (p.cash < card.down) return fail('Не хватает денег на взнос: возьмите кредит или откажитесь');
         p.cash -= card.down;
-        p.assets.push({
+        const owned = {
           id: `a${s.nextAssetId++}`,
           cardId: card.id,
           assetType: card.assetType,
           title: card.title,
-          cost: card.cost,
+          cost: card.value ?? card.cost,
           down: card.down,
           mortgage: card.cost - card.down,
           flow: card.flow,
-        });
+          ...(card.later ? { later: { flow: card.later.flow, paydaysLeft: card.later.paydays, title: card.later.title } } : {}),
+        };
+        p.assets.push(owned);
         t.events.push({ type: 'bought', playerId: p.id, cardId: card.id, price: card.down });
+        if (card.risk) {
+          // дефект проверяют сразу после покупки: отказаться уже нельзя
+          const roll = t.rng.int(1, 6);
+          const hit = roll < card.risk.odds;
+          t.events.push({ type: 'deal_risk', playerId: p.id, cardId: card.id, title: card.risk.title, roll, odds: card.risk.odds, hit });
+          if (hit) {
+            owned.flow += card.risk.flow ?? 0;
+            if (card.risk.cash) t.pay(p, card.risk.cash, `${card.title}: ${card.risk.title.toLowerCase()}`);
+          }
+        }
         s.phase = 'end';
       } else if (card.kind === 'bond') {
         const count = action.shares ?? 0;

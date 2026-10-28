@@ -2,7 +2,7 @@ import { content } from '../content.js';
 import { everydayAmount, roi, trainingSaving, type GameEvent } from '@kapital/engine';
 import { art, Icon } from '../art.js';
 import {
-  ASSET_TITLES, CELL_TITLES, DECK_BACKS, DECK_TITLES, everydayArt, newsArt, RISK_TITLES, SITUATIONS, dreamTitle, money, percent, signed,
+  ASSET_TITLES, assetFacts, assetNote, CELL_TITLES, DECK_BACKS, DECK_TITLES, everydayArt, newsArt, RISK_TITLES, SITUATIONS, dreamTitle, money, percent, signed,
 } from '../format.js';
 import type { PublicGame, TableApi } from '../net.js';
 
@@ -101,8 +101,8 @@ function faceOf(game: PublicGame): Face | null {
       case 'asset':
         return {
           deck, picture: `deals/${card.assetType}.webp`, title: card.title,
-          facts: [['Цена', money(card.cost)], ['Взнос', money(card.down)], ['Поток', signed(card.flow)], ['Доходность', percent(roi(card.flow, card.down))]],
-          note: 'Доходность: поток за период на вложенный взнос.',
+          facts: assetFacts(card),
+          note: assetNote(card),
         };
       case 'stock': {
         const base = content.smallDeals.find((x) => x.id === card.id);
