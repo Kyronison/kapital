@@ -212,6 +212,33 @@ describe('профиль, партии и прогресс', () => {
   });
 });
 
+describe('персональные данные', () => {
+  it('сведения о сайте отдаются без входа, пустые по умолчанию', async () => {
+    expect((await browser()('/api/site')).body).toEqual({ operator: null, contact: null, metrika: null });
+  });
+
+  it('удаление аккаунта стирает вход, прогресс и сессию; почту можно зарегистрировать заново', async () => {
+    const me = browser();
+    await me('/api/auth/email/code', 'POST', { email: 'lena@example.com' });
+    const r = await me('/api/auth/email/verify', 'POST', { email: 'lena@example.com', code: lastCode(), name: 'Лена', password: 'пароль лены 1' });
+    const id = (r.body as unknown as Account).user.id;
+    db.recordGame('lena-1', { levelId: 'novice-1', stars: 3, players: [{ id, bot: false, won: true }] });
+    expect((await me('/api/auth/me', 'DELETE')).status).toBe(200);
+    expect(db.user(id)).toBeNull();
+    expect(db.progress(id)).toEqual({});
+    expect((await me('/api/auth/me')).status).toBe(401);
+    expect((await browser()('/api/auth/email/password', 'POST', { email: 'lena@example.com', password: 'пароль лены 1' })).status).not.toBe(200);
+    const again = browser();
+    await again('/api/auth/email/code', 'POST', { email: 'lena@example.com' });
+    expect((await again('/api/auth/email/verify', 'POST', { email: 'lena@example.com', code: lastCode() })).body).toEqual({ needName: true });
+  });
+
+  it('удалить аккаунт можно только свой и только со своего сайта', async () => {
+    expect((await browser()('/api/auth/me', 'DELETE')).status).toBe(401);
+    expect((await browser()('/api/auth/me', 'DELETE', undefined, { Origin: 'https://evil.example' })).status).toBe(403);
+  });
+});
+
 describe('рейтинг', () => {
   const win = (d: Db, game: string, winner: string, others: string[]) =>
     d.recordGame(game, { levelId: null, stars: null, players: [winner, ...others].map((id) => ({ id, bot: false, won: id === winner })) });

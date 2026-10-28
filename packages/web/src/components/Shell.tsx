@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { art, Icon, Logo, PLAYER_COLORS } from '../art.js';
 import { TABS, tabHref, type Tab } from '../nav.js';
+import { LegalFooter } from './Legal.js';
 
 /** Аватар игрока из набора; без него (боты, чужие сохранения) — круг с первой буквой имени. */
 export function Avatar({ name, avatar, size = 36 }: { name: string; avatar?: string | null; size?: number }) {
@@ -46,7 +47,7 @@ export function Shell({ tab, name, avatar, children }: { tab: Tab; name: string;
           </span>
         </a>
       </header>
-      <main className={`cabinet cabinet-${tab}`}>{children}</main>
+      <main className={`cabinet cabinet-${tab}`}>{children}<LegalFooter /></main>
       <nav className="bottom-nav" aria-label="Разделы">
         {TABS.filter((t) => t.id !== 'help').map((t) => (
           <a key={t.id} href={tabHref(t.id)} aria-current={tab === t.id ? 'page' : undefined}>

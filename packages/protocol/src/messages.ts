@@ -110,6 +110,16 @@ export interface AuthProviders {
   telegram: string | null;
 }
 
+/** Сведения о сайте для политики конфиденциальности и счётчика: задаются в .env сервера. */
+export interface SiteInfo {
+  /** ФИО или название оператора персональных данных. */
+  operator: string | null;
+  /** Почта для запросов об удалении и уточнении данных. */
+  contact: string | null;
+  /** Номер счётчика Яндекс Метрики; без него счётчик не загружается. */
+  metrika: string | null;
+}
+
 export interface AccountLogin {
   provider: 'email' | 'google' | 'yandex' | 'telegram';
   label: string | null;

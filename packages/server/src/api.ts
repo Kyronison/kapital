@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { SESSION_TTL_MS, type Auth, type Me } from './auth.js';
-import { isAvatar, type Rating } from '@kapital/protocol';
+import { isAvatar, type Rating, type SiteInfo } from '@kapital/protocol';
 import type { SaveSummary, User } from './db.js';
 import { randomToken } from './vault.js';
 
@@ -19,19 +19,22 @@ export interface ApiShapes {
   progress: Record<string, number>;
   rating: Rating;
   ticket: { ticket: string };
+  site: SiteInfo;
 }
+
+const NO_SITE: SiteInfo = { operator: null, contact: null, metrika: null };
 
 /**
  * HTTP-API аккаунтов под /api. Всё остальное отдаёт сайт.
  * Сессия живёт в cookie HttpOnly; запросы с изменениями принимаются только со своего сайта (Origin).
  */
-export function apiHandler(auth: Auth, fallback: Handler): Handler {
+export function apiHandler(auth: Auth, fallback: Handler, site: SiteInfo = NO_SITE): Handler {
   return async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
     if (!url.pathname.startsWith('/api/')) return fallback(req, res);
     res.setHeader('Cache-Control', 'no-store');
     try {
-      await route(auth, req, res, url);
+      await route(auth, site, req, res, url);
     } catch (e) {
       console.error('Ошибка API', e);
       if (!res.headersSent) json(res, 500, { error: 'Ошибка сервера' });
@@ -39,7 +42,7 @@ export function apiHandler(auth: Auth, fallback: Handler): Handler {
   };
 }
 
-async function route(auth: Auth, req: IncomingMessage, res: ServerResponse, url: URL) {
+async function route(auth: Auth, site: SiteInfo, req: IncomingMessage, res: ServerResponse, url: URL) {
   const method = req.method ?? 'GET';
   const path = url.pathname;
   const cookies = parseCookies(req.headers.cookie);
@@ -66,6 +69,7 @@ async function route(auth: Auth, req: IncomingMessage, res: ServerResponse, url:
   };
 
   if (path === '/api/auth/providers' && method === 'GET') return json(res, 200, auth.providers());
+  if (path === '/api/site' && method === 'GET') return json(res, 200, site satisfies ApiShapes['site']);
   if (path === '/api/auth/me' && method === 'GET') return user ? json(res, 200, auth.me(user)) : json(res, 401, { error: 'Нужно войти' });
   if (path === '/api/auth/me' && method === 'PATCH') {
     const u = need();
@@ -84,6 +88,14 @@ async function route(auth: Auth, req: IncomingMessage, res: ServerResponse, url:
       auth.db.setAvatar(u.id, body.avatar);
     }
     return json(res, 200, auth.me(auth.db.user(u.id)!));
+  }
+  if (path === '/api/auth/me' && method === 'DELETE') {
+    // отзыв согласия на обработку данных: аккаунт удаляется сразу и целиком
+    const u = need();
+    if (!u) return;
+    auth.db.deleteUser(u.id);
+    setCookie(res, SESSION_COOKIE, '', secure, 0);
+    return json(res, 200, { ok: true });
   }
   if (path === '/api/auth/logout' && method === 'POST') {
     if (token) auth.endSession(token);
