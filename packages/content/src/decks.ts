@@ -1,23 +1,37 @@
 import type {
-  AssetCard, AssetType, BondCard, DealCard, ExpenseCard, MarketCard, OfferCard, StockCard, TemptationCard,
+  AssetCard, AssetType, BondCard, DealCard, ExpenseCard, MarketCard, NewsCard, OfferCard, StockCard, TemptationCard,
 } from './types.js';
 
 const asset = (
   id: string, assetType: AssetType, title: string, cost: number, down: number, flow: number,
 ): AssetCard => ({ id, kind: 'asset', assetType, title, cost, down, flow });
 
-const TICKERS: Record<string, string> = {
+export const TICKERS: Record<string, string> = {
   ENRG: 'Энергосеть',
   TECH: 'Технополис',
   FOOD: 'Продмаг',
   GOLD: 'Северное золото',
+  AUTO: 'Автоград',
+  PHRM: 'Фармлаб',
+  BANK: 'Народный банк',
+  TELE: 'Связьком',
 };
 
+/**
+ * Дивиденд на акцию за период. Банк и связь платят стабильно, но растут медленно: при цене 10 К
+ * это 10% в период, как у автомата, а при 25 К — уже ниже ставки кредита.
+ */
+export const DIVIDENDS: Record<string, number> = { BANK: 1, TELE: 1 };
+
 const stockPrices: [string, number][] = [
-  ['ENRG', 5], ['ENRG', 10], ['ENRG', 15], ['ENRG', 20], ['ENRG', 30],
-  ['TECH', 5], ['TECH', 10], ['TECH', 10], ['TECH', 25], ['TECH', 40],
-  ['FOOD', 5], ['FOOD', 10], ['FOOD', 20], ['FOOD', 20], ['FOOD', 30],
-  ['GOLD', 5], ['GOLD', 10], ['GOLD', 15], ['GOLD', 25], ['GOLD', 40], ['GOLD', 20],
+  ['ENRG', 5], ['ENRG', 10], ['ENRG', 20], ['ENRG', 30],
+  ['TECH', 5], ['TECH', 10], ['TECH', 25], ['TECH', 40],
+  ['FOOD', 5], ['FOOD', 10], ['FOOD', 20], ['FOOD', 30],
+  ['GOLD', 5], ['GOLD', 15], ['GOLD', 25], ['GOLD', 40],
+  ['AUTO', 5], ['AUTO', 15], ['AUTO', 30],
+  ['PHRM', 10], ['PHRM', 20], ['PHRM', 45],
+  ['BANK', 10], ['BANK', 15], ['BANK', 25],
+  ['TELE', 10], ['TELE', 15], ['TELE', 20],
 ];
 
 const range = (ticker: string) => stockPrices.filter(([t]) => t === ticker).map(([, price]) => price);
@@ -30,6 +44,7 @@ const stocks: StockCard[] = stockPrices.map(([ticker, price], i) => ({
   price,
   low: Math.min(...range(ticker)),
   high: Math.max(...range(ticker)),
+  ...(DIVIDENDS[ticker] ? { dividend: DIVIDENDS[ticker] } : {}),
 }));
 
 const bonds: BondCard[] = [
@@ -78,6 +93,14 @@ export const smallDeals: DealCard[] = [
   asset('vending-7', 'vending', 'Зарядная станция для телефонов', 2500, 2500, 250),
   asset('vending-8', 'vending', 'Кофейный автомат в больнице', 3000, 3000, 400),
   asset('vending-9', 'vending', 'Аппарат с игрушками', 3500, 3500, 300),
+  asset('studio-11', 'studio', 'Студия у технопарка', 45000, 5000, 500),
+  asset('studio-12', 'studio', 'Студия у больницы', 40000, 4000, 400),
+  asset('room-11', 'room', 'Комната для вахтовиков', 20000, 2000, 250),
+  asset('room-12', 'room', 'Комната у колледжа', 25000, 3000, 300),
+  asset('garage-10', 'garage', 'Контейнер под склад', 8000, 1000, 150),
+  asset('garage-11', 'garage', 'Гараж у автосервиса', 8000, 1500, 200),
+  asset('vending-10', 'vending', 'Пункт проката самокатов', 3000, 3000, 300),
+  asset('vending-11', 'vending', 'Аппарат с цветами у вокзала', 3500, 3500, 400),
 ];
 
 /** Колода «Проект»: крупные сделки от 12 000 К. */
@@ -144,13 +167,16 @@ const LEVERAGED_MULTIPLIERS = [0.9, 1.0, 1.1, 1.15, 1.2];
 const LEVERAGED: AssetType[] = ['fourplex', 'complex'];
 const ALL_TYPES = Object.keys(TYPE_TITLE) as AssetType[];
 
+export const offerTitle = (assetType: AssetType, multiplier: number) =>
+  `Покупатель ищет ${TYPE_TITLE[assetType]}: даёт ${Math.round(multiplier * 100)}% стоимости`;
+
 const offers: OfferCard[] = ALL_TYPES.flatMap((assetType, t) =>
   // по 3–4 предложения на тип, разные множители
   (LEVERAGED.includes(assetType) ? LEVERAGED_MULTIPLIERS : MULTIPLIERS).filter((_, i) => (i + t) % 4 !== 3).map((multiplier, i) => ({
     id: `offer-${assetType}-${i + 1}`,
     kind: 'offer' as const,
     assetType,
-    title: `Покупатель ищет ${TYPE_TITLE[assetType]}: даёт ${Math.round(multiplier * 100)}% стоимости`,
+    title: offerTitle(assetType, multiplier),
     multiplier,
   })),
 );
@@ -175,10 +201,33 @@ const expenses: ExpenseCard[] = [
   ...e,
 }));
 
-/** Колода «Новости рынка». */
-export const market: MarketCard[] = [...offers, ...expenses];
+const HOMES: AssetType[] = ['studio', 'room', 'fourplex', 'complex'];
 
-/** Колода «Соблазн»: импульсивные траты. */
+/**
+ * Новости, которые несколько ходов меняют условия для всех за столом. Хорошие и плохие идут парами,
+ * поэтому в среднем рынок не дорожает и не дешевеет: выигрывает тот, кто успел воспользоваться.
+ * Покупателям на дома и комплексы новости надбавки не дают: там рычаг 90%, и даже +15% — это джекпот.
+ */
+const news: NewsCard[] = ([
+  ['Биржевой бум', 'Инвесторы скупают всё подряд: акции на открытых картах дороже в полтора раза. Время продавать.', 4, { kind: 'stocks', factor: 1.5 }],
+  ['Паника на бирже', 'Слухи о кризисе: акции на открытых картах на 40% дешевле. Время покупать, если есть деньги.', 4, { kind: 'stocks', factor: 0.6 }],
+  ['Прорыв в технологиях', 'Технополис и Фармлаб показали новые разработки: их акции вдвое дороже.', 4, { kind: 'stocks', tickers: ['TECH', 'PHRM'], factor: 2 }],
+  ['Тёплая зима', 'Спрос на энергию упал: акции Энергосети и Северного золота вдвое дешевле.', 4, { kind: 'stocks', tickers: ['ENRG', 'GOLD'], factor: 0.5 }],
+  ['Льготная ипотека', 'Банки снизили первый взнос: жильё покупается на 40% дешевле взноса.', 4, { kind: 'down', assetTypes: HOMES, factor: 0.6 }],
+  ['Ставки по ипотеке выросли', 'Первый взнос за жильё в полтора раза выше.', 4, { kind: 'down', assetTypes: HOMES, factor: 1.5 }],
+  ['Кредиты для малого бизнеса', 'Банк кредитует покупку бизнеса: взнос за автомойку, кафе и автомат на 40% ниже, остальное в долг.', 4, { kind: 'down', assetTypes: ['carwash', 'cafe', 'vending'], factor: 0.6 }],
+  ['Бум аренды', 'В город едут студенты и вахтовики: покупатели на студии и комнаты дают на 20% больше.', 4, { kind: 'offers', assetTypes: ['studio', 'room'], bonus: 0.2 }],
+  ['Спрос на готовый бизнес', 'Покупатели на автомойки, кафе и автоматы дают на 20% больше.', 4, { kind: 'offers', assetTypes: ['carwash', 'cafe', 'vending', 'garage'], bonus: 0.2 }],
+  ['Сезон распродаж', 'Скидки повсюду: соблазны вдвое дешевле.', 4, { kind: 'temptations', factor: 0.5 }],
+  ['Цены растут', 'Всё дорожает: соблазны в полтора раза дороже.', 4, { kind: 'temptations', factor: 1.5 }],
+] as [string, string, number, NewsCard['effect']][]).map(([title, text, turns, effect], i) => ({
+  id: `news-${i + 1}`, kind: 'news', title, text, turns, effect,
+}));
+
+/** Колода «Новости рынка». */
+export const market: MarketCard[] = [...offers, ...expenses, ...news];
+
+/** Колода «Соблазн»: импульсивные траты. Крупные можно взять в рассрочку на 4 зарплаты, это дороже. */
 export const temptations: TemptationCard[] = [
   ['Кофе навынос каждый день', 100], ['Подписка на третий сериал', 100], ['Билеты в кино', 100], ['Доставка ужина', 100],
   ['Новые кроссовки', 200], ['Концерт любимой группы', 200], ['Подарок на свадьбу', 200], ['Абонемент в спортзал', 200],
@@ -187,4 +236,7 @@ export const temptations: TemptationCard[] = [
   ['Отпуск в кредит', 800], ['Новый ноутбук', 800], ['Дизайнерская сумка', 800], ['Свадьба друга за границей', 800],
   ['Новый диван и шкаф', 1200], ['Ремонт кухни', 1200], ['Лодка', 1200], ['Банкет на юбилей', 1200],
   ['Отпуск на островах', 2000], ['Мотоцикл', 2000], ['Ремонт квартиры', 2000], ['Шуба', 2000],
-].map(([title, amount], i) => ({ id: `tempt-${i + 1}`, title: title as string, amount: amount as number }));
+].map(([title, amount], i) => ({
+  id: `tempt-${i + 1}`, title: title as string, amount: amount as number,
+  ...((amount as number) >= 800 && title !== 'Отпуск в кредит' ? { installments: 4 } : {}),
+}));

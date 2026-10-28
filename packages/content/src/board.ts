@@ -5,7 +5,7 @@ export const board: Board = {
   cells: [
     'opportunity', 'temptation', 'opportunity', 'market', 'opportunity', 'charity',
     'opportunity', 'market', 'everyday', 'opportunity', 'baby', 'opportunity',
-    'opportunity', 'temptation', 'market', 'opportunity', 'layoff', 'opportunity',
+    'opportunity', 'everyday', 'market', 'opportunity', 'layoff', 'opportunity',
     'opportunity', 'everyday', 'market', 'opportunity', 'opportunity', 'opportunity',
   ],
   paydayAt: [0, 6, 12, 18],
@@ -31,6 +31,7 @@ export const rules: Rules = {
   startPassiveShare: 0,
   depositRate: 0.01,
   depositStep: 1000,
+  installmentMarkup: 0.25,
 };
 
 /**

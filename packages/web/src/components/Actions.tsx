@@ -1,10 +1,11 @@
 import { content } from '../content.js';
 import {
-  availableLoan, dreamPrice, everydayAmount, passiveIncome, professionOf, trainingSaving, type PlayerState,
+  availableLoan, choiceOptions, defaultOption, dreamPrice, everydayAmount, passiveIncome, professionOf, trainingSaving,
+  type PlayerState,
 } from '@kapital/engine';
 import { useEffect, useState } from 'react';
 import { Icon } from '../art.js';
-import { money, RISK_TITLES, signed } from '../format.js';
+import { effectsText, money, RISK_TITLES, signed } from '../format.js';
 import type { PublicGame, Reaction, TableApi } from '../net.js';
 import { Outcome, outcomeOf } from './Outcome.js';
 
@@ -169,6 +170,23 @@ export function Actions({ api, game, me, reaction, seconds }: {
             </>
           );
         } else main = end;
+        break;
+      }
+      case 'choice': {
+        const options = choiceOptions(content, game) ?? [];
+        const fallback = defaultOption(game);
+        main = (
+          <div className="choice-options">
+            {pending?.deck === 'everyday' && pending.card.kind === 'dilemma' && <p className="choice-text">{pending.card.text}</p>}
+            {options.map((o, i) => (
+              <button key={o.label} className={i === 0 ? 'primary' : undefined} onClick={() => api.act({ type: 'CHOOSE', option: i })}>
+                <strong>{o.label}</strong>
+                <small>{effectsText(me, o.effects)}</small>
+              </button>
+            ))}
+            <p className="muted">Если не выбрать до конца хода, сработает «{options[fallback]?.label}».</p>
+          </div>
+        );
         break;
       }
       case 'charity': {

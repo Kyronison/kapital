@@ -1,14 +1,14 @@
 import { board, outerBoard, quickRules, rules } from './board.js';
 import { dreams, ventures } from './outer.js';
-import { bigDeals, market, smallDeals, temptations } from './decks.js';
-import { everyday } from './everyday.js';
+import { bigDeals, market, offerTitle, smallDeals, temptations, TICKERS } from './decks.js';
+import { everyday, followUps } from './everyday.js';
 import { levels } from './levels.js';
 import { professions } from './professions.js';
 import type { Content, GameMode, Level } from './types.js';
 
 export * from './types.js';
-export { levels };
-export { board, outerBoard, quickRules, rules, bigDeals, market, smallDeals, temptations, everyday, professions, dreams, ventures };
+export { levels, offerTitle, TICKERS };
+export { board, outerBoard, quickRules, rules, bigDeals, market, smallDeals, temptations, everyday, followUps, professions, dreams, ventures };
 
 export const defaultContent: Content = {
   professions,
@@ -18,6 +18,7 @@ export const defaultContent: Content = {
   market,
   temptations,
   everyday,
+  followUps,
   outerBoard,
   dreams,
   ventures,

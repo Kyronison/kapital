@@ -25,6 +25,7 @@ const SHAPES: Record<ClientAction['type'], { fields: string[]; check: Check }> =
   WITHDRAW: { fields: ['amount'], check: (m) => (isInt(m.amount) ? null : 'Сумма должна быть целой') },
   SELL_BOND: { fields: ['bondId'], check: (m) => (isStr(m.bondId) ? null : 'Не указаны облигации') },
   CANCEL_POLICY: { fields: ['risk'], check: (m) => (m.risk === 'health' || m.risk === 'property' ? null : 'Неизвестный полис') },
+  CHOOSE: { fields: ['option'], check: (m) => (isInt(m.option) && m.option >= 0 && m.option < 8 ? null : 'Неизвестный вариант') },
   END_TURN: { fields: [], check: () => null },
 };
 
