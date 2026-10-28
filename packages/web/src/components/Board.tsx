@@ -1,8 +1,8 @@
 import { content } from '../content.js';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { art, Icon, playerColor, Token } from '../art.js';
-import { CELL_SHORT, CELL_TITLES, cellEffect, cellHelp, cellStyle, cellTile, dreamArt, dreamTitle, PAYDAY_HELP } from '../format.js';
+import { CELL_SHORT, CELL_TITLES, cellEffect, cellHelp, cellStyle, cellTile, dreamArt, dreamTitle, PAYDAY_HELP, TICKET_NAMES } from '../format.js';
 import type { PublicGame } from '../net.js';
 
 /** Клетки идут по периметру квадрата по часовой стрелке от левого верхнего угла. */
@@ -105,8 +105,8 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
                 <img className="tk-art" src={art(`cells-ticket/${cell}.webp`)} alt="" loading="lazy" />
                 {dreamPicture && <img className="tk-dream" src={art(dreamPicture)} alt="" loading="lazy" />}
                 <span className="tk-stub">
-                  <b className="tk-title">{CELL_SHORT[cell] ?? title}</b>
-                  <span className="tk-effect">{cellEffect(cell)}</span>
+                  {/* длинное слово печатается мельче, чтобы влезло целиком */}
+                  <b className="tk-title" data-long={(TICKET_NAMES[cell] ?? title).length > 7 || undefined} style={{ '--len': (TICKET_NAMES[cell] ?? title).length } as CSSProperties}>{TICKET_NAMES[cell] ?? title}</b>
                 </span>
               </span>
             ) : (

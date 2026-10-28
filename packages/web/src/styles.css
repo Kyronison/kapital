@@ -1045,13 +1045,19 @@ img.avatar-img { display: block; flex: none; border: none; border-radius: 50%; o
   color: #fff8e6; font-family: 'Oswald Variable', var(--font); text-transform: uppercase; line-height: 1;
   text-shadow: 0 1px 0 color-mix(in srgb, var(--c) 60%, #000);
 }
-.tk-title { display: flex; align-items: center; gap: 0.35em; font-weight: 700; letter-spacing: 0.09em; font-size: clamp(7px, 10.5cqw, 14px); }
+.tk-title {
+  display: flex; align-items: center; gap: 0.35em; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap;
+  /* до 6 букв полный размер, длиннее — мельче: «Сокращение» влезает целиком */
+  font-size: clamp(6px, min(15cqw, 90cqw / var(--len, 6)), 17px);
+}
+/* длинное слово: без ромбов и почти без разрядки, чтобы шрифт оставался крупным */
+.tk-title[data-long] { letter-spacing: 0.02em; font-size: clamp(6px, min(15cqw, 120cqw / var(--len, 6)), 17px); }
+.tk-title[data-long]::before, .tk-title[data-long]::after { display: none; }
 .tk-title::before, .tk-title::after { content: '◆'; font-size: 0.45em; opacity: 0.75; }
-.tk-effect { font-weight: 500; letter-spacing: 0.06em; font-size: clamp(5px, 6.8cqw, 9px); opacity: 0.88; }
 .board[data-cells='ticket'] .cell .tokens { bottom: 24%; }
 .board[data-cells='ticket'] .cell.active { outline-offset: -1px; }
 @media (max-width: 640px) {
-  .tk-effect, .tk-title::before, .tk-title::after { display: none; }
-  .tk-title { letter-spacing: 0.02em; font-size: clamp(5px, 13.5cqw, 9px); }
+  .tk-title::before, .tk-title::after { display: none; }
+  .tk-title { letter-spacing: 0.02em; font-size: clamp(5px, min(15cqw, 92cqw / var(--len, 6)), 10px); }
   .tk-stub { height: 20%; }
 }

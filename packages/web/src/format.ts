@@ -63,6 +63,12 @@ export function cellHelp(cell: string): string {
   }
 }
 
+/** Название на корешке билета: одно полное слово, без сокращений. */
+export const TICKET_NAMES: Record<string, string> = {
+  ...CELL_SHORT,
+  layoff: 'Сокращение',
+};
+
 /** Главное о клетке в двух-трёх словах: строка эффекта на карточке клетки. */
 export function cellEffect(cell: string): string {
   const r = content.rules;
