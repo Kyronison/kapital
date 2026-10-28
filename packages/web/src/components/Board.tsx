@@ -1,7 +1,8 @@
 import { content } from '../content.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { art, Icon, playerColor, Token } from '../art.js';
-import { CELL_TITLES, cellArt, dreamTitle } from '../format.js';
+import { CELL_SHORT, CELL_TITLES, cellArt, cellHelp, dreamTitle, PAYDAY_HELP } from '../format.js';
 import type { PublicGame } from '../net.js';
 
 /** Клетки идут по периметру квадрата по часовой стрелке от левого верхнего угла. */
@@ -59,6 +60,7 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
   const size = board.cells.length / 4 + 1;
   const current = game.players[game.current]!;
   const shown = useSteppedPositions(game);
+  const [info, setInfo] = useState<number | null>(null);
   return (
     <div className={`board ${circle}`} style={{ gridTemplateColumns: `repeat(${size}, 1fr)`, gridTemplateRows: `repeat(${size}, 1fr)` }}>
       <div
@@ -80,6 +82,11 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
             className={`cell ${cell}${cell === 'dream' ? ' cell-dream' : ''}${active ? ' active cell-pulse' : ''}`}
             style={{ gridRow: row + 1, gridColumn: col + 1 }}
             title={dreams ? `${title}: ${dreams.map((d) => dreamTitle(d)).join(', ')}` : title}
+            role="button"
+            tabIndex={0}
+            aria-label={`${title}: что здесь происходит`}
+            onClick={() => setInfo(i)}
+            onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), setInfo(i))}
           >
             {board.paydayAt.includes(i) && (
               <span className="payday" title="Зарплата"><Icon name="cell-payday" label="Зарплата" /></span>
@@ -87,6 +94,7 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
             {picture && <img className="cell-art" src={art(picture)} alt="" loading="lazy" />}
             <Icon name={`cell-${cell}`} />
             <span className="cell-name">{title}</span>
+            <span className="cell-short" aria-hidden="true">{CELL_SHORT[cell] ?? title}</span>
             {here.length > 0 && (
               <span className="tokens">
                 {here.map((p) => (
@@ -102,6 +110,48 @@ export function Board({ game, circle, center }: { game: PublicGame; circle: 'inn
       <div className="center" style={{ gridRow: `2 / ${size}`, gridColumn: `2 / ${size}` }}>
         {center}
       </div>
+      {info !== null && (
+        <CellInfo
+          game={game} circle={circle} index={info} shown={shown}
+          onClose={() => setInfo(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Карточка клетки по нажатию: что это за клетка и что на ней происходит. */
+function CellInfo({ game, circle, index, shown, onClose }: {
+  game: PublicGame; circle: 'inner' | 'outer'; index: number; shown: Map<string, string>; onClose: () => void;
+}) {
+  const board = circle === 'inner' ? content.board : content.outerBoard;
+  const cell = board.cells[index]!;
+  const dreams = circle === 'outer' ? content.outerBoard.dreamsAt[index] : undefined;
+  const picture = cellArt(cell, index, circle, dreams);
+  const here = game.players.filter((p) => shown.get(p.id) === `${circle}:${index}`);
+  const title = CELL_TITLES[cell] ?? cell;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  // окно выносим в body: на поле есть анимации, внутри которых position: fixed ведёт себя иначе
+  return createPortal(
+    <div className="overlay toast-in" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className={`overlay-card cell-info ${cell}`} onClick={(e) => e.stopPropagation()}>
+        <div className="cell-info-art">
+          {picture ? <img src={art(picture)} alt="" /> : <Icon name={`cell-${cell}`} size={64} />}
+        </div>
+        <h2><Icon name={`cell-${cell}`} />{title}</h2>
+        <p>{cellHelp(cell)}</p>
+        {dreams && <p className="cell-info-extra">Мечты на этой клетке: {dreams.map((d) => dreamTitle(d)).join(', ')}.</p>}
+        {board.paydayAt.includes(index) && (
+          <p className="cell-info-extra"><Icon name="cell-payday" size={16} /> {PAYDAY_HELP[circle]}</p>
+        )}
+        {here.length > 0 && <p className="cell-info-extra">Сейчас здесь: {here.map((p) => p.name).join(', ')}.</p>}
+        <button className="primary" onClick={onClose} autoFocus>Понятно</button>
+      </div>
+    </div>,
+    document.body,
   );
 }
