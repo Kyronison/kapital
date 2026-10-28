@@ -15,6 +15,7 @@ import { Chat } from './Chat.js';
 import { LevelChart } from './LevelChart.js';
 import { Mentor } from './Mentor.js';
 import { ReportQuiz } from './ReportQuiz.js';
+import { FinanceReport } from './FinanceReport.js';
 import { Statement, type Flash } from './Statement.js';
 
 function useCountdown(deadline: number | null, total: number) {
@@ -244,21 +245,24 @@ export function Game({ api, view, onTraining }: { api: TableApi; view: View; onT
           onClose={closeMoment}
         />
       )}
-      <div className="boards" data-pane="turn">
-        {anyOuter && (
-          <div className="board-switch" role="tablist" aria-label="Какое поле показать">
-            {(['inner', 'outer'] as const).map((c) => (
-              <button
-                key={c} role="tab" aria-selected={shownCircle === c} className={shownCircle === c ? 'active' : ''}
-                onClick={() => setPinned(c === turnCircle ? null : c)}
-              >
-                {c === 'inner' ? 'Круг забот' : 'Свободный путь'} · {onCircle(c)}
-                {turnCircle === c && <span className="dot" aria-label="сейчас ходят здесь" />}
-              </button>
-            ))}
-          </div>
-        )}
-        <Board key={shownCircle} game={game} circle={shownCircle} center={turnCircle === shownCircle ? center : <span className="board-label">{shownCircle === 'inner' ? 'Круг забот' : 'Свободный путь'}</span>} />
+      <div className="main-col">
+        <div className="boards" data-pane="turn">
+          {anyOuter && (
+            <div className="board-switch" role="tablist" aria-label="Какое поле показать">
+              {(['inner', 'outer'] as const).map((c) => (
+                <button
+                  key={c} role="tab" aria-selected={shownCircle === c} className={shownCircle === c ? 'active' : ''}
+                  onClick={() => setPinned(c === turnCircle ? null : c)}
+                >
+                  {c === 'inner' ? 'Круг забот' : 'Свободный путь'} · {onCircle(c)}
+                  {turnCircle === c && <span className="dot" aria-label="сейчас ходят здесь" />}
+                </button>
+              ))}
+            </div>
+          )}
+          <Board key={shownCircle} game={game} circle={shownCircle} center={turnCircle === shownCircle ? center : <span className="board-label">{shownCircle === 'inner' ? 'Круг забот' : 'Свободный путь'}</span>} />
+        </div>
+        {me && me.circle === 'inner' && <FinanceReport p={me} />}
       </div>
       <aside className="side">
         {view.level && <LevelGoal view={view} />}

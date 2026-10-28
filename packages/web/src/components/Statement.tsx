@@ -1,10 +1,12 @@
 import { content } from '../content.js';
 import {
-  availableLoan, baseExpenses, depositIncome, cashflow, dreamPrice, loanPayment, passiveIncome, professionOf, type PlayerState,
+  baseExpenses, dreamPrice, gigIncome, loanPayment, passiveIncome, professionOf, type PlayerState,
 } from '@kapital/engine';
 import type { ReactNode } from 'react';
 import { art, Icon } from '../art.js';
-import { dreamTitle, money, RISK_TITLES, signed } from '../format.js';
+import { financeReport, type ReportSection } from '../finance-report.js';
+import { dreamTitle, money, signed } from '../format.js';
+import { showReportSection } from './FinanceReport.js';
 
 export interface Flash {
   key: number;
@@ -33,7 +35,7 @@ const Row = ({ icon, label, children, tone }: { icon: string; label: ReactNode; 
   </>
 );
 
-/** Финансовый отчёт игрока: главное число — поток за период. */
+/** Сводка финансов: доходы − расходы = поток; каждое слагаемое ведёт к своему разделу полного отчёта. */
 export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null }) {
   const prof = professionOf(content, p);
   const passive = passiveIncome(content, p);
@@ -70,8 +72,12 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
     );
   }
 
-  const flow = cashflow(content, p);
+  const r = financeReport(content, p);
+  const flow = r.income.total - r.expenses.total;
   const cover = Math.min(100, Math.floor((passive / expenses) * 100));
+  const scale = Math.max(r.income.total, r.expenses.total, 1);
+  const incomeParts = r.income.groups.flatMap((g) => g.lines.filter((l) => !l.off && l.amount > 0).map((l) => ({ ...l, cls: g.title === 'Пассивный доход' ? 'seg-passive' : 'seg-active' })));
+  const expenseParts = r.expenses.groups.flatMap((g) => g.lines.filter((l) => l.amount > 0));
   return (
     <section className="statement card">
       <header className="statement-head">
@@ -82,69 +88,79 @@ export function Statement({ p, flash }: { p: PlayerState; flash: Flash | null })
         </div>
       </header>
       <Cash cash={p.cash} flash={flash} />
-      <dl>
-        <Row icon="cell-payday" label="Зарплата">
-          {money(prof.salary)}{p.layoffPaydays > 0 ? ` (не придёт ещё ${p.layoffPaydays})` : ''}
-        </Row>
-        <Row icon="ui-income" label="Пассивный доход">{money(passive)}</Row>
-        <Row icon="ui-expense" label="Расходы">{money(expenses)}</Row>
-        <Row icon="ui-cashflow" label="Поток за период" tone={flow >= 0 ? 'good' : 'bad'}>{signed(flow)}</Row>
-        <Row icon="ui-bank" label="Кредит банка">
-          {money(p.bankLoan)}<small> · ещё {money(availableLoan(content, p))}</small>
-        </Row>
-        <Row icon="ui-family" label="Дети">{p.children}</Row>
-        {p.deposit > 0 && (
-          <Row icon="ui-deposit" label="Вклад">
-            {money(p.deposit)}<small> · {signed(depositIncome(content, p))} за период</small>
-          </Row>
-        )}
-        {p.savings > 0 && <Row icon="ui-training" label="Тренинги снизили расходы" tone="good">{signed(-p.savings)}</Row>}
-      </dl>
-      {(p.policies.length > 0 || p.subscriptions.length > 0 || (p.gigs ?? []).length > 0) && (
-        <ul className="assets everyday">
-          {p.policies.map((x) => (
-            <li key={x.risk}>
-              <Icon name={`ui-insurance-${x.risk === 'health' ? 'life' : 'property'}`} size={16} />
-              {RISK_TITLES[x.risk]}<span>{signed(-x.premium)}</span>
-            </li>
-          ))}
-          {(p.gigs ?? []).map((x, i) => (
-            <li key={`gig-${i}`}>
-              <Icon name="ui-income" size={16} />
-              {x.title} <small className="muted">ещё {x.paydaysLeft}</small><span className="good">{signed(x.amount)}</span>
-            </li>
-          ))}
-          {p.subscriptions.map((x, i) => (
-            <li key={`${x.cardId}-${i}`}>
-              <Icon name="ui-spend-monthly" size={16} />
-              {x.title} <small className="muted">ещё {x.paydaysLeft}</small><span>{signed(-x.amount)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Meter label={`Пассивный доход покрывает расходы на ${cover}%`} value={Math.min(passive, expenses)} max={expenses} />
-      {p.assets.length > 0 || p.stocks.length > 0 || p.bonds.length > 0 ? (
-        <ul className="assets">
-          {p.assets.map((a) => (
-            <li key={a.id}><Icon name={`asset-${a.assetType}`} size={16} />{a.title}<span>{signed(a.flow)}</span></li>
-          ))}
-          {p.bonds.map((b) => (
-            <li key={b.id}><Icon name="ui-bond" size={16} />{b.title} × {b.count}<span>{signed(b.count * b.coupon)}</span></li>
-          ))}
-          {p.stocks.map((s) => (
-            <li key={s.ticker}>
-              <Icon name={`stock-${s.ticker.toLowerCase()}`} size={16} />Акции {s.ticker} × {s.shares}
-              <span>{s.dividend ? signed(s.shares * s.dividend) : `по ${Math.round(s.avgPrice)} К`}</span>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="empty">
-          <img src={art('screens/empty-assets.webp')} alt="" />
-          <span className="muted">Активов пока нет. Ищите сделки на клетках «Возможность».</span>
+      <div className="flow-sum" aria-label="Из чего складывается поток за период">
+        <FlowTerm id="income" label="Доходы" amount={r.income.total} detail={
+          `зарплата ${money(prof.salary)}${p.layoffPaydays > 0 ? ' (сейчас не приходит)' : ''} + пассивный ${money(passive)}${gigIncome(p) > 0 ? ` + подработки ${money(gigIncome(p))}` : ''}`
+        }>
+          <Bars parts={incomeParts} scale={scale} />
+        </FlowTerm>
+        <FlowTerm id="expenses" op="−" label="Расходы" amount={r.expenses.total} detail={
+          `${r.expenses.groups.reduce((n, g) => n + g.lines.length, 0)} статей, крупнейшая: ${biggest(expenseParts)}`
+        }>
+          <Bars parts={expenseParts.map((l) => ({ ...l, cls: 'seg-expense' }))} scale={scale} />
+        </FlowTerm>
+        <div className="flow-result">
+          <span><span className="op">=</span>Поток за период</span>
+          <strong className={flow >= 0 ? 'good' : 'bad'}>{signed(flow)}</strong>
         </div>
-      )}
+      </div>
+      <div className="balance-tiles">
+        <button type="button" className="balance-tile" onClick={() => showReportSection('assets')}>
+          <span className="muted"><Icon name="ui-wallet" size={14} />Активы</span>
+          <b>{money(r.assets.total)}</b>
+          <small className="muted">{count(r.assets)} · подробнее ›</small>
+        </button>
+        <button type="button" className="balance-tile" onClick={() => showReportSection('liabilities')}>
+          <span className="muted"><Icon name="ui-bank" size={14} />Пассивы</span>
+          <b>{money(r.liabilities.total)}</b>
+          <small className="muted">кредит банка {money(p.bankLoan)} · ›</small>
+        </button>
+      </div>
+      <Meter label={`Пассивный доход покрывает расходы на ${cover}%`} value={Math.min(passive, expenses)} max={expenses} />
+      <p className="freedom-gap muted">
+        {passive >= expenses
+          ? 'Пассивный доход покрыл расходы: путь на «Свободный путь» открыт.'
+          : <>До «Свободного пути» не хватает <b>{money(expenses - passive)}</b> пассивного дохода за период.</>}
+      </p>
     </section>
+  );
+}
+
+const biggest = (lines: { label: string; amount: number }[]) => {
+  const top = [...lines].sort((a, b) => b.amount - a.amount)[0];
+  return top ? `${top.label.toLowerCase()} ${money(top.amount)}` : 'нет';
+};
+
+const count = (s: ReportSection) => {
+  const n = s.groups.reduce((sum, g) => sum + g.lines.length, 0);
+  return `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'статья' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'статьи' : 'статей'}`;
+};
+
+/** Слагаемое сводки: кнопка ведёт к своему разделу полного отчёта. */
+function FlowTerm({ id, op, label, amount, detail, children }: {
+  id: string; op?: string; label: string; amount: number; detail: string; children: ReactNode;
+}) {
+  return (
+    <button type="button" className={`flow-term flow-${id}`} onClick={() => showReportSection(id)}>
+      <span className="flow-line">
+        <span className="flow-label">{op && <span className="op">{op}</span>}{label}</span>
+        <b>{money(amount)}</b>
+        <span className="flow-more" aria-hidden="true">›</span>
+      </span>
+      {children}
+      <small className="muted">{detail}</small>
+    </button>
+  );
+}
+
+/** Полоса из отрезков-статей; доходы и расходы в одном масштабе, чтобы их было видно рядом. */
+function Bars({ parts, scale }: { parts: { key: string; label: string; amount: number; cls: string }[]; scale: number }) {
+  return (
+    <span className="flow-bar" aria-hidden="true">
+      {parts.map((x) => (
+        <span key={x.key} className={x.cls} style={{ width: `${(x.amount / scale) * 100}%` }} title={`${x.label}: ${money(x.amount)}`} />
+      ))}
+    </span>
   );
 }
 
