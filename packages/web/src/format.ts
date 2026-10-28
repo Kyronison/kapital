@@ -63,6 +63,12 @@ export function cellHelp(cell: string): string {
   }
 }
 
+/** Название на корешке билета: одно полное слово, без сокращений. */
+export const TICKET_NAMES: Record<string, string> = {
+  ...CELL_SHORT,
+  layoff: 'Сокращение',
+};
+
 /** Главное о клетке в двух-трёх словах: строка эффекта на карточке клетки. */
 export function cellEffect(cell: string): string {
   const r = content.rules;
@@ -83,10 +89,10 @@ export function cellEffect(cell: string): string {
   }
 }
 
-/** Вариант оформления клеток для показа: ?cells=card|scene|info|classic, запоминается. */
-export type CellStyle = 'tiles' | 'card' | 'scene' | 'info' | 'classic';
+/** Вариант оформления клеток для показа: ?cells=card|scene|info|classic|ticket, запоминается. */
+export type CellStyle = 'tiles' | 'card' | 'scene' | 'info' | 'classic' | 'ticket';
 export function cellStyle(): CellStyle {
-  const all: CellStyle[] = ['tiles', 'card', 'scene', 'info', 'classic'];
+  const all: CellStyle[] = ['tiles', 'card', 'scene', 'info', 'classic', 'ticket'];
   try {
     const asked = new URLSearchParams(location.search).get('cells') as CellStyle | null;
     if (asked && all.includes(asked)) localStorage.setItem('kapital:cells', asked);

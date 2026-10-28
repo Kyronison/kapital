@@ -1,5 +1,6 @@
 import '@fontsource-variable/manrope';
 import '@fontsource-variable/unbounded';
+import '@fontsource-variable/oswald';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.js';
