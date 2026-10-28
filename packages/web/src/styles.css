@@ -225,6 +225,9 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .game { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
 .boards { display: flex; flex-direction: column; gap: 16px; }
 .side { display: flex; flex-direction: column; gap: 16px; }
+/* вкладки партии нужны только на телефоне, на компьютере обёртки не влияют на раскладку */
+.pane { display: contents; }
+.pane.bankrupt-shake { display: block; }
 
 .board {
   position: relative; display: grid; gap: 5px; aspect-ratio: 1; width: 100%;
@@ -279,9 +282,8 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .cell-short { display: none; }
 .cell[role='button'] { cursor: pointer; }
 .cell[role='button']:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; z-index: 3; }
-.cell-info { text-align: left; }
 .cell-info-art {
-  display: grid; place-items: center; aspect-ratio: 3 / 2; margin: -4px 0 4px; border-radius: 16px;
+  position: relative; display: grid; place-items: center; aspect-ratio: 3 / 2; margin: -4px 0 4px; border-radius: 16px;
   background: var(--tone-special); overflow: hidden;
 }
 .cell-info.opportunity .cell-info-art, .cell-info.venture .cell-info-art { background: var(--tone-opportunity); }
@@ -290,7 +292,7 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .cell-info.everyday .cell-info-art { background: var(--tone-everyday); }
 .cell-info.dream .cell-info-art { background: var(--tone-dream); }
 .cell-info.lawsuit .cell-info-art, .cell-info.audit .cell-info-art, .cell-info.crisis .cell-info-art, .cell-info.layoff .cell-info-art { background: var(--tone-risk); }
-.overlay-card.cell-info .cell-info-art img { width: 100%; height: 100%; aspect-ratio: auto; object-fit: contain; }
+.overlay-card.overlay-card.cell-info .cell-info-art img { position: absolute; inset: 8%; width: 84%; height: 84%; aspect-ratio: auto; object-fit: contain; object-position: center; }
 .overlay-card.cell-info h2 { display: flex; align-items: center; gap: 8px; justify-content: flex-start; }
 .overlay-card.cell-info p { color: var(--text); margin-bottom: 10px; }
 .overlay-card.cell-info .cell-info-extra { color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: flex-start; }
@@ -379,6 +381,7 @@ body:has(.screen-game) { background: var(--bg) url('/art/screens/game-bg.webp') 
 .outcome-good dd { color: var(--good); }
 .outcome-warn dd { color: var(--bad); }
 .outcome p { margin: 6px 0 0; font-size: 13px; }
+.loan-toggle { display: none; }
 .loan { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .actions p { margin: 0; font-size: 13.5px; }
 
@@ -769,6 +772,22 @@ body:has(.screen-cabinet) { background: var(--bg) url('/art/cabinet/cabinet-bg.w
   .me-text strong { max-width: 110px; }
 }
 @media (max-width: 800px) {
+  /* партия на телефоне: вкладки внизу, цель над полем, панель хода над вкладками */
+  .game { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .game .side { display: contents; }
+  .game .level-goal { order: -1; }
+  .game .actions { bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .game .actions .loan:not(.open) { display: none; }
+  .game .actions .loan-toggle { display: inline-flex; margin-top: 10px; min-height: 40px; font-size: 14px; }
+  .game[data-mtab='turn'] [data-pane]:not([data-pane='turn']),
+  .game[data-mtab='money'] [data-pane]:not([data-pane='money']),
+  .game[data-mtab='players'] [data-pane]:not([data-pane='players']),
+  .game[data-mtab='chat'] [data-pane]:not([data-pane='chat']) { display: none; }
+  .game-tabs button {
+    display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 48px; padding: 6px 2px;
+    border: 0; border-radius: 12px; background: none; box-shadow: none; color: var(--muted); font-size: 12px; font-weight: 700;
+  }
+  .game-tabs button[aria-current='page'] { color: var(--accent); background: var(--tone-opportunity); }
   .screen-cabinet { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
   .shell-top { gap: 10px; margin-bottom: 16px; padding: 8px 12px; }
   .shell-top .tabs { display: none; }
