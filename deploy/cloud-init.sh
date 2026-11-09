@@ -1,22 +1,21 @@
 #!/bin/bash
 # Первый запуск сервера без SSH: вставьте этот файл в поле cloud-init при создании VPS
-# (Timeweb Cloud, Selectel и др.), заполнив две строки ниже. Ход установки: /var/log/kapital-init.log
+# Заполните KAPITAL_DOMAIN ниже. Ход установки: /var/log/kapital-init.log
+# Публичный репозиторий клонируется без учётных данных GitHub.
 #
-# GITHUB_TOKEN — fine-grained токен GitHub с доступом только на чтение (Contents: Read) к Kyronison/kapital.
 # KAPITAL_DOMAIN — ваш домен с A-записью на IP сервера. Пусто — временный адрес <IP>.sslip.io.
-GITHUB_TOKEN=
 KAPITAL_DOMAIN=
 
 exec >>/var/log/kapital-init.log 2>&1
-set -eux
+set -eu
 
-# сборка сайта на 1 ГБ памяти без подкачки падает
+# Подкачка для сборки сайта на сервере с небольшим объёмом памяти
 if [ ! -f /swapfile ]; then
   fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
   echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-# Docker Hub из России открывается не всегда: зеркала хостингов и Google
+# Зеркала Docker Registry; проверьте их доступность для выбранного сервера
 mkdir -p /etc/docker
 cat > /etc/docker/daemon.json <<'JSON'
 { "registry-mirrors": ["https://dockerhub.timeweb.cloud", "https://dockerhub1.beget.com", "https://mirror.gcr.io"] }
@@ -31,7 +30,7 @@ fi
 systemctl restart docker
 
 if [ ! -d /opt/kapital ]; then
-  git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/Kyronison/kapital.git" /opt/kapital
+  git clone https://github.com/Kyronison/kapital.git /opt/kapital
 fi
 cd /opt/kapital/deploy
 
